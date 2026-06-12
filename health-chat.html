@@ -114,9 +114,15 @@ let contextData = '';
 let messages = [];
 let userName = '';
 
+let userAccessToken = ANON_KEY;
+
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'health-login.html';
-  else { userName = data.session.user.email.split('@')[0]; loadContext(); }
+  else {
+    userAccessToken = data.session.access_token;
+    userName = data.session.user.email.split('@')[0];
+    loadContext();
+  }
 });
 
 async function logout() { await db.auth.signOut(); window.location.href = 'health-login.html'; }
@@ -125,9 +131,13 @@ async function loadContext() {
   document.getElementById('ctxDot').className = 'context-dot';
   document.getElementById('ctxText').textContent = 'Lade Gesundheitsdaten...';
 
+  const authDb = supabase.createClient(SUPABASE_URL, ANON_KEY, {
+    global: { headers: { Authorization: 'Bearer ' + userAccessToken } }
+  });
+
   const [measRes, actRes] = await Promise.all([
-    db.from('measurements').select('measured_at,value,value_text,parameters(name,category,unit,ref_range_low,ref_range_high)').order('measured_at', { ascending: false }).limit(200),
-    db.from('activities').select('date,type,duration_sec,distance_m,avg_heartrate,calories').order('date', { ascending: false }).limit(50),
+    authDb.from('measurements').select('measured_at,value,value_text,parameters(name,category,unit,ref_range_low,ref_range_high)').order('measured_at', { ascending: false }).limit(200),
+    authDb.from('activities').select('date,type,duration_sec,distance_m,avg_heartrate,calories').order('date', { ascending: false }).limit(50),
   ]);
 
   // Letzter Wert pro Parameter
