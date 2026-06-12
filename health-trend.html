@@ -107,6 +107,13 @@ async function init() {
     opt.textContent = p.name;
     sel.lastChild.appendChild(opt);
   }
+
+  // Auto-select if param= in URL
+  const paramId = new URLSearchParams(window.location.search).get('param');
+  if (paramId) {
+    sel.value = paramId;
+    loadTrend();
+  }
 }
 
 async function loadTrend() {
