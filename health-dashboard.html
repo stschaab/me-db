@@ -89,7 +89,7 @@ async function loadData() {
   try {
     // Alle Messungen mit Parameter-Info
     const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/measurements?select=measured_at,value,value_text,lab,notes,parameters(name,category,unit,ref_range_low,ref_range_high)&order=measured_at.desc`,
+      `${SUPABASE_URL}/rest/v1/measurements?select=measured_at,value,value_text,lab,notes,parameters(id,name,category,unit,ref_range_low,ref_range_high)&order=measured_at.desc`,
       { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
     );
     const data = await resp.json();
@@ -137,7 +137,7 @@ function render(data) {
       const date = new Date(row.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
       const lab = row.lab ? ` · ${row.lab}` : '';
       html += `
-        <div class="card">
+        <div class="card" onclick="window.location='health-trend.html?param=${p.id}'" style="cursor:pointer" title="Trend anzeigen">
           <div class="param">${name}</div>
           <div><span class="value">${display}</span><span class="unit">${p.unit || ''}</span></div>
           <div class="date">${date}${lab}</div>
