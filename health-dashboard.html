@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Health Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  header span { opacity: 0.5; font-size: 0.85rem; margin-left: 12px; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 1100px; margin: 32px auto; padding: 0 24px; }
+  .section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin: 32px 0 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .card .param { font-size: 0.8rem; color: #888; margin-bottom: 4px; }
+  .card .value { font-size: 1.6rem; font-weight: 700; }
+  .card .unit { font-size: 0.8rem; color: #aaa; margin-left: 4px; }
+  .card .date { font-size: 0.75rem; color: #bbb; margin-top: 4px; }
+  .card .range { font-size: 0.75rem; margin-top: 6px; padding: 3px 8px; border-radius: 20px; display: inline-block; }
+  .ok   { background: #e8f5e9; color: #2e7d32; }
+  .high { background: #fff3e0; color: #e65100; }
+  .low  { background: #e3f2fd; color: #1565c0; }
+  .na   { background: #f5f5f5; color: #999; }
+  .category-badge { font-size: 0.7rem; color: #aaa; font-style: italic; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  th { background: #f8f8f8; text-align: left; padding: 10px 14px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; border-bottom: 1px solid #eee; }
+  td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid #f0f0f0; }
+  tr:last-child td { border-bottom: none; }
+  .loading { text-align: center; padding: 60px; color: #aaa; }
+  .error { background: #fff3e0; border: 1px solid #ffcc02; border-radius: 8px; padding: 16px; color: #e65100; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Health Dashboard</h1>
+    <span id="lastUpdate">LÃ¤dt...</span>
+  </div>
+  <nav>
+    <a href="health-parameters.html">Parameter</a>
+    <a href="health-trend.html">Trend</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+
+<div class="container">
+  <div id="content"><div class="loading">Daten werden geladen...</div></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+// Auth-Check
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) window.location.href = 'health-login.html';
+  else loadData();
+});
+
+async function logout() {
+  await db.auth.signOut();
+  window.location.href = 'health-login.html';
+}
+
+async function query(sql) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY }
+  });
+  // Use PostgREST directly
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/measurements?select=*,parameters(*)&order=measured_at.desc`, {
+    headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY }
+  });
+  return resp.json();
+}
+
+async function loadData() {
+  try {
+    // Alle Messungen mit Parameter-Info
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/measurements?select=measured_at,value,value_text,lab,notes,parameters(name,category,unit,ref_range_low,ref_range_high)&order=measured_at.desc`,
+      { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
+    );
+    const data = await resp.json();
+    if (!Array.isArray(data)) throw new Error(JSON.stringify(data));
+    render(data);
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<div class="error">Fehler beim Laden: ${e.message}</div>`;
+  }
+}
+
+function statusLabel(val, low, high) {
+  if (val === null) return ['na', 'â€”'];
+  if (low !== null && val < low) return ['low', 'Zu niedrig'];
+  if (high !== null && val > high) return ['high', 'Zu hoch'];
+  return ['ok', 'Im Bereich'];
+}
+
+function render(data) {
+  // Letzter Wert pro Parameter
+  const latest = {};
+  for (const row of data) {
+    const name = row.parameters.name;
+    if (!latest[name]) latest[name] = row;
+  }
+
+  // Kategorien
+  const byCategory = {};
+  for (const [name, row] of Object.entries(latest)) {
+    const cat = row.parameters.category || 'Sonstige';
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push({ name, row });
+  }
+
+  const cats = ['Vitamin', 'Mineralstoff', 'AminosÃ¤urenprofil', 'Insulin', 'Homocystein', 'HÃ¤moglobin', 'Eiweiss', 'Sonstige'];
+  let html = '';
+
+  for (const cat of cats) {
+    if (!byCategory[cat]) continue;
+    html += `<div class="section-title">${cat}</div><div class="grid">`;
+    for (const { name, row } of byCategory[cat]) {
+      const p = row.parameters;
+      const val = row.value;
+      const display = row.value_text || (val !== null ? val : 'â€”');
+      const [cls, label] = statusLabel(val, p.ref_range_low, p.ref_range_high);
+      const date = new Date(row.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
+      const lab = row.lab ? ` Â· ${row.lab}` : '';
+      html += `
+        <div class="card">
+          <div class="param">${name}</div>
+          <div><span class="value">${display}</span><span class="unit">${p.unit || ''}</span></div>
+          <div class="date">${date}${lab}</div>
+          <span class="range ${cls}">${label}</span>
+        </div>`;
+    }
+    html += '</div>';
+  }
+
+  // Alle Messungen Tabelle
+  html += `<div class="section-title" style="margin-top:40px">Alle Messungen</div>
+  <table>
+    <thead><tr><th>Parameter</th><th>Kategorie</th><th>Datum</th><th>Wert</th><th>Einheit</th><th>Labor</th><th>Status</th></tr></thead>
+    <tbody>`;
+  for (const row of data) {
+    const p = row.parameters;
+    const val = row.value;
+    const display = row.value_text || (val !== null ? val : 'â€”');
+    const [cls, label] = statusLabel(val, p.ref_range_low, p.ref_range_high);
+    const date = new Date(row.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
+    html += `<tr>
+      <td><strong>${p.name}</strong></td>
+      <td>${p.category || 'â€”'}</td>
+      <td>${date}</td>
+      <td>${display}</td>
+      <td>${p.unit || 'â€”'}</td>
+      <td>${row.lab || 'â€”'}</td>
+      <td><span class="range ${cls}">${label}</span></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('lastUpdate').textContent = `${data.length} Messungen Â· Stand: ${new Date().toLocaleDateString('de-DE')}`;
+}
+
+</script>
+</body>
+</html>
