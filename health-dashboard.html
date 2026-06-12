@@ -41,7 +41,7 @@
 <header>
   <div>
     <h1>Health Dashboard</h1>
-    <span id="lastUpdate">LÃ¤dt...</span>
+    <span id="lastUpdate">Lädt...</span>
   </div>
   <nav>
     <a href="health-parameters.html">Parameter</a>
@@ -98,7 +98,7 @@ async function loadData() {
 }
 
 function statusLabel(val, low, high) {
-  if (val === null) return ['na', 'â€”'];
+  if (val === null) return ['na', '—'];
   if (low !== null && val < low) return ['low', 'Zu niedrig'];
   if (high !== null && val > high) return ['high', 'Zu hoch'];
   return ['ok', 'Im Bereich'];
@@ -120,7 +120,7 @@ function render(data) {
     byCategory[cat].push({ name, row });
   }
 
-  const cats = ['Vitamin', 'Mineralstoff', 'AminosÃ¤urenprofil', 'Insulin', 'Homocystein', 'HÃ¤moglobin', 'Eiweiss', 'Sonstige'];
+  const cats = ['Vitamin', 'Mineralstoff', 'Aminosäurenprofil', 'Insulin', 'Homocystein', 'Hämoglobin', 'Eiweiss', 'Sonstige'];
   let html = '';
 
   for (const cat of cats) {
@@ -129,10 +129,10 @@ function render(data) {
     for (const { name, row } of byCategory[cat]) {
       const p = row.parameters;
       const val = row.value;
-      const display = row.value_text || (val !== null ? val : 'â€”');
+      const display = row.value_text || (val !== null ? val : '—');
       const [cls, label] = statusLabel(val, p.ref_range_low, p.ref_range_high);
       const date = new Date(row.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
-      const lab = row.lab ? ` Â· ${row.lab}` : '';
+      const lab = row.lab ? ` · ${row.lab}` : '';
       html += `
         <div class="card">
           <div class="param">${name}</div>
@@ -152,23 +152,23 @@ function render(data) {
   for (const row of data) {
     const p = row.parameters;
     const val = row.value;
-    const display = row.value_text || (val !== null ? val : 'â€”');
+    const display = row.value_text || (val !== null ? val : '—');
     const [cls, label] = statusLabel(val, p.ref_range_low, p.ref_range_high);
     const date = new Date(row.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
     html += `<tr>
       <td><strong>${p.name}</strong></td>
-      <td>${p.category || 'â€”'}</td>
+      <td>${p.category || '—'}</td>
       <td>${date}</td>
       <td>${display}</td>
-      <td>${p.unit || 'â€”'}</td>
-      <td>${row.lab || 'â€”'}</td>
+      <td>${p.unit || '—'}</td>
+      <td>${row.lab || '—'}</td>
       <td><span class="range ${cls}">${label}</span></td>
     </tr>`;
   }
   html += '</tbody></table>';
 
   document.getElementById('content').innerHTML = html;
-  document.getElementById('lastUpdate').textContent = `${data.length} Messungen Â· Stand: ${new Date().toLocaleDateString('de-DE')}`;
+  document.getElementById('lastUpdate').textContent = `${data.length} Messungen · Stand: ${new Date().toLocaleDateString('de-DE')}`;
 }
 
 </script>
