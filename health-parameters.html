@@ -61,7 +61,7 @@
 
 <div class="container">
   <div class="toolbar">
-    <span id="status">LÃ¤dt...</span>
+    <span id="status">Lädt...</span>
   </div>
   <div id="content"><div class="loading">Daten werden geladen...</div></div>
 </div>
@@ -115,18 +115,18 @@ function render(params) {
   for (const p of params) {
     html += `<tr id="row-${p.id}" data-id="${p.id}">
       <td class="col-name"><strong>${p.name}</strong></td>
-      <td class="col-cat"><span class="cat-badge">${p.category || 'â€”'}</span></td>
+      <td class="col-cat"><span class="cat-badge">${p.category || '—'}</span></td>
       <td class="col-unit">
-        <input type="text" class="field" data-field="unit" value="${p.unit || ''}" placeholder="â€”">
+        <input type="text" class="field" data-field="unit" value="${p.unit || ''}" placeholder="—">
       </td>
       <td class="col-num">
-        <input type="number" class="field" data-field="ref_range_low" value="${p.ref_range_low ?? ''}" placeholder="â€”" step="any">
+        <input type="number" class="field" data-field="ref_range_low" value="${p.ref_range_low ?? ''}" placeholder="—" step="any">
       </td>
       <td class="col-num">
-        <input type="number" class="field" data-field="ref_range_high" value="${p.ref_range_high ?? ''}" placeholder="â€”" step="any">
+        <input type="number" class="field" data-field="ref_range_high" value="${p.ref_range_high ?? ''}" placeholder="—" step="any">
       </td>
       <td class="col-note">
-        <input type="text" class="field" data-field="ref_note" value="${p.ref_note || ''}" placeholder="â€”">
+        <input type="text" class="field" data-field="ref_note" value="${p.ref_note || ''}" placeholder="—">
       </td>
       <td class="col-save">
         <button class="save-btn" onclick="save(${p.id})">Speichern</button>
@@ -137,7 +137,7 @@ function render(params) {
   html += '</tbody></table>';
   document.getElementById('content').innerHTML = html;
 
-  // Ã„nderungen markieren
+  // Änderungen markieren
   document.querySelectorAll('input.field').forEach(inp => {
     const original = inp.value;
     inp.addEventListener('input', () => {
