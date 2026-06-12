@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Parameter Verwaltung</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 1200px; margin: 32px auto; padding: 0 24px; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .toolbar span { font-size: 0.8rem; color: #888; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #2e7d32; color: white; padding: 12px 20px; border-radius: 8px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+  .toast.error { background: #c62828; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  th { background: #f0f0f0; text-align: left; padding: 10px 12px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #666; border-bottom: 2px solid #e0e0e0; white-space: nowrap; }
+  td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; }
+  .cat-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; background: #e8eaf6; color: #3949ab; white-space: nowrap; }
+  input[type="text"], input[type="number"] {
+    border: 1px solid #e0e0e0; border-radius: 6px; padding: 5px 8px;
+    font-size: 0.85rem; width: 100%; background: #fafafa;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  input:focus { outline: none; border-color: #7ec8e3; background: white; }
+  input.changed { border-color: #fb8c00; background: #fff8e1; }
+  .save-btn {
+    background: #1a1a2e; color: white; border: none; border-radius: 6px;
+    padding: 5px 12px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .save-btn.visible { opacity: 1; }
+  .save-btn:hover { background: #2d2d4e; }
+  .loading { text-align: center; padding: 60px; color: #aaa; }
+  .col-name { min-width: 130px; }
+  .col-cat  { min-width: 120px; }
+  .col-unit { width: 90px; }
+  .col-num  { width: 100px; }
+  .col-note { min-width: 200px; }
+  .col-save { width: 80px; text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Parameter Verwaltung</h1>
+  <nav>
+    <a href="health-dashboard.html">Dashboard</a>
+    <a href="health-trend.html">Trend</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+
+<div class="container">
+  <div class="toolbar">
+    <span id="status">LÃ¤dt...</span>
+  </div>
+  <div id="content"><div class="loading">Daten werden geladen...</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const HEADERS = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' };
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) window.location.href = 'health-login.html';
+  else loadParams();
+});
+
+async function logout() {
+  await db.auth.signOut();
+  window.location.href = 'health-login.html';
+}
+
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+async function loadParams() {
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/parameters?order=category,name`, { headers: HEADERS });
+  const data = await resp.json();
+  render(data);
+}
+
+function render(params) {
+  document.getElementById('status').textContent = `${params.length} Parameter`;
+
+  let html = `<table>
+    <thead><tr>
+      <th class="col-name">Name</th>
+      <th class="col-cat">Kategorie</th>
+      <th class="col-unit">Einheit</th>
+      <th class="col-num">Ref Low</th>
+      <th class="col-num">Ref High</th>
+      <th class="col-note">Notiz</th>
+      <th class="col-save"></th>
+    </tr></thead>
+    <tbody>`;
+
+  for (const p of params) {
+    html += `<tr id="row-${p.id}" data-id="${p.id}">
+      <td class="col-name"><strong>${p.name}</strong></td>
+      <td class="col-cat"><span class="cat-badge">${p.category || 'â€”'}</span></td>
+      <td class="col-unit">
+        <input type="text" class="field" data-field="unit" value="${p.unit || ''}" placeholder="â€”">
+      </td>
+      <td class="col-num">
+        <input type="number" class="field" data-field="ref_range_low" value="${p.ref_range_low ?? ''}" placeholder="â€”" step="any">
+      </td>
+      <td class="col-num">
+        <input type="number" class="field" data-field="ref_range_high" value="${p.ref_range_high ?? ''}" placeholder="â€”" step="any">
+      </td>
+      <td class="col-note">
+        <input type="text" class="field" data-field="ref_note" value="${p.ref_note || ''}" placeholder="â€”">
+      </td>
+      <td class="col-save">
+        <button class="save-btn" onclick="save(${p.id})">Speichern</button>
+      </td>
+    </tr>`;
+  }
+
+  html += '</tbody></table>';
+  document.getElementById('content').innerHTML = html;
+
+  // Ã„nderungen markieren
+  document.querySelectorAll('input.field').forEach(inp => {
+    const original = inp.value;
+    inp.addEventListener('input', () => {
+      const row = inp.closest('tr');
+      inp.classList.toggle('changed', inp.value !== original);
+      const anyChanged = [...row.querySelectorAll('input.changed')].length > 0;
+      row.querySelector('.save-btn').classList.toggle('visible', anyChanged);
+    });
+  });
+}
+
+async function save(id) {
+  const row = document.getElementById('row-' + id);
+  const inputs = row.querySelectorAll('input.field');
+  const update = {};
+  for (const inp of inputs) {
+    const field = inp.dataset.field;
+    const val = inp.value.trim();
+    if (field === 'ref_range_low' || field === 'ref_range_high') {
+      update[field] = val === '' ? null : parseFloat(val);
+    } else {
+      update[field] = val === '' ? null : val;
+    }
+  }
+
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/parameters?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: { ...HEADERS, 'Prefer': 'return=minimal' },
+    body: JSON.stringify(update)
+  });
+
+  if (resp.ok || resp.status === 204) {
+    row.querySelectorAll('input.changed').forEach(i => i.classList.remove('changed'));
+    row.querySelector('.save-btn').classList.remove('visible');
+    showToast('Gespeichert');
+  } else {
+    const err = await resp.text();
+    showToast('Fehler: ' + err, true);
+  }
+}
+
+</script>
+</body>
+</html>
