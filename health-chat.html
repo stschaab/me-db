@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>KI Gesundheitsberater</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+
+  .container { max-width: 800px; margin: 0 auto; padding: 24px; height: calc(100vh - 70px); display: flex; flex-direction: column; gap: 16px; }
+
+  .context-bar { background: white; border-radius: 10px; padding: 12px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; gap: 12px; font-size: 0.82rem; color: #888; flex-shrink: 0; }
+  .context-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
+  .context-dot.loaded { background: #2e7d32; }
+  .context-text { flex: 1; }
+  .context-reload { background: none; border: 1px solid #e0e0e0; border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; cursor: pointer; color: #666; }
+  .context-reload:hover { background: #f5f5f5; }
+
+  .messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 4px 0; }
+
+  .msg { display: flex; gap: 12px; align-items: flex-start; }
+  .msg.user { flex-direction: row-reverse; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; flex-shrink: 0; }
+  .avatar.ai { background: #1a1a2e; color: white; }
+  .avatar.user { background: #fc4c02; color: white; }
+  .bubble { max-width: 85%; padding: 12px 16px; border-radius: 12px; font-size: 0.92rem; line-height: 1.6; }
+  .msg.ai .bubble { background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-radius: 4px 12px 12px 12px; }
+  .msg.user .bubble { background: #1a1a2e; color: white; border-radius: 12px 4px 12px 12px; }
+  .bubble p { margin-bottom: 8px; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .bubble ul, .bubble ol { margin: 6px 0 6px 20px; }
+  .bubble li { margin-bottom: 4px; }
+  .bubble strong { font-weight: 700; }
+
+  .typing { display: flex; gap: 4px; align-items: center; padding: 12px 16px; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: #ccc; animation: bounce 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+
+  .suggestions { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+  .suggest-btn { background: white; border: 1px solid #e0e0e0; border-radius: 20px; padding: 7px 14px; font-size: 0.82rem; cursor: pointer; color: #555; transition: all 0.15s; }
+  .suggest-btn:hover { border-color: #1a1a2e; color: #1a1a2e; }
+
+  .input-row { display: flex; gap: 10px; flex-shrink: 0; }
+  textarea { flex: 1; border: 1px solid #e0e0e0; border-radius: 10px; padding: 12px 16px; font-size: 0.95rem; font-family: inherit; resize: none; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.06); min-height: 52px; max-height: 140px; line-height: 1.5; }
+  textarea:focus { outline: none; border-color: #1a1a2e; }
+  .send-btn { background: #1a1a2e; color: white; border: none; border-radius: 10px; padding: 12px 20px; font-size: 1.1rem; cursor: pointer; flex-shrink: 0; transition: background 0.15s; }
+  .send-btn:hover { background: #2d2d4e; }
+  .send-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .welcome { text-align: center; padding: 40px 20px; color: #aaa; }
+  .welcome h2 { font-size: 1.1rem; color: #555; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>KI Gesundheitsberater</h1>
+  <nav>
+    <a href="health-dashboard.html">Dashboard</a>
+    <a href="health-parameters.html">Parameter</a>
+    <a href="health-trend.html">Trend</a>
+    <a href="health-activities.html">Aktivitäten</a>
+    <a href="health-strava.html">Strava</a>
+    <a href="health-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+
+<div class="container">
+  <div class="context-bar">
+    <div class="context-dot" id="ctxDot"></div>
+    <div class="context-text" id="ctxText">Lade Gesundheitsdaten...</div>
+    <button class="context-reload" onclick="loadContext()">Neu laden</button>
+  </div>
+
+  <div class="messages" id="messages">
+    <div class="welcome">
+      <h2>Dein persönlicher Gesundheitsberater</h2>
+      <p>Ich habe Zugriff auf deine Blutwerte und Aktivitäten.<br>Stell mir eine Frage über deine Gesundheit.</p>
+    </div>
+  </div>
+
+  <div class="suggestions" id="suggestions">
+    <button class="suggest-btn" onclick="ask('Wie sind meine aktuellen Blutwerte insgesamt zu bewerten?')">Blutwerte bewerten</button>
+    <button class="suggest-btn" onclick="ask('Welche Werte liegen außerhalb des Referenzbereichs?')">Auffällige Werte</button>
+    <button class="suggest-btn" onclick="ask('Wie war mein Training in den letzten 30 Tagen?')">Training analysieren</button>
+    <button class="suggest-btn" onclick="ask('Was sollte ich bei meinen aktuellen Werten supplementieren?')">Supplement-Tipps</button>
+  </div>
+
+  <div class="input-row">
+    <textarea id="input" placeholder="Stelle eine Frage zu deiner Gesundheit..." rows="1"
+      onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendMessage()}"
+      oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()">↑</button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
+
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+let contextData = '';
+let messages = [];
+let userName = '';
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) window.location.href = 'health-login.html';
+  else { userName = data.session.user.email.split('@')[0]; loadContext(); }
+});
+
+async function logout() { await db.auth.signOut(); window.location.href = 'health-login.html'; }
+
+async function loadContext() {
+  document.getElementById('ctxDot').className = 'context-dot';
+  document.getElementById('ctxText').textContent = 'Lade Gesundheitsdaten...';
+
+  const [measRes, actRes] = await Promise.all([
+    db.from('measurements').select('measured_at,value,value_text,parameters(name,category,unit,ref_range_low,ref_range_high)').order('measured_at', { ascending: false }).limit(200),
+    db.from('activities').select('date,type,duration_sec,distance_m,avg_heartrate,calories').order('date', { ascending: false }).limit(50),
+  ]);
+
+  // Letzter Wert pro Parameter
+  const latest = {};
+  for (const m of (measRes.data || [])) {
+    const name = m.parameters?.name;
+    if (name && !latest[name]) latest[name] = m;
+  }
+
+  const measLines = Object.entries(latest).map(([name, m]) => {
+    const p = m.parameters;
+    const val = m.value ?? m.value_text;
+    const ref = (p.ref_range_low != null || p.ref_range_high != null)
+      ? ` (Ref: ${p.ref_range_low ?? '?'}–${p.ref_range_high ?? '?'} ${p.unit || ''})`
+      : '';
+    const status = m.value != null && p.ref_range_low != null && m.value < p.ref_range_low ? ' ⚠ ZU NIEDRIG'
+      : m.value != null && p.ref_range_high != null && m.value > p.ref_range_high ? ' ⚠ ZU HOCH' : '';
+    return `${name}: ${val} ${p.unit || ''}${ref}${status} [${m.measured_at}]`;
+  });
+
+  const actLines = (actRes.data || []).slice(0, 20).map(a => {
+    const km = a.distance_m ? (a.distance_m/1000).toFixed(1)+'km' : '';
+    const min = a.duration_sec ? Math.round(a.duration_sec/60)+'min' : '';
+    const hr = a.avg_heartrate ? `Ø${a.avg_heartrate}bpm` : '';
+    return `${a.date} ${a.type} ${km} ${min} ${hr}`.trim();
+  });
+
+  contextData = `BLUTWERTE (neuester Wert pro Parameter):\n${measLines.join('\n')}\n\nAKTIVITÄTEN (letzte 20):\n${actLines.join('\n')}`;
+
+  const paramCount = Object.keys(latest).length;
+  const actCount = actRes.data?.length || 0;
+  document.getElementById('ctxDot').className = 'context-dot loaded';
+  document.getElementById('ctxText').textContent = `${paramCount} Parameter + ${actCount} Aktivitäten geladen`;
+}
+
+function ask(text) {
+  document.getElementById('input').value = text;
+  sendMessage();
+}
+
+function addMessage(role, content) {
+  const div = document.getElementById('messages');
+
+  // Remove welcome message
+  const welcome = div.querySelector('.welcome');
+  if (welcome) welcome.remove();
+
+  const msg = document.createElement('div');
+  msg.className = 'msg ' + role;
+
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar ' + role;
+  avatar.textContent = role === 'ai' ? 'AI' : 'Du';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+
+  if (role === 'ai') {
+    // Simple markdown: **bold**, newlines
+    bubble.innerHTML = content
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>')
+      .replace(/^/, '<p>').replace(/$/, '</p>');
+  } else {
+    bubble.textContent = content;
+  }
+
+  msg.appendChild(avatar);
+  msg.appendChild(bubble);
+  div.appendChild(msg);
+  div.scrollTop = div.scrollHeight;
+  return bubble;
+}
+
+function showTyping() {
+  const div = document.getElementById('messages');
+  const msg = document.createElement('div');
+  msg.className = 'msg ai';
+  msg.id = 'typing';
+  msg.innerHTML = '<div class="avatar ai">AI</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>';
+  div.appendChild(msg);
+  div.scrollTop = div.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('input');
+  const text = input.value.trim();
+  if (!text || !contextData) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  document.getElementById('sendBtn').disabled = true;
+  document.getElementById('suggestions').style.display = 'none';
+
+  addMessage('user', text);
+  messages.push({ role: 'user', content: text });
+
+  showTyping();
+
+  try {
+    const resp = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, context: contextData }),
+    });
+    const data = await resp.json();
+    document.getElementById('typing')?.remove();
+    const reply = data.content?.[0]?.text || data.error || 'Keine Antwort erhalten.';
+    addMessage('ai', reply);
+    messages.push({ role: 'assistant', content: reply });
+  } catch (err) {
+    document.getElementById('typing')?.remove();
+    addMessage('ai', 'Fehler: ' + err.message);
+  }
+
+  document.getElementById('sendBtn').disabled = false;
+  input.focus();
+}
+</script>
+</body>
+</html>
