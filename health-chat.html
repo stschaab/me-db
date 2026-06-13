@@ -84,11 +84,13 @@
   <h1>KI Gesundheitsberater</h1>
   <nav>
     <a href="health-dashboard.html">Dashboard</a>
+    <a href="health-measurements.html">Messungen</a>
     <a href="health-parameters.html">Parameter</a>
     <a href="health-trend.html">Trend</a>
-    <a href="health-activities.html">AktivitÃ¤ten</a>
-    <a href="health-strava.html">Strava</a>
     <a href="health-users.html">Users</a>
+    <a href="health-strava.html">Strava</a>
+    <a href="health-activities.html">Aktivitäten</a>
+    <a href="health-chat.html">KI Chat</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
   </nav>
 </header>
@@ -102,7 +104,7 @@
       </button>
     </div>
     <div class="sidebar-list" id="sessionList">
-      <div style="padding:20px 14px;font-size:0.8rem;color:#6b7280">Lade GesprÃ¤che...</div>
+      <div style="padding:20px 14px;font-size:0.8rem;color:#6b7280">Lade Gespräche...</div>
     </div>
   </div>
 
@@ -116,15 +118,15 @@
 
     <div class="messages" id="messages">
       <div class="welcome">
-        <h2>Dein persÃ¶nlicher Gesundheitsberater</h2>
-        <p>Ich habe Zugriff auf deine Blutwerte und AktivitÃ¤ten.<br>Stell mir eine Frage oder wÃ¤hle ein GesprÃ¤ch links.</p>
+        <h2>Dein persönlicher Gesundheitsberater</h2>
+        <p>Ich habe Zugriff auf deine Blutwerte und Aktivitäten.<br>Stell mir eine Frage oder wähle ein Gespräch links.</p>
       </div>
     </div>
 
     <div class="bottom-area">
       <div class="suggestions" id="suggestions">
         <button class="suggest-btn" onclick="ask('Wie sind meine aktuellen Blutwerte insgesamt zu bewerten?')">Blutwerte bewerten</button>
-        <button class="suggest-btn" onclick="ask('Welche Werte liegen auÃŸerhalb des Referenzbereichs?')">AuffÃ¤llige Werte</button>
+        <button class="suggest-btn" onclick="ask('Welche Werte liegen außerhalb des Referenzbereichs?')">Auffällige Werte</button>
         <button class="suggest-btn" onclick="ask('Wie war mein Training in den letzten 30 Tagen?')">Training analysieren</button>
         <button class="suggest-btn" onclick="ask('Was sollte ich bei meinen aktuellen Werten supplementieren?')">Supplement-Tipps</button>
       </div>
@@ -132,7 +134,7 @@
         <textarea id="input" placeholder="Stelle eine Frage zu deiner Gesundheit..." rows="1"
           onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendMessage()}"
           oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()">â†‘</button>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">↑</button>
       </div>
     </div>
   </div>
@@ -166,7 +168,7 @@ db.auth.getSession().then(({ data }) => {
 
 async function logout() { await db.auth.signOut(); window.location.href = 'health-login.html'; }
 
-// â”€â”€ Session-Liste laden â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Session-Liste laden ──────────────────────────────────────────
 async function loadSessions() {
   const { data } = await authDb
     .from('chat_messages')
@@ -189,11 +191,11 @@ async function loadSessions() {
   list.innerHTML = '';
 
   if (sessions.length === 0) {
-    list.innerHTML = '<div style="padding:14px;font-size:0.8rem;color:#6b7280">Noch keine GesprÃ¤che</div>';
+    list.innerHTML = '<div style="padding:14px;font-size:0.8rem;color:#6b7280">Noch keine Gespräche</div>';
     return;
   }
 
-  // Gruppen: Heute / Diese Woche / FrÃ¼her
+  // Gruppen: Heute / Diese Woche / Früher
   const now = new Date();
   const groups = { heute: [], woche: [], frueher: [] };
   for (const s of sessions) {
@@ -214,7 +216,7 @@ async function loadSessions() {
       const item = document.createElement('div');
       item.className = 'session-item' + (s.session_id === sessionId ? ' active' : '');
       item.dataset.sid = s.session_id;
-      const title = s.content.length > 38 ? s.content.slice(0, 38) + 'â€¦' : s.content;
+      const title = s.content.length > 38 ? s.content.slice(0, 38) + '…' : s.content;
       const dateStr = new Date(s.created_at).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
       item.innerHTML = `<div>${title}</div><div class="session-date">${dateStr}</div>`;
       item.onclick = () => loadSession(s.session_id, item);
@@ -224,10 +226,10 @@ async function loadSessions() {
 
   renderGroup('Heute', groups.heute);
   renderGroup('Diese Woche', groups.woche);
-  renderGroup('FrÃ¼her', groups.frueher);
+  renderGroup('Früher', groups.frueher);
 }
 
-// â”€â”€ Session laden â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Session laden ────────────────────────────────────────────────
 async function loadSession(sid, itemEl) {
   sessionId = sid;
   messages = [];
@@ -237,7 +239,7 @@ async function loadSession(sid, itemEl) {
 
   document.getElementById('suggestions').style.display = 'none';
   const div = document.getElementById('messages');
-  div.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:0.85rem">Lade GesprÃ¤ch...</div>';
+  div.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:0.85rem">Lade Gespräch...</div>';
 
   const { data } = await authDb
     .from('chat_messages')
@@ -255,21 +257,21 @@ async function loadSession(sid, itemEl) {
   div.scrollTop = div.scrollHeight;
 }
 
-// â”€â”€ Neuer Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Neuer Chat ───────────────────────────────────────────────────
 function newChat() {
   sessionId = crypto.randomUUID();
   messages = [];
   document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
   const div = document.getElementById('messages');
   div.innerHTML = `<div class="welcome">
-    <h2>Neues GesprÃ¤ch</h2>
+    <h2>Neues Gespräch</h2>
     <p>Stell mir eine Frage zu deiner Gesundheit.</p>
   </div>`;
   document.getElementById('suggestions').style.display = 'flex';
   document.getElementById('input').focus();
 }
 
-// â”€â”€ Kontext laden â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Kontext laden ────────────────────────────────────────────────
 async function loadContext() {
   document.getElementById('ctxDot').className = 'context-dot';
   document.getElementById('ctxText').textContent = 'Lade Gesundheitsdaten...';
@@ -293,33 +295,33 @@ async function loadContext() {
     const refLow  = p.ref_range_low_si  ?? p.ref_range_low;
     const refHigh = p.ref_range_high_si ?? p.ref_range_high;
     const ref = (refLow != null || refHigh != null)
-      ? ` (Ref: ${refLow ?? '?'}â€“${refHigh ?? '?'} ${unitSi})`
+      ? ` (Ref: ${refLow ?? '?'}–${refHigh ?? '?'} ${unitSi})`
       : '';
     const vals = rows.map(m => {
       const valSi = m.value_si ?? m.value;
-      const status = valSi != null && refLow != null && valSi < refLow ? 'âš â†“'
-        : valSi != null && refHigh != null && valSi > refHigh ? 'âš â†‘' : '';
+      const status = valSi != null && refLow != null && valSi < refLow ? '⚠↓'
+        : valSi != null && refHigh != null && valSi > refHigh ? '⚠↑' : '';
       const origUnit = m.unit || p.unit || '';
       const origNote = origUnit && origUnit !== unitSi && m.value != null ? ` (orig: ${m.value} ${origUnit})` : '';
       return `${valSi ?? m.value_text}${unitSi ? ' ' + unitSi : ''}${status}${origNote} [${m.measured_at}]`;
     });
-    return `${name}${ref}: ${vals.join(' â†’ ')}`;
+    return `${name}${ref}: ${vals.join(' → ')}`;
   });
 
   const actLines = (actRes.data || []).slice(0, 20).map(a => {
     const km = a.distance_m ? (a.distance_m/1000).toFixed(1)+'km' : '';
     const min = a.duration_sec ? Math.round(a.duration_sec/60)+'min' : '';
-    const hr = a.avg_heartrate ? `Ã˜${a.avg_heartrate}bpm` : '';
+    const hr = a.avg_heartrate ? `Ø${a.avg_heartrate}bpm` : '';
     return `${a.date} ${a.type} ${km} ${min} ${hr}`.trim();
   });
 
-  contextData = `BLUTWERTE (alle Messwerte pro Parameter, neuester zuerst):\n${measLines.join('\n')}\n\nAKTIVITÃ„TEN (letzte 20):\n${actLines.join('\n')}`;
+  contextData = `BLUTWERTE (alle Messwerte pro Parameter, neuester zuerst):\n${measLines.join('\n')}\n\nAKTIVITÄTEN (letzte 20):\n${actLines.join('\n')}`;
 
   document.getElementById('ctxDot').className = 'context-dot loaded';
-  document.getElementById('ctxText').textContent = `${Object.keys(byParam).length} Parameter + ${actRes.data?.length || 0} AktivitÃ¤ten geladen`;
+  document.getElementById('ctxText').textContent = `${Object.keys(byParam).length} Parameter + ${actRes.data?.length || 0} Aktivitäten geladen`;
 }
 
-// â”€â”€ Nachricht senden â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Nachricht senden ─────────────────────────────────────────────
 function ask(text) {
   document.getElementById('input').value = text;
   sendMessage();
@@ -396,7 +398,7 @@ async function sendMessage() {
     messages.push({ role: 'assistant', content: reply });
 
     // Sidebar aktualisieren nach erster Nachricht einer neuen Session
-    // VerzÃ¶gerung, da Speichern in Supabase fire & forget im Worker ist
+    // Verzögerung, da Speichern in Supabase fire & forget im Worker ist
     if (isFirstMsg) setTimeout(loadSessions, 3000);
   } catch (err) {
     document.getElementById('typing')?.remove();
