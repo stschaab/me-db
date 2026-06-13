@@ -155,9 +155,15 @@ function render(data) {
 
   // Alle Messungen Tabelle
   html += `<div class="section-title" style="margin-top:40px">Alle Messungen</div>
+  <div style="margin-bottom:10px;display:flex;gap:10px;align-items:center">
+    <input id="tableFilter" type="text" placeholder="Filtern nach Parameter, Kategorie oder Labor…"
+      style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:0.88rem;width:340px;outline:none"
+      oninput="filterTable(this.value)">
+    <span id="filterCount" style="font-size:0.8rem;color:#aaa"></span>
+  </div>
   <table>
     <thead><tr><th>Parameter</th><th>Kategorie</th><th>Datum</th><th>Wert</th><th>Einheit</th><th>Wert SI</th><th>Einheit SI</th><th>Labor</th><th>Status</th></tr></thead>
-    <tbody>`;
+    <tbody id="measureTable">`;
   for (const row of data) {
     const p = row.parameters;
     const val = row.value;
@@ -168,7 +174,8 @@ function render(data) {
     const unitSi = p.unit_si || '—';
     const [cls, label] = statusLabel(valSi ?? val, p.ref_range_low_si ?? p.ref_range_low, p.ref_range_high_si ?? p.ref_range_high);
     const date = new Date(row.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
-    html += `<tr>
+    const searchKey = [p.name, p.category || '', row.lab || ''].join(' ').toLowerCase();
+    html += `<tr data-search="${searchKey}">
       <td><strong>${p.name}</strong></td>
       <td>${p.category || '—'}</td>
       <td>${date}</td>
@@ -184,8 +191,31 @@ function render(data) {
 
   document.getElementById('content').innerHTML = html;
   document.getElementById('lastUpdate').textContent = `${data.length} Messungen · Stand: ${new Date().toLocaleDateString('de-DE')}`;
+  updateFilterCount();
 }
 
+function filterTable(query) {
+  const q = query.trim().toLowerCase();
+  const rows = document.querySelectorAll('#measureTable tr');
+  let visible = 0;
+  for (const row of rows) {
+    const match = !q || row.dataset.search.includes(q);
+    row.style.display = match ? '' : 'none';
+    if (match) visible++;
+  }
+  updateFilterCount(visible, rows.length);
+}
+
+function updateFilterCount(visible, total) {
+  const el = document.getElementById('filterCount');
+  if (!el) return;
+  if (visible === undefined) {
+    const rows = document.querySelectorAll('#measureTable tr');
+    el.textContent = `${rows.length} Einträge`;
+  } else {
+    el.textContent = visible === total ? `${total} Einträge` : `${visible} von ${total}`;
+  }
+}
 </script>
 </body>
 </html>
