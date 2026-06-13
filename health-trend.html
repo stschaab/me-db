@@ -90,7 +90,7 @@ let chartInstance = null;
 let allParams = [];
 
 async function init() {
-  const resp = await fetch(`${SUPABASE_URL}/rest/v1/parameters?order=category,name&select=id,name,category,unit,ref_range_low,ref_range_high,ref_note`, { headers: H });
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/parameters?order=category,name&select=id,name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si,ref_note`, { headers: H });
   allParams = await resp.json();
 
   const sel = document.getElementById('paramSelect');
@@ -123,7 +123,7 @@ async function loadTrend() {
 
   const param = allParams.find(p => p.id == id);
   const resp = await fetch(
-    `${SUPABASE_URL}/rest/v1/measurements?parameter_id=eq.${id}&order=measured_at&select=measured_at,value,value_text,lab,notes`,
+    `${SUPABASE_URL}/rest/v1/measurements?parameter_id=eq.${id}&order=measured_at&select=measured_at,value,value_si,value_text,unit,lab,notes`,
     { headers: H }
   );
   const rows = await resp.json();
@@ -131,8 +131,13 @@ async function loadTrend() {
   document.getElementById('empty').style.display = rows.length === 0 ? 'block' : 'none';
   if (rows.length === 0) { clearInfo(); return; }
 
-  renderInfo(param, rows);
-  renderChart(param, rows);
+  // Use SI values & units for display
+  const unitDisplay = param.unit_si || param.unit || '';
+  const refLow  = param.ref_range_low_si  ?? param.ref_range_low;
+  const refHigh = param.ref_range_high_si ?? param.ref_range_high;
+
+  renderInfo(param, rows, unitDisplay, refLow, refHigh);
+  renderChart(param, rows, unitDisplay, refLow, refHigh);
 }
 
 function clearInfo() {
@@ -150,15 +155,15 @@ function statusLabel(cls) {
   return { ok: 'Im Bereich', high: 'Zu hoch', low: 'Zu niedrig', na: '—' }[cls];
 }
 
-function renderInfo(param, rows) {
+function renderInfo(param, rows, unitDisplay, refLow, refHigh) {
   const latest = rows[rows.length - 1];
-  const val = latest.value;
-  const cls = statusClass(val, param.ref_range_low, param.ref_range_high);
+  const val = latest.value_si ?? latest.value;
+  const cls = statusClass(val, refLow, refHigh);
   const date = new Date(latest.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'long', year:'numeric' });
 
   const trend = rows.length >= 2
     ? (() => {
-        const prev = rows[rows.length - 2].value;
+        const prev = rows[rows.length - 2].value_si ?? rows[rows.length - 2].value;
         if (val === null || prev === null) return '';
         const diff = val - prev;
         const pct = Math.abs(diff / prev * 100).toFixed(1);
@@ -166,16 +171,21 @@ function renderInfo(param, rows) {
       })()
     : '—';
 
-  const rangeText = param.ref_range_low !== null || param.ref_range_high !== null
-    ? `${param.ref_range_low ?? '?'} – ${param.ref_range_high ?? '?'} ${param.unit || ''}`
+  const rangeText = refLow !== null && refLow !== undefined || refHigh !== null && refHigh !== undefined
+    ? `${refLow ?? '?'} – ${refHigh ?? '?'} ${unitDisplay}`
     : 'kein Bereich';
+
+  // Show original value in subtitle if unit differs
+  const origUnit = latest.unit || param.unit || '';
+  const origNote = origUnit && origUnit !== unitDisplay && latest.value !== null
+    ? ` (${latest.value} ${origUnit})` : '';
 
   document.getElementById('infoRow').style.display = 'flex';
   document.getElementById('infoRow').innerHTML = `
     <div class="info-card">
       <div class="label">Letzter Wert</div>
-      <div class="val">${val ?? latest.value_text ?? '—'} <small style="font-size:0.9rem;color:#aaa">${param.unit || ''}</small></div>
-      <div class="sub">${date}${latest.lab ? ' · ' + latest.lab : ''}</div>
+      <div class="val">${val ?? latest.value_text ?? '—'} <small style="font-size:0.9rem;color:#aaa">${unitDisplay}</small></div>
+      <div class="sub">${date}${latest.lab ? ' · ' + latest.lab : ''}${origNote}</div>
     </div>
     <div class="info-card">
       <div class="label">Status</div>
@@ -193,11 +203,11 @@ function renderInfo(param, rows) {
   document.getElementById('refInfo').textContent = note;
 }
 
-function renderChart(param, rows) {
+function renderChart(param, rows, unitDisplay, refLow, refHigh) {
   const labels = rows.map(r => new Date(r.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'2-digit' }));
-  const values = rows.map(r => r.value);
-  const low = param.ref_range_low;
-  const high = param.ref_range_high;
+  const values = rows.map(r => r.value_si ?? r.value);
+  const low = refLow;
+  const high = refHigh;
 
   // Berechne Y-Achsen-Grenzen mit etwas Puffer
   const allVals = values.filter(v => v !== null);
@@ -269,9 +279,13 @@ function renderChart(param, rows) {
               const val = ctx.parsed.y;
               const cls = statusClass(val, low, high);
               const status = statusLabel(cls);
+              const origUnit = row.unit || param.unit || '';
+              const origLine = origUnit && origUnit !== unitDisplay && row.value !== null
+                ? [`Original: ${row.value} ${origUnit}`] : [];
               return [
-                `${val} ${param.unit || ''}`,
+                `${val} ${unitDisplay}`,
                 `Status: ${status}`,
+                ...origLine,
                 ...(row.lab ? [`Labor: ${row.lab}`] : []),
                 ...(row.notes ? [`Hinweis: ${row.notes}`] : []),
               ];
