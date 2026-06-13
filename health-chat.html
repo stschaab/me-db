@@ -275,11 +275,10 @@ async function loadContext() {
   document.getElementById('ctxText').textContent = 'Lade Gesundheitsdaten...';
 
   const [measRes, actRes] = await Promise.all([
-    authDb.from('measurements').select('measured_at,value,value_text,parameters(name,category,unit,ref_range_low,ref_range_high)').order('measured_at', { ascending: false }).limit(2000),
+    authDb.from('measurements').select('measured_at,value,value_si,value_text,unit,parameters(name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)').order('measured_at', { ascending: false }).limit(2000),
     authDb.from('activities').select('date,type,duration_sec,distance_m,avg_heartrate,calories').order('date', { ascending: false }).limit(50),
   ]);
 
-  // Keep last 3 measurements per parameter to show trend
   const byParam = {};
   for (const m of (measRes.data || [])) {
     const name = m.parameters?.name;
@@ -290,14 +289,19 @@ async function loadContext() {
 
   const measLines = Object.entries(byParam).map(([name, rows]) => {
     const p = rows[0].parameters;
-    const ref = (p.ref_range_low != null || p.ref_range_high != null)
-      ? ` (Ref: ${p.ref_range_low ?? '?'}â€“${p.ref_range_high ?? '?'} ${p.unit || ''})`
+    const unitSi = p.unit_si || p.unit || '';
+    const refLow  = p.ref_range_low_si  ?? p.ref_range_low;
+    const refHigh = p.ref_range_high_si ?? p.ref_range_high;
+    const ref = (refLow != null || refHigh != null)
+      ? ` (Ref: ${refLow ?? '?'}â€“${refHigh ?? '?'} ${unitSi})`
       : '';
     const vals = rows.map(m => {
-      const val = m.value ?? m.value_text;
-      const status = m.value != null && p.ref_range_low != null && m.value < p.ref_range_low ? 'âš â†“'
-        : m.value != null && p.ref_range_high != null && m.value > p.ref_range_high ? 'âš â†‘' : '';
-      return `${val}${status} [${m.measured_at}]`;
+      const valSi = m.value_si ?? m.value;
+      const status = valSi != null && refLow != null && valSi < refLow ? 'âš â†“'
+        : valSi != null && refHigh != null && valSi > refHigh ? 'âš â†‘' : '';
+      const origUnit = m.unit || p.unit || '';
+      const origNote = origUnit && origUnit !== unitSi && m.value != null ? ` (orig: ${m.value} ${origUnit})` : '';
+      return `${valSi ?? m.value_text}${unitSi ? ' ' + unitSi : ''}${status}${origNote} [${m.measured_at}]`;
     });
     return `${name}${ref}: ${vals.join(' â†’ ')}`;
   });
