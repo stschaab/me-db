@@ -86,7 +86,7 @@
     <a href="health-dashboard.html">Dashboard</a>
     <a href="health-parameters.html">Parameter</a>
     <a href="health-trend.html">Trend</a>
-    <a href="health-activities.html">Aktivitäten</a>
+    <a href="health-activities.html">AktivitÃ¤ten</a>
     <a href="health-strava.html">Strava</a>
     <a href="health-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
@@ -102,7 +102,7 @@
       </button>
     </div>
     <div class="sidebar-list" id="sessionList">
-      <div style="padding:20px 14px;font-size:0.8rem;color:#6b7280">Lade Gespräche...</div>
+      <div style="padding:20px 14px;font-size:0.8rem;color:#6b7280">Lade GesprÃ¤che...</div>
     </div>
   </div>
 
@@ -116,15 +116,15 @@
 
     <div class="messages" id="messages">
       <div class="welcome">
-        <h2>Dein persönlicher Gesundheitsberater</h2>
-        <p>Ich habe Zugriff auf deine Blutwerte und Aktivitäten.<br>Stell mir eine Frage oder wähle ein Gespräch links.</p>
+        <h2>Dein persÃ¶nlicher Gesundheitsberater</h2>
+        <p>Ich habe Zugriff auf deine Blutwerte und AktivitÃ¤ten.<br>Stell mir eine Frage oder wÃ¤hle ein GesprÃ¤ch links.</p>
       </div>
     </div>
 
     <div class="bottom-area">
       <div class="suggestions" id="suggestions">
         <button class="suggest-btn" onclick="ask('Wie sind meine aktuellen Blutwerte insgesamt zu bewerten?')">Blutwerte bewerten</button>
-        <button class="suggest-btn" onclick="ask('Welche Werte liegen außerhalb des Referenzbereichs?')">Auffällige Werte</button>
+        <button class="suggest-btn" onclick="ask('Welche Werte liegen auÃŸerhalb des Referenzbereichs?')">AuffÃ¤llige Werte</button>
         <button class="suggest-btn" onclick="ask('Wie war mein Training in den letzten 30 Tagen?')">Training analysieren</button>
         <button class="suggest-btn" onclick="ask('Was sollte ich bei meinen aktuellen Werten supplementieren?')">Supplement-Tipps</button>
       </div>
@@ -132,7 +132,7 @@
         <textarea id="input" placeholder="Stelle eine Frage zu deiner Gesundheit..." rows="1"
           onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendMessage()}"
           oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()">↑</button>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">â†‘</button>
       </div>
     </div>
   </div>
@@ -166,7 +166,7 @@ db.auth.getSession().then(({ data }) => {
 
 async function logout() { await db.auth.signOut(); window.location.href = 'health-login.html'; }
 
-// ── Session-Liste laden ──────────────────────────────────────────
+// â”€â”€ Session-Liste laden â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function loadSessions() {
   const { data } = await authDb
     .from('chat_messages')
@@ -189,11 +189,11 @@ async function loadSessions() {
   list.innerHTML = '';
 
   if (sessions.length === 0) {
-    list.innerHTML = '<div style="padding:14px;font-size:0.8rem;color:#6b7280">Noch keine Gespräche</div>';
+    list.innerHTML = '<div style="padding:14px;font-size:0.8rem;color:#6b7280">Noch keine GesprÃ¤che</div>';
     return;
   }
 
-  // Gruppen: Heute / Diese Woche / Früher
+  // Gruppen: Heute / Diese Woche / FrÃ¼her
   const now = new Date();
   const groups = { heute: [], woche: [], frueher: [] };
   for (const s of sessions) {
@@ -214,7 +214,7 @@ async function loadSessions() {
       const item = document.createElement('div');
       item.className = 'session-item' + (s.session_id === sessionId ? ' active' : '');
       item.dataset.sid = s.session_id;
-      const title = s.content.length > 38 ? s.content.slice(0, 38) + '…' : s.content;
+      const title = s.content.length > 38 ? s.content.slice(0, 38) + 'â€¦' : s.content;
       const dateStr = new Date(s.created_at).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
       item.innerHTML = `<div>${title}</div><div class="session-date">${dateStr}</div>`;
       item.onclick = () => loadSession(s.session_id, item);
@@ -224,10 +224,10 @@ async function loadSessions() {
 
   renderGroup('Heute', groups.heute);
   renderGroup('Diese Woche', groups.woche);
-  renderGroup('Früher', groups.frueher);
+  renderGroup('FrÃ¼her', groups.frueher);
 }
 
-// ── Session laden ────────────────────────────────────────────────
+// â”€â”€ Session laden â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function loadSession(sid, itemEl) {
   sessionId = sid;
   messages = [];
@@ -237,7 +237,7 @@ async function loadSession(sid, itemEl) {
 
   document.getElementById('suggestions').style.display = 'none';
   const div = document.getElementById('messages');
-  div.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:0.85rem">Lade Gespräch...</div>';
+  div.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:0.85rem">Lade GesprÃ¤ch...</div>';
 
   const { data } = await authDb
     .from('chat_messages')
@@ -255,61 +255,67 @@ async function loadSession(sid, itemEl) {
   div.scrollTop = div.scrollHeight;
 }
 
-// ── Neuer Chat ───────────────────────────────────────────────────
+// â”€â”€ Neuer Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function newChat() {
   sessionId = crypto.randomUUID();
   messages = [];
   document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
   const div = document.getElementById('messages');
   div.innerHTML = `<div class="welcome">
-    <h2>Neues Gespräch</h2>
+    <h2>Neues GesprÃ¤ch</h2>
     <p>Stell mir eine Frage zu deiner Gesundheit.</p>
   </div>`;
   document.getElementById('suggestions').style.display = 'flex';
   document.getElementById('input').focus();
 }
 
-// ── Kontext laden ────────────────────────────────────────────────
+// â”€â”€ Kontext laden â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function loadContext() {
   document.getElementById('ctxDot').className = 'context-dot';
   document.getElementById('ctxText').textContent = 'Lade Gesundheitsdaten...';
 
   const [measRes, actRes] = await Promise.all([
-    authDb.from('measurements').select('measured_at,value,value_text,parameters(name,category,unit,ref_range_low,ref_range_high)').order('measured_at', { ascending: false }).limit(200),
+    authDb.from('measurements').select('measured_at,value,value_text,parameters(name,category,unit,ref_range_low,ref_range_high)').order('measured_at', { ascending: false }).limit(2000),
     authDb.from('activities').select('date,type,duration_sec,distance_m,avg_heartrate,calories').order('date', { ascending: false }).limit(50),
   ]);
 
-  const latest = {};
+  // Keep last 3 measurements per parameter to show trend
+  const byParam = {};
   for (const m of (measRes.data || [])) {
     const name = m.parameters?.name;
-    if (name && !latest[name]) latest[name] = m;
+    if (!name) continue;
+    if (!byParam[name]) byParam[name] = [];
+    byParam[name].push(m);
   }
 
-  const measLines = Object.entries(latest).map(([name, m]) => {
-    const p = m.parameters;
-    const val = m.value ?? m.value_text;
+  const measLines = Object.entries(byParam).map(([name, rows]) => {
+    const p = rows[0].parameters;
     const ref = (p.ref_range_low != null || p.ref_range_high != null)
-      ? ` (Ref: ${p.ref_range_low ?? '?'}–${p.ref_range_high ?? '?'} ${p.unit || ''})`
+      ? ` (Ref: ${p.ref_range_low ?? '?'}â€“${p.ref_range_high ?? '?'} ${p.unit || ''})`
       : '';
-    const status = m.value != null && p.ref_range_low != null && m.value < p.ref_range_low ? ' ⚠ ZU NIEDRIG'
-      : m.value != null && p.ref_range_high != null && m.value > p.ref_range_high ? ' ⚠ ZU HOCH' : '';
-    return `${name}: ${val} ${p.unit || ''}${ref}${status} [${m.measured_at}]`;
+    const vals = rows.map(m => {
+      const val = m.value ?? m.value_text;
+      const status = m.value != null && p.ref_range_low != null && m.value < p.ref_range_low ? 'âš â†“'
+        : m.value != null && p.ref_range_high != null && m.value > p.ref_range_high ? 'âš â†‘' : '';
+      return `${val}${status} [${m.measured_at}]`;
+    });
+    return `${name}${ref}: ${vals.join(' â†’ ')}`;
   });
 
   const actLines = (actRes.data || []).slice(0, 20).map(a => {
     const km = a.distance_m ? (a.distance_m/1000).toFixed(1)+'km' : '';
     const min = a.duration_sec ? Math.round(a.duration_sec/60)+'min' : '';
-    const hr = a.avg_heartrate ? `Ø${a.avg_heartrate}bpm` : '';
+    const hr = a.avg_heartrate ? `Ã˜${a.avg_heartrate}bpm` : '';
     return `${a.date} ${a.type} ${km} ${min} ${hr}`.trim();
   });
 
-  contextData = `BLUTWERTE (neuester Wert pro Parameter):\n${measLines.join('\n')}\n\nAKTIVITÄTEN (letzte 20):\n${actLines.join('\n')}`;
+  contextData = `BLUTWERTE (alle Messwerte pro Parameter, neuester zuerst):\n${measLines.join('\n')}\n\nAKTIVITÃ„TEN (letzte 20):\n${actLines.join('\n')}`;
 
   document.getElementById('ctxDot').className = 'context-dot loaded';
-  document.getElementById('ctxText').textContent = `${Object.keys(latest).length} Parameter + ${actRes.data?.length || 0} Aktivitäten geladen`;
+  document.getElementById('ctxText').textContent = `${Object.keys(byParam).length} Parameter + ${actRes.data?.length || 0} AktivitÃ¤ten geladen`;
 }
 
-// ── Nachricht senden ─────────────────────────────────────────────
+// â”€â”€ Nachricht senden â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ask(text) {
   document.getElementById('input').value = text;
   sendMessage();
@@ -386,7 +392,7 @@ async function sendMessage() {
     messages.push({ role: 'assistant', content: reply });
 
     // Sidebar aktualisieren nach erster Nachricht einer neuen Session
-    // Verzögerung, da Speichern in Supabase fire & forget im Worker ist
+    // VerzÃ¶gerung, da Speichern in Supabase fire & forget im Worker ist
     if (isFirstMsg) setTimeout(loadSessions, 3000);
   } catch (err) {
     document.getElementById('typing')?.remove();
