@@ -2,9 +2,23 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Health DB – System Setup Übersicht</title>
+<title>HealthDB &middot; Projektdoku</title>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 1000px; margin: 40px auto; padding: 0 20px; color: #1a1a2e; background: #f8f9fa; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0; color: #1a1a2e; background: #f8f9fa; }
+  .doc { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
+  header { background: #1a1a2e; color: white; padding: 14px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header .brand { color: white; font-size: 1.3rem; font-weight: 600; border: none; padding: 0; margin: 0; }
+  nav { display: flex; align-items: center; flex-wrap: wrap; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 16px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 16px; padding: 0; }
+  .navdrop { position: relative; margin-left: 16px; }
+  .navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+  .navdrop-label:hover { text-decoration: underline; }
+  .navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+  .navdrop:hover .navdrop-menu { display: block; }
+  .navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+  .navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
   h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 12px; }
   h2 { color: #2980b9; margin-top: 40px; border-left: 4px solid #3498db; padding-left: 12px; }
   h3 { color: #555; margin-top: 24px; }
@@ -32,6 +46,31 @@
 </style>
 </head>
 <body>
+
+<header>
+  <span class="brand">HealthDB</span>
+  <nav>
+    <a href="health-dashboard.html">Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
+      <a href="health-measurements.html">Messungen</a>
+      <a href="health-trend.html">Trend</a>
+      <a href="health-parameters.html">Parameter</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
+      <a href="health-strava.html">Strava</a>
+      <a href="health-activities.html">Aktivit&auml;ten</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="health-import.html">Berichte</a>
+      <a href="health-bucket.html">Bucket</a>
+      <a href="health-werte-review.html">Werte</a>
+    </div></div>
+    <a href="health-chat.html">KI Chat</a>
+    <a href="health-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+<div class="doc">
 
 <h1>Health DB – System Setup Übersicht</h1>
 <p style="color:#666; margin-top:-10px;">Stand: Juni 2026 &nbsp;|&nbsp; Stefan Schaab</p>
@@ -326,5 +365,7 @@
 <hr style="margin-top:50px; border-color:#ddd;">
 <p style="color:#999; font-size:0.85em;">Aktualisiert mit Claude Code · Juni 2026</p>
 
+</div>
+<script>function logout(){ window.location.href = 'health-login.html'; }</script>
 </body>
 </html>
