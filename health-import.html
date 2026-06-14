@@ -322,10 +322,14 @@ async function loadReports() {
     .from('lab_reports')
     .select('*')
     .eq('user_id', userId)
-    .order('doc_date', { ascending: false, nullsFirst: false });
+    .order('created_at', { ascending: false });
 
   const el = document.getElementById('reportsList');
-  if (error || !data?.length) {
+  if (error) {
+    el.innerHTML = `<div style="padding:20px;color:#e65100;font-size:0.85rem">Fehler: ${error.message}</div>`;
+    return;
+  }
+  if (!data?.length) {
     el.innerHTML = '<div style="padding:20px;color:#bbb;font-size:0.85rem">Noch keine Berichte verarbeitet.</div>';
     return;
   }
