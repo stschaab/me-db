@@ -197,7 +197,7 @@ async function startUpload() {
       Math.round(done / selectedFile.length * 100),
       `${file.name} wird hochgeladen... (${done + 1}/${selectedFile.length})`);
     try {
-      const path = `${userId}/${Date.now()}_${file.name}`;
+      const path = `${userId}/${Date.now()}_${safeKey(file.name)}`;
       const { error } = await db.storage.from(BUCKET).upload(path, file, { contentType: 'application/pdf' });
       if (error) throw new Error(error.message);
       done++;
@@ -412,6 +412,16 @@ async function saveEdit(id) {
 }
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
+
+function safeKey(name) {
+  // Supabase Storage erlaubt keine Umlaute/Sonderzeichen im Schluessel
+  return name
+    .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
+    .replace(/Ä/g,'Ae').replace(/Ö/g,'Oe').replace(/Ü/g,'Ue')
+    .replace(/ß/g,'ss')
+    .replace(/[^\x20-\x7E]/g,'')       // sonstige Nicht-ASCII entfernen
+    .replace(/[\\/:*?"<>|#%]/g,'_');   // problematische Zeichen ersetzen
+}
 
 function showProgress(wrapId, fillId, textId, pct, text) {
   document.getElementById(wrapId).style.display = 'block';
