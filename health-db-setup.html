@@ -146,7 +146,7 @@
     </div>
   </div>
   <br>
-  <div class="note">Die HTML-Dateien haben <strong>keinen eigenen Server</strong>. Sie sprechen direkt über REST mit Supabase. Der Cloudflare Worker ist nur für KI-Chat nötig (versteckt den API-Key).</div>
+  <div class="note">Die HTML-Dateien haben <strong>keinen eigenen Server</strong>. Sie sprechen direkt über REST mit Supabase. Der Cloudflare Worker übernimmt alle KI-Aufgaben (versteckt die API-Keys): <strong>Chat, PDF-Verarbeitung, Werte-Extraktion, Embeddings</strong>. PDFs liegen im Supabase <strong>Storage Bucket</strong> <code>medical-reports</code>.</div>
 </div>
 
 <!-- ====== DATENBANK ====== -->
@@ -180,6 +180,21 @@
       <td><code>session_id, user_id, title, created_at, updated_at</code></td>
     </tr>
     <tr>
+      <td><strong>documents</strong> <span class="badge new">neu</span></td>
+      <td>PDF-Abschnitte als Vektoren<br>(für KI-Chat-Suche über Befunde)</td>
+      <td><code>id, user_id, source_file, chunk_index, chunk_text, embedding (vector 1024), lab, doc_date</code></td>
+    </tr>
+    <tr>
+      <td><strong>lab_reports</strong> <span class="badge new">neu</span></td>
+      <td>Verarbeitete Berichte (Metadaten + Status)</td>
+      <td><code>id, file_name, storage_path, lab, doc_date, report_type, status, chunk_count</code></td>
+    </tr>
+    <tr>
+      <td><strong>staged_measurements</strong> <span class="badge new">neu</span></td>
+      <td>Zwischenspeicher Werte-Import<br>(vor Übernahme in measurements)</td>
+      <td><code>id, raw_name, matched_parameter_id, value, unit, ref_low/high, measured_at, is_duplicate, status</code></td>
+    </tr>
+    <tr>
       <td><strong>users</strong></td>
       <td>Nutzerkonten (Supabase Auth)</td>
       <td>verwaltet durch Supabase Auth</td>
@@ -198,7 +213,7 @@
   <div class="note">Beispiel Magnesium: Russland misst in mg/l (20.98 mg/l = 0.863 mmol/l), Deutschland in mmol/l (0.93 mmol/l). Die App zeigt immer mmol/l im Dashboard und Trend.</div>
 
   <h3>Row Level Security (RLS)</h3>
-  <p>Alle Tabellen haben RLS aktiviert. Jeder User sieht nur seine eigenen Daten (<code>user_id = auth.uid()</code>). Policies für <code>anon</code> und <code>authenticated</code> Rolle.</p>
+  <p><code>lab_reports</code>, <code>staged_measurements</code>, <code>documents</code>, <code>chat_*</code> und der Storage Bucket haben RLS-Policies (anon + authenticated). <code>parameters</code> und <code>measurements</code> haben RLS <strong>deaktiviert</strong> — der Anon-Key darf hier direkt lesen/schreiben/löschen (Einzelnutzer-Setup), daher funktioniert das volle Bearbeiten/Löschen im Frontend.</p>
 </div>
 
 <!-- ====== FRONTEND ====== -->
@@ -208,17 +223,18 @@
   <table>
     <tr><th>Datei</th><th>Funktion</th><th></th></tr>
     <tr><td><code>health-dashboard.html</code></td><td>Kacheln: letzter Messwert pro Parameter, nach Kategorie gruppiert, SI-Werte</td><td><span class="badge updated">aktualisiert</span></td></tr>
-    <tr><td><code>health-measurements.html</code></td><td>Alle Messungen als Tabelle, filterbar + sortierbar, 4 Wertspalten (Orig + SI)</td><td><span class="badge new">neu</span></td></tr>
-    <tr><td><code>health-parameters.html</code></td><td>Editor: Referenzbereiche direkt bearbeiten, mit Suchfilter</td><td><span class="badge updated">aktualisiert</span></td></tr>
-    <tr><td><code>health-trend.html</code></td><td>Zeitverlauf-Diagramm (Chart.js), zeigt SI-Werte mit SI-Referenzlinien</td><td><span class="badge updated">aktualisiert</span></td></tr>
-    <tr><td><code>health-chat.html</code></td><td>KI-Chat mit Gedächtnis, Sidebar mit Session-History, umbennenbarer Titel</td><td><span class="badge updated">aktualisiert</span></td></tr>
-    <tr><td><code>health-activities.html</code></td><td>Strava Aktivitäten-Übersicht</td><td></td></tr>
-    <tr><td><code>health-strava.html</code></td><td>Strava OAuth + Import</td><td></td></tr>
-    <tr><td><code>health-users.html</code></td><td>Nutzerverwaltung (Admin)</td><td></td></tr>
-    <tr><td><code>health-login.html</code></td><td>Login mit Supabase Auth</td><td></td></tr>
+    <tr><td><code>health-measurements.html</code></td><td>Alle Messungen, filterbar + sortierbar, <strong>bearbeiten + löschen pro Zeile</strong></td><td><span class="badge updated">CRUD</span></td></tr>
+    <tr><td><code>health-parameters.html</code></td><td>Parameter <strong>voll editierbar</strong> (Name, Kategorie, Einheiten, Referenzen) + <strong>löschen</strong> (nur bei 0 Messungen)</td><td><span class="badge updated">CRUD</span></td></tr>
+    <tr><td><code>health-trend.html</code></td><td>Zeitverlauf-Diagramm (Chart.js), zeigt SI-Werte mit SI-Referenzlinien</td><td></td></tr>
+    <tr><td><code>health-chat.html</code></td><td>KI-Chat mit Gedächtnis + <strong>Suche über PDF-Befunde</strong>, Session-History</td><td><span class="badge updated">aktualisiert</span></td></tr>
+    <tr><td><code>health-import.html</code></td><td>PDF hochladen → KI-Verarbeitung (Metadaten + Vektoren)</td><td><span class="badge new">neu</span></td></tr>
+    <tr><td><code>health-bucket.html</code></td><td>Reine Ansicht der Roh-PDFs im Storage Bucket</td><td><span class="badge new">neu</span></td></tr>
+    <tr><td><code>health-werte-review.html</code></td><td>Werte aus PDF extrahieren → prüfen (Duplikat-Check) → in measurements übernehmen</td><td><span class="badge new">neu</span></td></tr>
+    <tr><td><code>health-activities.html</code> / <code>health-strava.html</code></td><td>Strava Aktivitäten + OAuth Import</td><td></td></tr>
+    <tr><td><code>health-users.html</code> / <code>health-login.html</code></td><td>Nutzerverwaltung / Login</td><td></td></tr>
     <tr><td><code>health-db-setup.html</code></td><td>Diese Dokumentation</td><td></td></tr>
   </table>
-  <div class="note">Navigation ist auf allen Seiten identisch: Dashboard · Messungen · Parameter · Trend · Strava · Aktivitäten · KI Chat · Users · Abmelden</div>
+  <div class="note">Navigation einheitlich mit Dropdown-Gruppen: <strong>Dashboard · Daten▾ (Messungen·Trend·Parameter) · Sport▾ (Strava·Aktivitäten) · Import▾ (Berichte·Bucket·Werte) · KI Chat · Users · Abmelden</strong></div>
 </div>
 
 <!-- ====== KI CHAT ====== -->
@@ -249,8 +265,17 @@
     <tr><th>Eigenschaft</th><th>Wert</th></tr>
     <tr><td>URL</td><td><code>https://health-db-ai.st-schaab.workers.dev</code></td></tr>
     <tr><td>Secrets</td><td><code>ANTHROPIC_API_KEY</code>, <code>VOYAGE_API_KEY</code>, <code>SUPABASE_URL</code>, <code>SUPABASE_SERVICE_KEY</code></td></tr>
-    <tr><td>Wichtige Technik</td><td><code>ctx.waitUntil(saveAll())</code> — hält Worker am Leben nach Response um DB-Speicherung abzuschliessen</td></tr>
-    <tr><td>Modell</td><td>claude-sonnet-4-5 (Haiku für Titel-Generierung)</td></tr>
+    <tr><td>Modell</td><td>claude-sonnet-4-6 (Chat + PDF + Werte-Extraktion)</td></tr>
+    <tr><td>Deploy</td><td>Per Cloudflare-API + PowerShell (Token <code>CLOUDFLARE_API_TOKEN</code>), kein wrangler nötig</td></tr>
+  </table>
+  <h3>Worker-Endpunkte <span class="badge new">erweitert</span></h3>
+  <table>
+    <tr><th>Endpoint</th><th>Funktion</th></tr>
+    <tr><td><code>POST / · /chat</code></td><td>KI-Chat mit Vector Memory + semantischer Suche über PDF-Befunde</td></tr>
+    <tr><td><code>POST /process-pdf</code></td><td>Claude liest PDF → Metadaten + Abschnitte → <code>documents</code> (Vektoren) + <code>lab_reports</code></td></tr>
+    <tr><td><code>POST /extract-measurements</code></td><td>Claude erkennt Messwerte, ordnet Parametern zu → <code>staged_measurements</code> (mit Duplikat-Check)</td></tr>
+    <tr><td><code>POST /import-measurements</code></td><td>Bestätigte Staging-Werte → <code>measurements</code></td></tr>
+    <tr><td><code>POST /assign-parameter</code></td><td>Wert einem Parameter zuordnen oder neuen Parameter anlegen (idempotent)</td></tr>
   </table>
 </div>
 
@@ -351,14 +376,32 @@
 </div>
 
 <!-- ====== GEPLANT ====== -->
-<h2>10. Geplante Erweiterungen</h2>
+<h2>10. PDF-Import-Pipeline <span class="badge">aktiv</span></h2>
+<div class="card">
+  <div class="flow" style="flex-wrap:wrap;gap:8px">
+    <div class="box gray">PDF hochladen</div><div class="arrow">→</div>
+    <div class="box orange">Storage Bucket</div><div class="arrow">→</div>
+    <div class="box purple">/process-pdf<br>(Claude liest)</div><div class="arrow">→</div>
+    <div class="box green">documents (Vektoren)<br>+ lab_reports</div>
+  </div>
+  <div class="flow" style="flex-wrap:wrap;gap:8px">
+    <div class="box purple">/extract-measurements</div><div class="arrow">→</div>
+    <div class="box orange">staged_measurements<br>(Review + Duplikat-Check)</div><div class="arrow">→</div>
+    <div class="box green">measurements (live)</div>
+  </div>
+  <div class="note">Neue/unbekannte Parameter können beim Review direkt angelegt werden. Duplikat-Erkennung: gleicher Parameter + (gleicher Wert ODER Datum ±7 Tage). Passwortgeschützte PDFs vorher entschlüsseln.</div>
+</div>
+
+<h2>11. Geplante Erweiterungen</h2>
 <div class="card">
   <table>
     <tr><th>Feature</th><th>Idee</th></tr>
-    <tr><td>PDF Auto-Import</td><td>PDFs aus Mail oder Scans automatisch parsen und in DB ablegen — Labor Befunde Ordner als Ziel etabliert</td></tr>
+    <tr><td>Voll-Automatik</td><td>Daily-Check-Agent lädt neue Scans automatisch in den Bucket und verarbeitet sie</td></tr>
+    <tr><td>Auto-SI-Umrechnung</td><td>Beim Import value_si pro Parameter automatisch berechnen (statt Best-Effort)</td></tr>
+    <tr><td>Datum fix je Bericht</td><td>Abnahmedatum einmal je Bericht bestätigen statt pro KI-Lauf neu raten</td></tr>
     <tr><td>Blutdruck / Waage</td><td>Manuelle oder automatische Eingabe von Tagesmessungen</td></tr>
     <tr><td>Ira Zugriff</td><td>Multi-User: shared_access Tabelle, Ira kann Stefans Daten lesen</td></tr>
-    <tr><td>Dashboard Kategorien</td><td>"Sonstige" Kategorie für kleine Gruppen (Insulin, Homocystein etc.) zusammenfassen</td></tr>
+    <tr><td>Dashboard Kategorien</td><td>"Sonstige" Kategorie für kleine Gruppen (Insulin, Homocystein, Hormone) zusammenfassen</td></tr>
   </table>
 </div>
 
