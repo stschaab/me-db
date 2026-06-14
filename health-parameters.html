@@ -119,51 +119,66 @@ function showToast(msg, isError = false) {
 }
 
 async function loadParams() {
-  const resp = await fetch(`${SUPABASE_URL}/rest/v1/parameters?order=category,name`, { headers: HEADERS });
-  const data = await resp.json();
+  const [pResp, mResp] = await Promise.all([
+    fetch(`${SUPABASE_URL}/rest/v1/parameters?order=category,name`, { headers: HEADERS }),
+    fetch(`${SUPABASE_URL}/rest/v1/measurements?select=parameter_id`, { headers: HEADERS }),
+  ]);
+  const data = await pResp.json();
+  const meas = await mResp.json();
+  const counts = {};
+  for (const m of (Array.isArray(meas) ? meas : [])) counts[m.parameter_id] = (counts[m.parameter_id] || 0) + 1;
+  window._counts = counts;
   render(data);
 }
+
+function esc(s) { return String(s).replace(/"/g, '&quot;'); }
 
 function render(params) {
   document.getElementById('status').textContent = `${params.length} Parameter`;
   window._allParamCount = params.length;
+  const counts = window._counts || {};
 
-  let html = `<table>
+  let html = `<div style="overflow-x:auto"><table>
     <thead><tr>
       <th class="col-name">Name</th>
       <th class="col-cat">Kategorie</th>
       <th class="col-unit">Einheit</th>
+      <th class="col-unit">Einheit SI</th>
       <th class="col-num">Ref Low</th>
       <th class="col-num">Ref High</th>
+      <th class="col-num">Ref Low SI</th>
+      <th class="col-num">Ref High SI</th>
       <th class="col-note">Notiz</th>
+      <th style="width:50px;text-align:center">Mess.</th>
       <th class="col-save"></th>
+      <th style="width:70px"></th>
     </tr></thead>
     <tbody>`;
 
   for (const p of params) {
     const searchKey = `${p.name} ${p.category || ''}`.toLowerCase();
+    const cnt = counts[p.id] || 0;
+    const delDisabled = cnt > 0;
     html += `<tr id="row-${p.id}" data-id="${p.id}" data-search="${searchKey}">
-      <td class="col-name"><strong>${p.name}</strong></td>
-      <td class="col-cat"><span class="cat-badge">${p.category || '—'}</span></td>
-      <td class="col-unit">
-        <input type="text" class="field" data-field="unit" value="${p.unit || ''}" placeholder="—">
-      </td>
-      <td class="col-num">
-        <input type="number" class="field" data-field="ref_range_low" value="${p.ref_range_low ?? ''}" placeholder="—" step="any">
-      </td>
-      <td class="col-num">
-        <input type="number" class="field" data-field="ref_range_high" value="${p.ref_range_high ?? ''}" placeholder="—" step="any">
-      </td>
-      <td class="col-note">
-        <input type="text" class="field" data-field="ref_note" value="${p.ref_note || ''}" placeholder="—">
-      </td>
-      <td class="col-save">
-        <button class="save-btn" onclick="save(${p.id})">Speichern</button>
+      <td class="col-name"><input type="text" class="field" data-field="name" value="${esc(p.name)}"></td>
+      <td class="col-cat"><input type="text" class="field" data-field="category" value="${esc(p.category || '')}" placeholder="—"></td>
+      <td class="col-unit"><input type="text" class="field" data-field="unit" value="${esc(p.unit || '')}" placeholder="—"></td>
+      <td class="col-unit"><input type="text" class="field" data-field="unit_si" value="${esc(p.unit_si || '')}" placeholder="—"></td>
+      <td class="col-num"><input type="number" class="field" data-field="ref_range_low" value="${p.ref_range_low ?? ''}" placeholder="—" step="any"></td>
+      <td class="col-num"><input type="number" class="field" data-field="ref_range_high" value="${p.ref_range_high ?? ''}" placeholder="—" step="any"></td>
+      <td class="col-num"><input type="number" class="field" data-field="ref_range_low_si" value="${p.ref_range_low_si ?? ''}" placeholder="—" step="any"></td>
+      <td class="col-num"><input type="number" class="field" data-field="ref_range_high_si" value="${p.ref_range_high_si ?? ''}" placeholder="—" step="any"></td>
+      <td class="col-note"><input type="text" class="field" data-field="ref_note" value="${esc(p.ref_note || '')}" placeholder="—"></td>
+      <td style="text-align:center;color:#888;font-size:0.82rem">${cnt}</td>
+      <td class="col-save"><button class="save-btn" onclick="save(${p.id})">Speichern</button></td>
+      <td style="text-align:center">
+        <button onclick="deleteParam(${p.id}, ${cnt})" ${delDisabled ? `disabled title="Erst die ${cnt} Messung(en) löschen"` : ''}
+          style="background:none;border:none;cursor:${delDisabled ? 'not-allowed' : 'pointer'};color:${delDisabled ? '#ccc' : '#c62828'};font-size:0.8rem">Löschen</button>
       </td>
     </tr>`;
   }
 
-  html += '</tbody></table>';
+  html += '</tbody></table></div>';
   document.getElementById('content').innerHTML = html;
 
   // Änderungen markieren
@@ -195,16 +210,18 @@ function filterParams(q) {
 async function save(id) {
   const row = document.getElementById('row-' + id);
   const inputs = row.querySelectorAll('input.field');
+  const numFields = ['ref_range_low', 'ref_range_high', 'ref_range_low_si', 'ref_range_high_si'];
   const update = {};
   for (const inp of inputs) {
     const field = inp.dataset.field;
     const val = inp.value.trim();
-    if (field === 'ref_range_low' || field === 'ref_range_high') {
+    if (numFields.includes(field)) {
       update[field] = val === '' ? null : parseFloat(val);
     } else {
       update[field] = val === '' ? null : val;
     }
   }
+  if (!update.name) { showToast('Name darf nicht leer sein', true); return; }
 
   const resp = await fetch(`${SUPABASE_URL}/rest/v1/parameters?id=eq.${id}`, {
     method: 'PATCH',
@@ -219,6 +236,24 @@ async function save(id) {
   } else {
     const err = await resp.text();
     showToast('Fehler: ' + err, true);
+  }
+}
+
+async function deleteParam(id, cnt) {
+  if (cnt > 0) { showToast(`Erst die ${cnt} Messung(en) dieses Parameters löschen.`, true); return; }
+  const row = document.getElementById('row-' + id);
+  const name = row.querySelector('input[data-field="name"]').value;
+  if (!confirm(`Parameter „${name}" wirklich endgültig löschen?`)) return;
+
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/parameters?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: { ...HEADERS, 'Prefer': 'return=minimal' },
+  });
+  if (resp.ok || resp.status === 204) {
+    row.remove();
+    showToast('Parameter gelöscht');
+  } else {
+    showToast('Fehler: ' + (await resp.text()), true);
   }
 }
 
