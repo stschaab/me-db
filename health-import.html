@@ -98,11 +98,13 @@
   <!-- ── BEREICH 1: Upload ── -->
   <div class="section-title">Bericht hochladen</div>
   <div class="card">
+    <input type="file" id="fileInput" accept="application/pdf" multiple onchange="handleFiles(this.files)" style="display:none">
     <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-      <div class="icon">📄</div>
-      <h3>PDF hier ablegen oder klicken</h3>
-      <p>Laborbefund, Arztbericht, Bildgebung, Gutachten · max. 20 MB · Metadaten werden automatisch erkannt</p>
-      <input type="file" id="fileInput" accept="application/pdf" multiple onchange="handleFiles(this.files)">
+      <div id="uploadZoneContent">
+        <div class="icon">📄</div>
+        <h3>PDF hier ablegen oder klicken</h3>
+        <p>Laborbefund, Arztbericht, Bildgebung, Gutachten · max. 20 MB · Metadaten werden automatisch erkannt</p>
+      </div>
     </div>
 
     <div class="btn-row">
@@ -181,7 +183,7 @@ function handleFiles(files) {
   selectedFile = valid;
   const names = valid.map(f => f.name).join(', ');
   const totalMB = (valid.reduce((s, f) => s + f.size, 0) / 1024 / 1024).toFixed(1);
-  zone.innerHTML = `<div class="icon">✅</div><h3>${valid.length} PDF${valid.length > 1 ? 's' : ''} ausgewählt</h3><p style="font-size:0.82rem;color:#666">${names}</p><p style="margin-top:4px;font-size:0.78rem;color:#aaa">${totalMB} MB gesamt</p>`;
+  document.getElementById('uploadZoneContent').innerHTML = `<div class="icon">✅</div><h3>${valid.length} PDF${valid.length > 1 ? 's' : ''} ausgewählt</h3><p style="font-size:0.82rem;color:#666">${names}</p><p style="margin-top:4px;font-size:0.78rem;color:#aaa">${totalMB} MB gesamt</p>`;
   document.getElementById('uploadBtn').disabled = false;
 }
 
