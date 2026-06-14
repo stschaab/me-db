@@ -46,6 +46,15 @@
   .col-num  { width: 100px; }
   .col-note { min-width: 200px; }
   .col-save { width: 80px; text-align: center; }
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
 </style>
 </head>
 <body>
@@ -54,15 +63,21 @@
   <h1>Parameter Verwaltung</h1>
   <nav>
     <a href="health-dashboard.html">Dashboard</a>
-    <a href="health-measurements.html">Messungen</a>
-    <a href="health-parameters.html">Parameter</a>
-    <a href="health-trend.html">Trend</a>
-    <a href="health-strava.html">Strava</a>
-    <a href="health-activities.html">Aktivitäten</a>
+    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
+      <a href="health-measurements.html">Messungen</a>
+      <a href="health-trend.html">Trend</a>
+      <a href="health-parameters.html">Parameter</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
+      <a href="health-strava.html">Strava</a>
+      <a href="health-activities.html">Aktivit&auml;ten</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="health-import.html">Berichte</a>
+      <a href="health-bucket.html">Bucket</a>
+      <a href="health-werte-review.html">Werte</a>
+    </div></div>
     <a href="health-chat.html">KI Chat</a>
-    <a href="health-import.html">Berichte</a>
-    <a href="health-bucket.html">Bucket</a>
-    <a href="health-werte-review.html">Werte</a>
     <a href="health-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
   </nav>
