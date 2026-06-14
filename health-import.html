@@ -101,26 +101,8 @@
     <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
       <div class="icon">📄</div>
       <h3>PDF hier ablegen oder klicken</h3>
-      <p>Laborbefund, Arztbericht, Bildgebung, Gutachten · max. 20 MB</p>
+      <p>Laborbefund, Arztbericht, Bildgebung, Gutachten · max. 20 MB · Metadaten werden automatisch erkannt</p>
       <input type="file" id="fileInput" accept="application/pdf" onchange="handleFile(this.files[0])">
-    </div>
-
-    <div class="meta-row">
-      <label>Berichtstyp
-        <select id="metaType">
-          <option value="labor">Laborbefund</option>
-          <option value="arzt">Arztbericht</option>
-          <option value="bildgebung">Bildgebung (MRT/CT/Röntgen)</option>
-          <option value="gutachten">Gutachten</option>
-          <option value="sonstiges">Sonstiges</option>
-        </select>
-      </label>
-      <label>Einrichtung / Labor
-        <input type="text" id="metaLab" placeholder="z.B. SYNLAB, Ruppert, Klinikum">
-      </label>
-      <label>Datum des Berichts
-        <input type="date" id="metaDate">
-      </label>
     </div>
 
     <div class="btn-row">
@@ -204,10 +186,6 @@ function handleFile(file) {
 
 async function startUpload() {
   if (!selectedFile) return;
-  const type  = document.getElementById('metaType').value;
-  const lab   = document.getElementById('metaLab').value.trim();
-  const date  = document.getElementById('metaDate').value;
-
   document.getElementById('uploadBtn').disabled = true;
   showProgress('uploadProgress', 'uploadFill', 'uploadText', 10, 'Wird hochgeladen...');
 
@@ -351,24 +329,73 @@ async function loadReports() {
     error:      '<span style="background:#fdedec;color:#c62828;padding:2px 8px;border-radius:20px;font-size:0.75rem">✗ Fehler</span>',
   }[s] || s;
 
-  const typeLabel = t => ({ labor: 'Labor', arzt: 'Arztbericht', bildgebung: 'Bildgebung', gutachten: 'Gutachten', sonstiges: 'Sonstiges' }[t] || t || 'Labor');
+  const typeOptions = { labor: 'Labor', arzt: 'Arztbericht', bildgebung: 'Bildgebung', gutachten: 'Gutachten', sonstiges: 'Sonstiges' };
+  const typeLabel = t => typeOptions[t] || t || 'Labor';
 
   let html = `<table><thead><tr>
-    <th>Bericht</th><th>Typ</th><th>Einrichtung</th><th>Datum</th><th>Status</th><th>Abschnitte</th>
+    <th>Bericht</th><th>Typ</th><th>Einrichtung</th><th>Datum</th><th>Status</th><th>Abschnitte</th><th></th>
   </tr></thead><tbody>`;
   for (const r of data) {
-    const date = r.doc_date ? new Date(r.doc_date).toLocaleDateString('de-DE') : '—';
-    html += `<tr>
+    const date = r.doc_date || '';
+    const dateDisplay = date ? new Date(date).toLocaleDateString('de-DE') : '—';
+    const typeOpts = Object.entries(typeOptions).map(([v,l]) =>
+      `<option value="${v}" ${r.report_type===v?'selected':''}>${l}</option>`).join('');
+    html += `<tr id="row-${r.id}">
       <td>${r.file_name}${r.error_msg ? `<br><span style="font-size:0.78rem;color:#e65100">${r.error_msg}</span>` : ''}</td>
-      <td><span class="type-chip">${typeLabel(r.report_type)}</span></td>
-      <td>${r.lab || '—'}</td>
-      <td>${date}</td>
+      <td>
+        <span class="type-chip view-${r.id}">${typeLabel(r.report_type)}</span>
+        <select class="edit-field edit-${r.id}" data-id="${r.id}" data-field="report_type" style="display:none;font-size:0.82rem;border:1px solid #e0e0e0;border-radius:6px;padding:3px 6px">${typeOpts}</select>
+      </td>
+      <td>
+        <span class="view-${r.id}">${r.lab || '—'}</span>
+        <input class="edit-field edit-${r.id}" data-id="${r.id}" data-field="lab" type="text" value="${r.lab||''}" placeholder="Labor" style="display:none;font-size:0.82rem;border:1px solid #e0e0e0;border-radius:6px;padding:3px 8px;width:120px">
+      </td>
+      <td>
+        <span class="view-${r.id}">${dateDisplay}</span>
+        <input class="edit-field edit-${r.id}" data-id="${r.id}" data-field="doc_date" type="date" value="${date}" style="display:none;font-size:0.82rem;border:1px solid #e0e0e0;border-radius:6px;padding:3px 6px">
+      </td>
       <td>${statusBadge(r.status)}</td>
       <td>${r.chunk_count || '—'}</td>
+      <td>
+        <button onclick="startEdit('${r.id}')" class="edit-btn-${r.id}" style="font-size:0.78rem;color:#7ec8e3;background:none;border:none;cursor:pointer">Bearbeiten</button>
+        <span style="display:none" class="save-btns-${r.id}">
+          <button onclick="saveEdit('${r.id}')" style="font-size:0.78rem;color:#2e7d32;background:none;border:none;cursor:pointer;font-weight:600">Speichern</button>
+          &nbsp;
+          <button onclick="cancelEdit('${r.id}')" style="font-size:0.78rem;color:#999;background:none;border:none;cursor:pointer">Abbrechen</button>
+        </span>
+      </td>
     </tr>`;
   }
   html += '</tbody></table>';
   el.innerHTML = html;
+}
+
+// ── INLINE EDIT ──────────────────────────────────────────────────────────────
+
+function startEdit(id) {
+  document.querySelectorAll(`.view-${id}`).forEach(el => el.style.display = 'none');
+  document.querySelectorAll(`.edit-${id}`).forEach(el => el.style.display = '');
+  document.querySelector(`.edit-btn-${id}`).style.display = 'none';
+  document.querySelector(`.save-btns-${id}`).style.display = '';
+}
+
+function cancelEdit(id) {
+  document.querySelectorAll(`.view-${id}`).forEach(el => el.style.display = '');
+  document.querySelectorAll(`.edit-${id}`).forEach(el => el.style.display = 'none');
+  document.querySelector(`.edit-btn-${id}`).style.display = '';
+  document.querySelector(`.save-btns-${id}`).style.display = 'none';
+}
+
+async function saveEdit(id) {
+  const fields = document.querySelectorAll(`.edit-${id}`);
+  const update = {};
+  fields.forEach(f => { update[f.dataset.field] = f.value || null; });
+  update.updated_at = new Date().toISOString();
+
+  const { error } = await db.from('lab_reports').update(update).eq('id', id);
+  if (error) { toast('Fehler: ' + error.message, true); return; }
+  toast('Gespeichert');
+  loadReports();
 }
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
