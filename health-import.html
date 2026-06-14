@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Labor Import</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 860px; margin: 40px auto; padding: 0 24px; }
+
+  /* Upload Zone */
+  .upload-zone { background: white; border: 2px dashed #d0d0d0; border-radius: 12px; padding: 48px 32px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; margin-bottom: 24px; }
+  .upload-zone:hover, .upload-zone.drag { border-color: #7ec8e3; background: #f0faff; }
+  .upload-zone .icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .upload-zone h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 6px; }
+  .upload-zone p { font-size: 0.85rem; color: #999; }
+  #fileInput { display: none; }
+
+  /* Meta Felder */
+  .meta-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .meta-row label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: #666; flex: 1; min-width: 140px; }
+  .meta-row input, .meta-row select {
+    border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px 12px;
+    font-size: 0.9rem; background: white;
+  }
+  .meta-row input:focus, .meta-row select:focus { outline: none; border-color: #7ec8e3; }
+
+  /* Status Card */
+  .status-card { background: white; border-radius: 10px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; display: none; }
+  .status-card h3 { font-size: 1rem; margin-bottom: 16px; }
+  .progress-bar { background: #f0f0f0; border-radius: 20px; height: 8px; overflow: hidden; margin-bottom: 8px; }
+  .progress-fill { background: #1a1a2e; height: 100%; border-radius: 20px; transition: width 0.4s; }
+  .status-text { font-size: 0.85rem; color: #666; }
+
+  /* Sections Preview */
+  .sections { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .section-chip { background: #e8f5e9; color: #2e7d32; font-size: 0.78rem; padding: 4px 12px; border-radius: 20px; }
+
+  /* Ergebnis */
+  .result-card { background: white; border-radius: 10px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: none; }
+  .result-card.success { border-left: 4px solid #2e7d32; }
+  .result-card.error { border-left: 4px solid #e65100; }
+  .result-title { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .result-detail { font-size: 0.85rem; color: #666; }
+
+  /* Btn */
+  .btn { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 12px 28px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+  .btn:hover { background: #2d2d4e; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Vorhandene Dokumente */
+  .docs-section { margin-top: 40px; }
+  .docs-section h2 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  th { background: #f0f0f0; text-align: left; padding: 10px 14px; font-size: 0.72rem; text-transform: uppercase; color: #666; }
+  td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; }
+  tr:last-child td { border-bottom: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Labor Import</h1>
+  <nav>
+    <a href="health-dashboard.html">Dashboard</a>
+    <a href="health-measurements.html">Messungen</a>
+    <a href="health-parameters.html">Parameter</a>
+    <a href="health-trend.html">Trend</a>
+    <a href="health-strava.html">Strava</a>
+    <a href="health-activities.html">Aktivitäten</a>
+    <a href="health-chat.html">KI Chat</a>
+    <a href="health-import.html">Import</a>
+    <a href="health-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <!-- Upload Zone -->
+  <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()"
+       ondragover="e=>{ e.preventDefault(); this.classList.add('drag'); }"
+       ondragleave="this.classList.remove('drag')"
+       ondrop="handleDrop(event)">
+    <div class="icon">📄</div>
+    <h2>PDF Laborbefund hochladen</h2>
+    <p>Klicken oder PDF hier hineinziehen · max. 20 MB</p>
+    <input type="file" id="fileInput" accept="application/pdf" onchange="handleFile(this.files[0])">
+  </div>
+
+  <!-- Meta -->
+  <div class="meta-row">
+    <label>Labor
+      <input type="text" id="metaLab" placeholder="z.B. SYNLAB, Ruppert">
+    </label>
+    <label>Datum des Befunds
+      <input type="date" id="metaDate">
+    </label>
+  </div>
+
+  <!-- Upload Button -->
+  <button class="btn" id="uploadBtn" onclick="startUpload()" disabled>Verarbeiten & in Wissensdatenbank laden</button>
+
+  <!-- Status -->
+  <div class="status-card" id="statusCard">
+    <h3 id="statusTitle">Verarbeitung läuft...</h3>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="status-text" id="statusText"></div>
+    <div class="sections" id="sectionsPreview"></div>
+  </div>
+
+  <!-- Ergebnis -->
+  <div class="result-card" id="resultCard">
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-detail" id="resultDetail"></div>
+  </div>
+
+  <!-- Vorhandene Dokumente -->
+  <div class="docs-section">
+    <h2>Geladene Dokumente</h2>
+    <div id="docsList"><div style="color:#bbb;font-size:0.85rem;padding:16px">Lädt...</div></div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+let selectedFile = null;
+let userId = null;
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'health-login.html'; return; }
+  userId = data.session.user.id;
+  loadDocs();
+});
+
+async function logout() {
+  await db.auth.signOut();
+  window.location.href = 'health-login.html';
+}
+
+// Drag & Drop
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); handleFile(e.dataTransfer.files[0]); });
+
+function handleDrop(e) {
+  e.preventDefault();
+  zone.classList.remove('drag');
+  handleFile(e.dataTransfer.files[0]);
+}
+
+function handleFile(file) {
+  if (!file || file.type !== 'application/pdf') { alert('Bitte eine PDF-Datei auswählen.'); return; }
+  if (file.size > 20 * 1024 * 1024) { alert('Datei zu groß (max. 20 MB).'); return; }
+  selectedFile = file;
+  zone.innerHTML = `<div class="icon">✅</div><h2>${file.name}</h2><p>${(file.size/1024/1024).toFixed(1)} MB · PDF</p>`;
+  document.getElementById('uploadBtn').disabled = false;
+  // Datum aus Dateiname erraten (z.B. 2025-12-17)
+  const dateMatch = file.name.match(/(\d{4})[-.](\d{2})[-.](\d{2})/);
+  if (dateMatch) document.getElementById('metaDate').value = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
+}
+
+async function startUpload() {
+  if (!selectedFile) return;
+
+  const lab = document.getElementById('metaLab').value.trim();
+  const docDate = document.getElementById('metaDate').value;
+  const fileName = selectedFile.name;
+
+  document.getElementById('uploadBtn').disabled = true;
+  showStatus('PDF wird gelesen...', 10);
+
+  try {
+    // 1. Eintrag in lab_reports anlegen (status: processing)
+    setProgress(10, 'Report wird registriert...');
+    const { data: reportData, error: reportErr } = await db.from('lab_reports').insert({
+      user_id: userId, file_name: fileName, lab: lab || null,
+      doc_date: docDate || null, status: 'processing'
+    }).select('id').single();
+    if (reportErr) throw new Error('lab_reports: ' + reportErr.message);
+    const reportId = reportData.id;
+
+    // 2. PDF in Supabase Storage laden
+    setProgress(25, 'PDF wird in Supabase Storage hochgeladen...');
+    const storagePath = `${userId}/${reportId}_${fileName}`;
+    const { error: storageErr } = await db.storage.from('labor-pdfs').upload(storagePath, selectedFile, {
+      contentType: 'application/pdf', upsert: false
+    });
+    if (storageErr) throw new Error('Storage: ' + storageErr.message);
+
+    // Storage Path in lab_reports speichern
+    await db.from('lab_reports').update({ storage_path: storagePath }).eq('id', reportId);
+
+    // 3. PDF als Base64 für Worker
+    setProgress(45, 'PDF wird an KI übergeben...');
+    const fileBase64 = await toBase64(selectedFile);
+
+    // 4. Worker aufrufen
+    setProgress(65, 'Claude liest und strukturiert den Befund...');
+    const workerResp = await fetch(`${WORKER_URL}/process-pdf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileBase64, fileName, storagePath, userId, docDate: docDate || null, lab: lab || null, reportId })
+    });
+
+    if (!workerResp.ok) {
+      const err = await workerResp.json();
+      throw new Error(err.error || 'Worker Fehler');
+    }
+
+    const result = await workerResp.json();
+    setProgress(100, 'Abgeschlossen!');
+
+    // Abschnitte anzeigen
+    if (result.sections?.length > 0) {
+      document.getElementById('sectionsPreview').innerHTML =
+        result.sections.map(s => `<span class="section-chip">${s}</span>`).join('');
+    }
+
+    showResult(true,
+      `✓ ${result.chunks} Abschnitte in Wissensdatenbank gespeichert`,
+      `${fileName} · ${result.sections?.join(' · ') || ''}`
+    );
+
+    loadDocs();
+
+  } catch (e) {
+    showResult(false, '✗ Fehler beim Verarbeiten', e.message);
+    document.getElementById('uploadBtn').disabled = false;
+  }
+}
+
+function showStatus(text, pct) {
+  document.getElementById('statusCard').style.display = 'block';
+  document.getElementById('statusTitle').textContent = 'Verarbeitung läuft...';
+  document.getElementById('statusText').textContent = text;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('resultCard').style.display = 'none';
+}
+
+function setProgress(pct, text) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('statusText').textContent = text;
+}
+
+function showResult(success, title, detail) {
+  const card = document.getElementById('resultCard');
+  card.style.display = 'block';
+  card.className = 'result-card ' + (success ? 'success' : 'error');
+  document.getElementById('resultTitle').textContent = title;
+  document.getElementById('resultDetail').textContent = detail;
+  document.getElementById('statusTitle').textContent = success ? 'Fertig!' : 'Fehler';
+}
+
+function toBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function loadDocs() {
+  const { data, error } = await db
+    .from('lab_reports')
+    .select('id, file_name, lab, doc_date, status, chunk_count, error_msg, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) {
+    document.getElementById('docsList').innerHTML = `<div style="color:#e65100;padding:16px">Fehler: ${error?.message}</div>`;
+    return;
+  }
+
+  if (data.length === 0) {
+    document.getElementById('docsList').innerHTML = `<div style="color:#bbb;font-size:0.85rem;padding:16px">Noch keine Dokumente geladen.</div>`;
+    return;
+  }
+
+  const statusBadge = s => ({
+    done:       '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:20px;font-size:0.75rem">✓ Fertig</span>',
+    processing: '<span style="background:#fff3e0;color:#e65100;padding:2px 8px;border-radius:20px;font-size:0.75rem">⏳ Läuft</span>',
+    error:      '<span style="background:#fdedec;color:#c62828;padding:2px 8px;border-radius:20px;font-size:0.75rem">✗ Fehler</span>',
+  })[s] || s;
+
+  let html = `<table><thead><tr><th>Datei</th><th>Labor</th><th>Datum</th><th>Status</th><th>Abschnitte</th><th>Geladen am</th></tr></thead><tbody>`;
+  for (const r of data) {
+    const date = r.doc_date ? new Date(r.doc_date).toLocaleDateString('de-DE') : '—';
+    const created = new Date(r.created_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
+    const detail = r.error_msg ? ` <span style="color:#999;font-size:0.8rem">${r.error_msg}</span>` : '';
+    html += `<tr><td>${r.file_name}${detail}</td><td>${r.lab || '—'}</td><td>${date}</td><td>${statusBadge(r.status)}</td><td>${r.chunk_count || '—'}</td><td>${created}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('docsList').innerHTML = html;
+}
+</script>
+</body>
+</html>
