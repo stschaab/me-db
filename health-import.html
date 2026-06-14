@@ -102,7 +102,7 @@
       <div class="icon">📄</div>
       <h3>PDF hier ablegen oder klicken</h3>
       <p>Laborbefund, Arztbericht, Bildgebung, Gutachten · max. 20 MB · Metadaten werden automatisch erkannt</p>
-      <input type="file" id="fileInput" accept="application/pdf" onchange="handleFile(this.files[0])">
+      <input type="file" id="fileInput" accept="application/pdf" multiple onchange="handleFiles(this.files)">
     </div>
 
     <div class="btn-row">
@@ -171,39 +171,46 @@ async function logout() { await db.auth.signOut(); window.location.href = 'healt
 const zone = document.getElementById('uploadZone');
 zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
 zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
-zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); handleFile(e.dataTransfer.files[0]); });
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
 
-function handleFile(file) {
-  if (!file || file.type !== 'application/pdf') { toast('Bitte eine PDF-Datei wählen', true); return; }
-  if (file.size > 20 * 1024 * 1024) { toast('Datei zu groß (max. 20 MB)', true); return; }
-  selectedFile = file;
-  zone.innerHTML = `<div class="icon">✅</div><h3>${file.name}</h3><p>${(file.size/1024/1024).toFixed(1)} MB · PDF ausgewählt</p>`;
+function handleFiles(files) {
+  const valid = [...files].filter(f => f.type === 'application/pdf' && f.size <= 20 * 1024 * 1024);
+  const tooBig = [...files].filter(f => f.size > 20 * 1024 * 1024);
+  if (tooBig.length) toast(`${tooBig.length} Datei(en) zu groß (max. 20 MB)`, true);
+  if (!valid.length) return;
+  selectedFile = valid;
+  const names = valid.map(f => f.name).join(', ');
+  const totalMB = (valid.reduce((s, f) => s + f.size, 0) / 1024 / 1024).toFixed(1);
+  zone.innerHTML = `<div class="icon">✅</div><h3>${valid.length} PDF${valid.length > 1 ? 's' : ''} ausgewählt</h3><p style="font-size:0.82rem;color:#666">${names}</p><p style="margin-top:4px;font-size:0.78rem;color:#aaa">${totalMB} MB gesamt</p>`;
   document.getElementById('uploadBtn').disabled = false;
-  // Datum aus Dateiname raten
-  const m = file.name.match(/(\d{4})[-.](\d{2})[-.](\d{2})/);
-  if (m) document.getElementById('metaDate').value = `${m[1]}-${m[2]}-${m[3]}`;
 }
 
 async function startUpload() {
-  if (!selectedFile) return;
+  if (!selectedFile?.length) return;
   document.getElementById('uploadBtn').disabled = true;
-  showProgress('uploadProgress', 'uploadFill', 'uploadText', 10, 'Wird hochgeladen...');
 
-  try {
-    const path = `${userId}/${Date.now()}_${selectedFile.name}`;
-    const { error } = await db.storage.from(BUCKET).upload(path, selectedFile, { contentType: 'application/pdf' });
-    if (error) throw new Error(error.message);
-
-    showProgress('uploadProgress', 'uploadFill', 'uploadText', 100, 'Hochgeladen ✓');
-    document.getElementById('uploadStatus').textContent = `${selectedFile.name} erfolgreich hochgeladen`;
-    toast('Hochgeladen — jetzt "Neue Berichte prüfen" klicken um zu verarbeiten');
-    selectedFile = null;
-    document.getElementById('uploadBtn').disabled = true;
-  } catch(e) {
-    showProgress('uploadProgress', 'uploadFill', 'uploadText', 0, '');
-    toast('Fehler: ' + e.message, true);
-    document.getElementById('uploadBtn').disabled = false;
+  let done = 0, errors = 0;
+  for (const file of selectedFile) {
+    showProgress('uploadProgress', 'uploadFill', 'uploadText',
+      Math.round(done / selectedFile.length * 100),
+      `${file.name} wird hochgeladen... (${done + 1}/${selectedFile.length})`);
+    try {
+      const path = `${userId}/${Date.now()}_${file.name}`;
+      const { error } = await db.storage.from(BUCKET).upload(path, file, { contentType: 'application/pdf' });
+      if (error) throw new Error(error.message);
+      done++;
+    } catch(e) {
+      toast(`Fehler bei ${file.name}: ${e.message}`, true);
+      errors++;
+      done++;
+    }
   }
+
+  showProgress('uploadProgress', 'uploadFill', 'uploadText', 100,
+    `${done - errors} von ${selectedFile.length} hochgeladen ✓`);
+  document.getElementById('uploadStatus').textContent = '';
+  toast(`${done - errors} PDF${done - errors !== 1 ? 's' : ''} hochgeladen — "Neue Berichte prüfen" klicken`);
+  selectedFile = null;
 }
 
 // ── SCAN + VERARBEITUNG ─────────────────────────────────────────────────────
