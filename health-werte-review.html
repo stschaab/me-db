@@ -88,13 +88,19 @@ const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
 const BUCKET = 'medical-reports';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 let userId = null;
+let allParams = [];
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'health-login.html'; return; }
   userId = data.session.user.id;
   loadReports();
-  loadStaging();
+  loadParams().then(loadStaging);
 });
+
+async function loadParams() {
+  const { data } = await db.from('parameters').select('id,name').order('name');
+  allParams = data || [];
+}
 async function logout() { await db.auth.signOut(); window.location.href = 'health-login.html'; }
 
 // ── 1) Berichte zum Extrahieren ──
@@ -159,9 +165,9 @@ async function loadStaging() {
   }
 
   let html = `<table><thead><tr>
-    <th style="width:34px"></th><th>Parameter</th><th>Wert</th><th>Einheit</th><th>Referenz</th><th>Status</th></tr></thead><tbody>`;
+    <th style="width:34px"></th><th>Parameter</th><th>Wert</th><th>Einheit</th><th>Referenz</th><th>Status</th><th>Zuordnung</th></tr></thead><tbody>`;
   for (const [k, rows] of Object.entries(groups)) {
-    html += `<tr><td colspan="6" class="grp-head">${k} · ${rows[0].lab || ''}</td></tr>`;
+    html += `<tr><td colspan="7" class="grp-head">${k} · ${rows[0].lab || ''}</td></tr>`;
     for (const r of rows) {
       const importable = r.matched_parameter_id && r.value != null && !r.is_duplicate;
       const checked = importable ? 'checked' : '';
@@ -174,6 +180,13 @@ async function loadStaging() {
       else badge = '<span class="badge b-new">neu</span>';
       const ref = (r.ref_low != null || r.ref_high != null) ? `${r.ref_low ?? ''}–${r.ref_high ?? ''}` : '—';
       const pname = r.matched_name || `<span class="muted">${r.raw_name}</span>`;
+      const rawEsc = (r.raw_name || '').replace(/'/g, "\\'");
+      const assignCell = !r.matched_parameter_id ? `
+        <select onchange="assignExisting('${r.id}', this.value)" style="font-size:0.76rem;max-width:140px;padding:3px 5px;border:1px solid #e0e0e0;border-radius:5px">
+          <option value="">— zuordnen —</option>
+          ${allParams.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+        </select>
+        <button onclick="createParam('${r.id}','${rawEsc}')" style="font-size:0.76rem;color:#2e7d32;background:none;border:none;cursor:pointer;font-weight:600;margin-left:4px">+ neu</button>` : '';
       html += `<tr>
         <td><input type="checkbox" class="chk" value="${r.id}" ${checked} ${importable?'':'disabled'}></td>
         <td>${pname}${r.matched_name && r.raw_name!==r.matched_name ? `<br><span class="muted" style="font-size:0.75rem">${r.raw_name}</span>` : ''}</td>
@@ -181,11 +194,34 @@ async function loadStaging() {
         <td class="muted">${r.unit || ''}</td>
         <td class="muted">${ref}</td>
         <td>${badge}</td>
+        <td>${assignCell}</td>
       </tr>`;
     }
   }
   html += '</tbody></table>';
   el.innerHTML = html;
+}
+
+// ── Parameter zuordnen / neu anlegen ──
+async function assignExisting(stagedId, paramId) {
+  if (!paramId) return;
+  await callAssign({ staged_id: stagedId, parameter_id: Number(paramId) });
+}
+async function createParam(stagedId, rawName) {
+  if (!confirm(`Neuen Parameter „${rawName}" anlegen und diesen Wert zuordnen?\n\n(Einheit/Referenz aus dem Bericht werden übernommen — Kategorie/SI später auf der Parameter-Seite anpassbar.)`)) return;
+  await callAssign({ staged_id: stagedId, create: true });
+}
+async function callAssign(body) {
+  try {
+    const r = await fetch(`${WORKER_URL}/assign-parameter`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Fehler');
+    toast(`${d.name}: zugeordnet${d.created ? ' (neu angelegt)' : ''}${d.is_duplicate ? ' · schon vorhanden' : ''}`);
+    await loadParams();   // neue Parameter in Dropdowns aufnehmen
+    loadStaging();
+  } catch (e) { toast('Fehler: ' + e.message, true); }
 }
 
 function selectedIds() { return [...document.querySelectorAll('.chk:checked')].map(c => c.value); }
