@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>HealthDB &middot; Messungen</title>
+<title>HealthDB &middot; Aufgaben</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -19,29 +19,36 @@
   .toolbar input { padding: 8px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.88rem; width: 320px; outline: none; }
   .toolbar input:focus { border-color: #7ec8e3; }
   .toolbar span { font-size: 0.8rem; color: #aaa; }
+  .add-btn { background: #1a1a2e; color: white; border: none; border-radius: 6px; padding: 8px 16px; font-size: 0.85rem; cursor: pointer; margin-left: auto; }
+  .add-btn:hover { background: #2d2d4e; }
   table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
   th { background: #f8f8f8; text-align: left; padding: 10px 14px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; border-bottom: 1px solid #eee; cursor: pointer; user-select: none; white-space: nowrap; }
   th:hover { color: #555; }
   th .sort-icon { margin-left: 4px; opacity: 0.4; }
   th.sorted .sort-icon { opacity: 1; }
-  td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid #f0f0f0; }
+  td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
   tr:last-child td { border-bottom: none; }
-  .ok   { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; }
-  .high { background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; }
-  .low  { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; }
-  .na   { background: #f5f5f5; color: #999;    padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; }
+  .badge { padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; }
+  .status-todo        { background: #f5f5f5; color: #666; }
+  .status-in_progress { background: #fff3e0; color: #e65100; }
+  .status-done        { background: #e8f5e9; color: #2e7d32; }
+  .prio-low    { background: #e3f2fd; color: #1565c0; }
+  .prio-medium { background: #fff3e0; color: #e65100; }
+  .prio-high   { background: #fdecea; color: #c62828; }
+  .overdue { color: #c62828; font-weight: 600; }
   .loading { text-align: center; padding: 60px; color: #aaa; }
   .error { background: #fff3e0; border: 1px solid #ffcc02; border-radius: 8px; padding: 16px; color: #e65100; }
-  .mfield { border: 1px solid #e0e0e0; border-radius: 6px; padding: 4px 7px; font-size: 0.84rem; background: #fafafa; }
-  .mfield:focus { outline: none; border-color: #7ec8e3; background: white; }
-  .mfield.changed { border-color: #fb8c00; background: #fff8e1; }
-  .msave-btn { background: #1a1a2e; color: white; border: none; border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; cursor: pointer; }
-  .msave-btn:hover { background: #2d2d4e; }
-  .mdel-btn { background: none; border: none; color: #c62828; cursor: pointer; font-size: 0.78rem; margin-left: 6px; }
-  .mdel-btn:hover { text-decoration: underline; }
+  .tfield { border: 1px solid #e0e0e0; border-radius: 6px; padding: 4px 7px; font-size: 0.84rem; background: #fafafa; width: 100%; }
+  .tfield:focus { outline: none; border-color: #7ec8e3; background: white; }
+  .tfield.changed { border-color: #fb8c00; background: #fff8e1; }
+  .tsave-btn { background: #1a1a2e; color: white; border: none; border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; cursor: pointer; }
+  .tsave-btn:hover { background: #2d2d4e; }
+  .tdel-btn { background: none; border: none; color: #c62828; cursor: pointer; font-size: 0.78rem; margin-left: 6px; }
+  .tdel-btn:hover { text-decoration: underline; }
   .toast { position: fixed; bottom: 24px; right: 24px; background: #2e7d32; color: white; padding: 12px 20px; border-radius: 8px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
   .toast.show { opacity: 1; }
   .toast.error { background: #c62828; }
+  .new-row td { background: #f0f7ff; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -57,7 +64,7 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
 
 <header>
   <div>
-    <h1>Messungen</h1>
+    <h1>Aufgaben</h1>
     <span id="lastUpdate">Lädt...</span>
   </div>
   <nav>
@@ -69,7 +76,7 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
       <a href="health-strava.html">Strava</a>
-      <a href="health-activities.html">Aktivit&auml;ten</a>
+      <a href="health-activities.html">Aktivitäten</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
       <a href="health-import.html">Berichte</a>
@@ -77,7 +84,7 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
       <a href="health-werte-review.html">Werte</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Aufgaben &#9662;</span><div class="navdrop-menu">
-      <a href="task-dashboard.html">&Uuml;bersicht</a>
+      <a href="task-dashboard.html">Übersicht</a>
       <a href="task-list.html">Liste</a>
     </div></div>
     <a href="health-chat.html">KI Chat</a>
@@ -88,8 +95,9 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
 
 <div class="container">
   <div class="toolbar">
-    <input id="tableFilter" type="text" placeholder="Filtern nach Parameter, Kategorie oder Labor…" oninput="applyFilter()">
+    <input id="tableFilter" type="text" placeholder="Filtern nach Titel oder Notizen…" oninput="applyFilter()">
     <span id="filterCount"></span>
+    <button class="add-btn" onclick="addTask()">+ Neue Aufgabe</button>
   </div>
   <div id="content"><div class="loading">Daten werden geladen...</div></div>
 </div>
@@ -101,9 +109,12 @@ const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
+const STATUS_LABEL = { todo: 'Offen', in_progress: 'In Arbeit', done: 'Erledigt' };
+const PRIO_LABEL = { low: 'Niedrig', medium: 'Mittel', high: 'Hoch' };
+
 let allRows = [];
-let sortCol = 'date';
-let sortAsc = false;
+let sortCol = 'due_date';
+let sortAsc = true;
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'health-login.html';
@@ -115,91 +126,79 @@ async function logout() {
   window.location.href = 'health-login.html';
 }
 
-function statusLabel(val, low, high) {
-  if (val === null || val === undefined) return ['na', '—'];
-  if (low !== null && low !== undefined && val < low) return ['low', 'Zu niedrig'];
-  if (high !== null && high !== undefined && val > high) return ['high', 'Zu hoch'];
-  return ['ok', 'Im Bereich'];
-}
-
 async function loadData() {
   try {
     const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/measurements?select=id,measured_at,value,value_text,unit,value_si,lab,notes,parameters(id,name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)&order=measured_at.desc`,
+      `${SUPABASE_URL}/rest/v1/tasks?select=*&order=created_at.desc`,
       { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
     );
     const data = await resp.json();
     if (!Array.isArray(data)) throw new Error(JSON.stringify(data));
     allRows = data;
     renderTable();
-    document.getElementById('lastUpdate').textContent = `${data.length} Messungen · Stand: ${new Date().toLocaleDateString('de-DE')}`;
+    document.getElementById('lastUpdate').textContent = `${data.length} Aufgaben · Stand: ${new Date().toLocaleDateString('de-DE')}`;
   } catch(e) {
     document.getElementById('content').innerHTML = `<div class="error">Fehler beim Laden: ${e.message}</div>`;
   }
+}
+
+function isOverdue(row) {
+  return row.due_date && row.status !== 'done' && row.due_date < todayStr();
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function renderTable() {
   const q = document.getElementById('tableFilter').value.trim().toLowerCase();
   let rows = allRows.filter(row => {
     if (!q) return true;
-    const key = [row.parameters.name, row.parameters.category || '', row.lab || ''].join(' ').toLowerCase();
+    const key = [row.title, row.notes || ''].join(' ').toLowerCase();
     return key.includes(q);
   });
 
-  // Sort
   rows = rows.slice().sort((a, b) => {
     let av, bv;
-    if (sortCol === 'date')     { av = a.measured_at; bv = b.measured_at; }
-    if (sortCol === 'param')    { av = a.parameters.name; bv = b.parameters.name; }
-    if (sortCol === 'category') { av = a.parameters.category || ''; bv = b.parameters.category || ''; }
-    if (sortCol === 'value')    { av = a.value ?? -Infinity; bv = b.value ?? -Infinity; }
-    if (sortCol === 'value_si') { av = a.value_si ?? -Infinity; bv = b.value_si ?? -Infinity; }
-    if (sortCol === 'lab')      { av = a.lab || ''; bv = b.lab || ''; }
+    if (sortCol === 'title')    { av = a.title.toLowerCase(); bv = b.title.toLowerCase(); }
+    if (sortCol === 'status')   { av = a.status; bv = b.status; }
+    if (sortCol === 'priority') { av = a.priority; bv = b.priority; }
+    if (sortCol === 'due_date') { av = a.due_date || '9999-99-99'; bv = b.due_date || '9999-99-99'; }
     if (av < bv) return sortAsc ? -1 : 1;
     if (av > bv) return sortAsc ? 1 : -1;
     return 0;
   });
 
-  const icons = { date: '↕', param: '↕', category: '↕', value: '↕', value_si: '↕', lab: '↕' };
+  const icons = { title: '↕', status: '↕', priority: '↕', due_date: '↕' };
   icons[sortCol] = sortAsc ? '↑' : '↓';
 
   let html = `<table>
     <thead><tr>
-      <th class="${sortCol==='param'?'sorted':''}" onclick="setSort('param')">Parameter <span class="sort-icon">${icons.param}</span></th>
-      <th class="${sortCol==='category'?'sorted':''}" onclick="setSort('category')">Kategorie <span class="sort-icon">${icons.category}</span></th>
-      <th class="${sortCol==='date'?'sorted':''}" onclick="setSort('date')">Datum <span class="sort-icon">${icons.date}</span></th>
-      <th class="${sortCol==='value'?'sorted':''}" onclick="setSort('value')">Wert <span class="sort-icon">${icons.value}</span></th>
-      <th>Einheit</th>
-      <th class="${sortCol==='value_si'?'sorted':''}" onclick="setSort('value_si')">Wert SI <span class="sort-icon">${icons.value_si}</span></th>
-      <th>Einheit SI</th>
-      <th class="${sortCol==='lab'?'sorted':''}" onclick="setSort('lab')">Labor <span class="sort-icon">${icons.lab}</span></th>
-      <th>Status</th>
+      <th class="${sortCol==='title'?'sorted':''}" onclick="setSort('title')">Titel <span class="sort-icon">${icons.title}</span></th>
+      <th>Notizen</th>
+      <th class="${sortCol==='status'?'sorted':''}" onclick="setSort('status')">Status <span class="sort-icon">${icons.status}</span></th>
+      <th class="${sortCol==='priority'?'sorted':''}" onclick="setSort('priority')">Priorität <span class="sort-icon">${icons.priority}</span></th>
+      <th class="${sortCol==='due_date'?'sorted':''}" onclick="setSort('due_date')">Fällig <span class="sort-icon">${icons.due_date}</span></th>
       <th></th>
     </tr></thead><tbody>`;
 
   for (const row of rows) {
-    const p = row.parameters;
-    const val = row.value;
-    const valSi = row.value_si;
-    const display = row.value_text || (val !== null && val !== undefined ? val : '—');
-    const displaySi = valSi !== null && valSi !== undefined ? valSi : '—';
-    const unitOrig = row.unit || p.unit || '—';
-    const unitSi = p.unit_si || '—';
-    const [cls, label] = statusLabel(valSi ?? val, p.ref_range_low_si ?? p.ref_range_low, p.ref_range_high_si ?? p.ref_range_high);
-    const date = new Date(row.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
-    html += `<tr id="mrow-${row.id}" data-id="${row.id}">
-      <td><strong>${p.name}</strong></td>
-      <td>${p.category || '—'}</td>
-      <td><input type="date" class="mfield" data-field="measured_at" value="${row.measured_at}" style="width:140px"></td>
-      <td><input type="number" class="mfield" data-field="value" value="${val ?? ''}" step="any" style="width:80px"></td>
-      <td><input type="text" class="mfield" data-field="unit" value="${esc(row.unit || '')}" placeholder="—" style="width:70px"></td>
-      <td><input type="number" class="mfield" data-field="value_si" value="${valSi ?? ''}" step="any" style="width:80px"></td>
-      <td>${unitSi}</td>
-      <td><input type="text" class="mfield" data-field="lab" value="${esc(row.lab || '')}" placeholder="—" style="width:95px"></td>
-      <td><span class="${cls}">${label}</span></td>
+    html += `<tr id="trow-${row.id}" data-id="${row.id}">
+      <td><input type="text" class="tfield" data-field="title" value="${esc(row.title)}" style="min-width:160px"></td>
+      <td><input type="text" class="tfield" data-field="notes" value="${esc(row.notes || '')}" placeholder="—"></td>
+      <td><select class="tfield" data-field="status" style="width:110px">
+            ${Object.entries(STATUS_LABEL).map(([k,v]) => `<option value="${k}" ${row.status===k?'selected':''}>${v}</option>`).join('')}
+          </select>
+          <div><span class="badge status-${row.status}">${STATUS_LABEL[row.status]}</span></div></td>
+      <td><select class="tfield" data-field="priority" style="width:100px">
+            ${Object.entries(PRIO_LABEL).map(([k,v]) => `<option value="${k}" ${row.priority===k?'selected':''}>${v}</option>`).join('')}
+          </select>
+          <div><span class="badge prio-${row.priority}">${PRIO_LABEL[row.priority]}</span></div></td>
+      <td><input type="date" class="tfield" data-field="due_date" value="${row.due_date || ''}" style="width:140px">
+          ${isOverdue(row) ? '<div class="overdue" style="font-size:0.75rem;margin-top:4px;">Überfällig</div>' : ''}</td>
       <td style="white-space:nowrap">
-        <button class="msave-btn" onclick="saveMeas('${row.id}')" style="display:none">Speichern</button>
-        <button class="mdel-btn" onclick="deleteMeas('${row.id}')">Löschen</button>
+        <button class="tsave-btn" onclick="saveTask('${row.id}')" style="display:none">Speichern</button>
+        <button class="tdel-btn" onclick="deleteTask('${row.id}')">Löschen</button>
       </td>
     </tr>`;
   }
@@ -209,14 +208,13 @@ function renderTable() {
   document.getElementById('filterCount').textContent =
     rows.length === allRows.length ? `${allRows.length} Einträge` : `${rows.length} von ${allRows.length}`;
 
-  // Änderungen je Zeile markieren → Speichern-Button zeigen
-  document.querySelectorAll('.mfield').forEach(inp => {
+  document.querySelectorAll('.tfield').forEach(inp => {
     const original = inp.value;
     inp.addEventListener('input', () => {
       const r = inp.closest('tr');
       inp.classList.toggle('changed', inp.value !== original);
-      const any = r.querySelectorAll('.mfield.changed').length > 0;
-      r.querySelector('.msave-btn').style.display = any ? '' : 'none';
+      const any = r.querySelectorAll('.tfield.changed').length > 0;
+      r.querySelector('.tsave-btn').style.display = any ? '' : 'none';
     });
   });
 }
@@ -230,17 +228,17 @@ function showToast(msg, isError = false) {
   setTimeout(() => t.className = 'toast', 2500);
 }
 
-async function saveMeas(id) {
-  const row = document.getElementById('mrow-' + id);
+async function saveTask(id) {
+  const row = document.getElementById('trow-' + id);
   const update = {};
-  for (const inp of row.querySelectorAll('.mfield')) {
+  for (const inp of row.querySelectorAll('.tfield')) {
     const f = inp.dataset.field, v = inp.value.trim();
-    if (f === 'value' || f === 'value_si') update[f] = v === '' ? null : parseFloat(v);
-    else update[f] = v === '' ? null : v;
+    update[f] = v === '' ? null : v;
   }
-  if (!update.measured_at) { showToast('Datum darf nicht leer sein', true); return; }
+  if (!update.title) { showToast('Titel darf nicht leer sein', true); return; }
+  update.updated_at = new Date().toISOString();
 
-  const resp = await fetch(`${SUPABASE_URL}/rest/v1/measurements?id=eq.${id}`, {
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/tasks?id=eq.${id}`, {
     method: 'PATCH',
     headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
     body: JSON.stringify(update)
@@ -255,17 +253,35 @@ async function saveMeas(id) {
   }
 }
 
-async function deleteMeas(id) {
+async function deleteTask(id) {
   const row = allRows.find(x => String(x.id) === String(id));
-  const name = row ? row.parameters.name : 'Messung';
-  if (!confirm(`Messung „${name}" wirklich löschen?`)) return;
-  const resp = await fetch(`${SUPABASE_URL}/rest/v1/measurements?id=eq.${id}`, {
+  const name = row ? row.title : 'Aufgabe';
+  if (!confirm(`Aufgabe „${name}" wirklich löschen?`)) return;
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/tasks?id=eq.${id}`, {
     method: 'DELETE',
     headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Prefer': 'return=minimal' },
   });
   if (resp.ok || resp.status === 204) {
     allRows = allRows.filter(x => String(x.id) !== String(id));
-    showToast('Messung gelöscht');
+    showToast('Aufgabe gelöscht');
+    renderTable();
+  } else {
+    showToast('Fehler: ' + (await resp.text()), true);
+  }
+}
+
+async function addTask() {
+  const title = prompt('Titel der neuen Aufgabe:');
+  if (!title || !title.trim()) return;
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/tasks`, {
+    method: 'POST',
+    headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+    body: JSON.stringify({ title: title.trim() })
+  });
+  if (resp.ok) {
+    const [created] = await resp.json();
+    allRows.unshift(created);
+    showToast('Aufgabe angelegt');
     renderTable();
   } else {
     showToast('Fehler: ' + (await resp.text()), true);

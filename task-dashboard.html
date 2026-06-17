@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>HealthDB &middot; Dashboard</title>
+<title>HealthDB &middot; Aufgaben Übersicht</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -15,20 +15,30 @@
   .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
   .logout-btn:hover { text-decoration: underline; }
   .container { max-width: 1600px; margin: 32px auto; padding: 0 24px; }
-  .section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin: 32px 0 12px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
-  .card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-  .card .param { font-size: 0.8rem; color: #888; margin-bottom: 4px; }
-  .card .value { font-size: 1.6rem; font-weight: 700; }
-  .card .unit { font-size: 0.8rem; color: #aaa; margin-left: 4px; }
-  .card .date { font-size: 0.75rem; color: #bbb; margin-top: 4px; }
-  .card .range { font-size: 0.75rem; margin-top: 6px; padding: 3px 8px; border-radius: 20px; display: inline-block; }
-  .ok   { background: #e8f5e9; color: #2e7d32; }
-  .high { background: #fff3e0; color: #e65100; }
-  .low  { background: #e3f2fd; color: #1565c0; }
-  .na   { background: #f5f5f5; color: #999; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .stat { background: white; border-radius: 10px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .stat .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; }
+  .stat .num { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
+  .stat.overdue .num { color: #c62828; }
+  .section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin: 0 0 12px; }
+  .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .col { background: #eef0f3; border-radius: 12px; padding: 14px; min-height: 120px; }
+  .col h3 { font-size: 0.9rem; margin-bottom: 10px; color: #555; }
+  .tcard { background: white; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; }
+  .tcard:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+  .tcard .title { font-weight: 600; font-size: 0.9rem; }
+  .tcard .notes { font-size: 0.78rem; color: #888; margin-top: 4px; }
+  .tcard .meta { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+  .badge { padding: 2px 8px; border-radius: 20px; font-size: 0.72rem; }
+  .prio-low    { background: #e3f2fd; color: #1565c0; }
+  .prio-medium { background: #fff3e0; color: #e65100; }
+  .prio-high   { background: #fdecea; color: #c62828; }
+  .due { font-size: 0.72rem; color: #999; }
+  .due.overdue { color: #c62828; font-weight: 600; }
+  .empty { color: #aaa; font-size: 0.8rem; padding: 8px 4px; }
   .loading { text-align: center; padding: 60px; color: #aaa; }
   .error { background: #fff3e0; border: 1px solid #ffcc02; border-radius: 8px; padding: 16px; color: #e65100; }
+  @media (max-width: 800px) { .board { grid-template-columns: 1fr; } }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -44,7 +54,7 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
 
 <header>
   <div>
-    <h1>Health Dashboard</h1>
+    <h1>Aufgaben Übersicht</h1>
     <span id="lastUpdate">Lädt...</span>
   </div>
   <nav>
@@ -56,7 +66,7 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
       <a href="health-strava.html">Strava</a>
-      <a href="health-activities.html">Aktivit&auml;ten</a>
+      <a href="health-activities.html">Aktivitäten</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
       <a href="health-import.html">Berichte</a>
@@ -64,7 +74,7 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
       <a href="health-werte-review.html">Werte</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Aufgaben &#9662;</span><div class="navdrop-menu">
-      <a href="task-dashboard.html">&Uuml;bersicht</a>
+      <a href="task-dashboard.html">Übersicht</a>
       <a href="task-list.html">Liste</a>
     </div></div>
     <a href="health-chat.html">KI Chat</a>
@@ -82,6 +92,9 @@ const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
+const STATUS_LABEL = { todo: 'Offen', in_progress: 'In Arbeit', done: 'Erledigt' };
+const PRIO_LABEL = { low: 'Niedrig', medium: 'Mittel', high: 'Hoch' };
+
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'health-login.html';
   else loadData();
@@ -95,80 +108,60 @@ async function logout() {
 async function loadData() {
   try {
     const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/measurements?select=measured_at,value,value_text,unit,value_si,lab,parameters(id,name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)&order=measured_at.desc`,
+      `${SUPABASE_URL}/rest/v1/tasks?select=*&order=due_date.asc.nullslast`,
       { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
     );
     const data = await resp.json();
     if (!Array.isArray(data)) throw new Error(JSON.stringify(data));
     render(data);
+    document.getElementById('lastUpdate').textContent = `${data.length} Aufgaben · Stand: ${new Date().toLocaleDateString('de-DE')}`;
   } catch(e) {
     document.getElementById('content').innerHTML = `<div class="error">Fehler beim Laden: ${e.message}</div>`;
   }
 }
 
-function statusLabel(val, low, high) {
-  if (val === null || val === undefined) return ['na', '—'];
-  if (low !== null && low !== undefined && val < low) return ['low', 'Zu niedrig'];
-  if (high !== null && high !== undefined && val > high) return ['high', 'Zu hoch'];
-  return ['ok', 'Im Bereich'];
-}
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function isOverdue(row) { return row.due_date && row.status !== 'done' && row.due_date < todayStr(); }
 
 function render(data) {
-  const latest = {};
+  const counts = { todo: 0, in_progress: 0, done: 0 };
+  let overdueCount = 0;
   for (const row of data) {
-    const name = row.parameters.name;
-    if (!latest[name]) latest[name] = row;
+    counts[row.status] = (counts[row.status] || 0) + 1;
+    if (isOverdue(row)) overdueCount++;
   }
 
-  const byCategory = {};
-  for (const [name, row] of Object.entries(latest)) {
-    const cat = row.parameters.category || 'Sonstige';
-    if (!byCategory[cat]) byCategory[cat] = [];
-    byCategory[cat].push({ name, row });
-  }
+  let html = `<div class="stats">
+    <div class="stat"><div class="label">Offen</div><div class="num">${counts.todo}</div></div>
+    <div class="stat"><div class="label">In Arbeit</div><div class="num">${counts.in_progress}</div></div>
+    <div class="stat"><div class="label">Erledigt</div><div class="num">${counts.done}</div></div>
+    <div class="stat overdue"><div class="label">Überfällig</div><div class="num">${overdueCount}</div></div>
+  </div>`;
 
-  const mainCats = ['Vitamin', 'Mineralstoff', 'Hämoglobin', 'Aminosäurenprofil', 'Stoffwechsel'];
-  let html = '';
-
-  // Collect all categories not in mainCats into "Weitere"
-  const weitereItems = [];
-  for (const [cat, items] of Object.entries(byCategory)) {
-    if (!mainCats.includes(cat)) weitereItems.push(...items);
-  }
-
-  const catsToRender = [...mainCats, '__weitere__'];
-
-  for (const cat of catsToRender) {
-    const items = cat === '__weitere__' ? weitereItems : byCategory[cat];
-    if (!items || items.length === 0) continue;
-    const label = cat === '__weitere__' ? 'Weitere' : cat;
-    html += `<div class="section-title">${label}</div><div class="grid">`;
-    for (const { name, row } of items) {
-      const p = row.parameters;
-      const val = row.value;
-      const valSi = row.value_si;
-      const display = row.value_text || (val !== null ? val : '—');
-      const displaySi = valSi !== null && valSi !== undefined ? valSi : null;
-      const unitOrig = row.unit || p.unit || '';
-      const unitSi = p.unit_si || '';
-      const [cls, label] = statusLabel(valSi ?? val, p.ref_range_low_si ?? p.ref_range_low, p.ref_range_high_si ?? p.ref_range_high);
-      const date = new Date(row.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
-      const lab = row.lab ? ` · ${row.lab}` : '';
-      html += `
-        <div class="card" onclick="window.location='health-trend.html?param=${p.id}'" style="cursor:pointer" title="Trend anzeigen">
-          <div class="param">${name}</div>
-          <div><span class="value">${displaySi ?? display}</span><span class="unit">${unitSi || unitOrig}</span></div>
-          ${unitSi && unitSi !== unitOrig ? `<div style="font-size:0.75rem;color:#bbb">${display} ${unitOrig}</div>` : ''}
-          <div class="date">${date}${lab}</div>
-          <span class="range ${cls}">${label}</span>
-        </div>`;
+  html += '<div class="board">';
+  for (const status of ['todo', 'in_progress', 'done']) {
+    const items = data.filter(r => r.status === status);
+    html += `<div class="col"><h3>${STATUS_LABEL[status]} (${items.length})</h3>`;
+    if (items.length === 0) html += '<div class="empty">Keine Aufgaben</div>';
+    for (const row of items) {
+      const due = row.due_date ? new Date(row.due_date).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' }) : null;
+      html += `<div class="tcard" onclick="window.location='task-list.html'">
+        <div class="title">${esc(row.title)}</div>
+        ${row.notes ? `<div class="notes">${esc(row.notes)}</div>` : ''}
+        <div class="meta">
+          <span class="badge prio-${row.priority}">${PRIO_LABEL[row.priority]}</span>
+          ${due ? `<span class="due ${isOverdue(row) ? 'overdue' : ''}">${isOverdue(row) ? 'Überfällig: ' : 'Fällig: '}${due}</span>` : ''}
+        </div>
+      </div>`;
     }
     html += '</div>';
   }
+  html += '</div>';
 
   document.getElementById('content').innerHTML = html;
-  document.getElementById('lastUpdate').textContent = `${Object.keys(latest).length} Parameter · Stand: ${new Date().toLocaleDateString('de-DE')}`;
 }
+
+function esc(s) { return String(s).replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 </script>
 </body>
 </html>

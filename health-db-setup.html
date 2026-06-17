@@ -65,6 +65,10 @@
       <a href="health-bucket.html">Bucket</a>
       <a href="health-werte-review.html">Werte</a>
     </div></div>
+    <div class="navdrop"><span class="navdrop-label">Aufgaben &#9662;</span><div class="navdrop-menu">
+      <a href="task-dashboard.html">&Uuml;bersicht</a>
+      <a href="task-list.html">Liste</a>
+    </div></div>
     <a href="health-chat.html">KI Chat</a>
     <a href="health-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
@@ -195,6 +199,11 @@
       <td><code>id, raw_name, matched_parameter_id, value, unit, ref_low/high, measured_at, is_duplicate, status</code></td>
     </tr>
     <tr>
+      <td><strong>tasks</strong> <span class="badge new">neu</span></td>
+      <td>Persönliche Aufgabenliste</td>
+      <td><code>id, title, notes, status (todo/in_progress/done), priority (low/medium/high), due_date, created_at, updated_at</code></td>
+    </tr>
+    <tr>
       <td><strong>users</strong></td>
       <td>Nutzerkonten (Supabase Auth)</td>
       <td>verwaltet durch Supabase Auth</td>
@@ -213,7 +222,7 @@
   <div class="note">Beispiel Magnesium: Russland misst in mg/l (20.98 mg/l = 0.863 mmol/l), Deutschland in mmol/l (0.93 mmol/l). Die App zeigt immer mmol/l im Dashboard und Trend.</div>
 
   <h3>Row Level Security (RLS)</h3>
-  <p><code>lab_reports</code>, <code>staged_measurements</code>, <code>documents</code>, <code>chat_*</code> und der Storage Bucket haben RLS-Policies (anon + authenticated). <code>parameters</code> und <code>measurements</code> haben RLS <strong>deaktiviert</strong> — der Anon-Key darf hier direkt lesen/schreiben/löschen (Einzelnutzer-Setup), daher funktioniert das volle Bearbeiten/Löschen im Frontend.</p>
+  <p><code>lab_reports</code>, <code>staged_measurements</code>, <code>documents</code>, <code>chat_*</code> und der Storage Bucket haben RLS-Policies (anon + authenticated). <code>parameters</code>, <code>measurements</code> und <code>tasks</code> haben RLS <strong>deaktiviert</strong> — der Anon-Key darf hier direkt lesen/schreiben/löschen (Einzelnutzer-Setup), daher funktioniert das volle Bearbeiten/Löschen im Frontend.</p>
 </div>
 
 <!-- ====== FRONTEND ====== -->
@@ -231,10 +240,12 @@
     <tr><td><code>health-bucket.html</code></td><td>Reine Ansicht der Roh-PDFs im Storage Bucket</td><td><span class="badge new">neu</span></td></tr>
     <tr><td><code>health-werte-review.html</code></td><td>Werte aus PDF extrahieren → prüfen (Duplikat-Check) → in measurements übernehmen</td><td><span class="badge new">neu</span></td></tr>
     <tr><td><code>health-activities.html</code> / <code>health-strava.html</code></td><td>Strava Aktivitäten + OAuth Import</td><td></td></tr>
+    <tr><td><code>task-dashboard.html</code></td><td>Aufgaben-Übersicht: Kennzahlen + Kanban-Spalten (Offen / In Arbeit / Erledigt)</td><td><span class="badge new">neu</span></td></tr>
+    <tr><td><code>task-list.html</code></td><td>Alle Aufgaben, filterbar + sortierbar, <strong>anlegen + bearbeiten + löschen pro Zeile</strong></td><td><span class="badge new">CRUD</span></td></tr>
     <tr><td><code>health-users.html</code> / <code>health-login.html</code></td><td>Nutzerverwaltung / Login</td><td></td></tr>
     <tr><td><code>health-db-setup.html</code></td><td>Diese Dokumentation</td><td></td></tr>
   </table>
-  <div class="note">Navigation einheitlich mit Dropdown-Gruppen: <strong>Dashboard · Daten▾ (Messungen·Trend·Parameter) · Sport▾ (Strava·Aktivitäten) · Import▾ (Berichte·Bucket·Werte) · KI Chat · Users · Abmelden</strong></div>
+  <div class="note">Navigation einheitlich mit Dropdown-Gruppen: <strong>Dashboard · Daten▾ (Messungen·Trend·Parameter) · Sport▾ (Strava·Aktivitäten) · Import▾ (Berichte·Bucket·Werte) · Aufgaben▾ (Übersicht·Liste) · KI Chat · Users · Abmelden</strong></div>
 </div>
 
 <!-- ====== KI CHAT ====== -->
