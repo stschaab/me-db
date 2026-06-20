@@ -13,10 +13,42 @@
   nav a:hover { text-decoration: underline; }
   .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
   .logout-btn:hover { text-decoration: underline; }
-  .container { max-width: 700px; margin: 80px auto; padding: 0 24px; text-align: center; }
-  .icon { font-size: 3rem; margin-bottom: 16px; }
-  h2 { font-size: 1.4rem; margin-bottom: 12px; }
-  p { color: #888; line-height: 1.6; }
+  .container { max-width: 800px; margin: 32px auto; padding: 0 24px 60px; }
+
+  .addbar { background: white; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .addbar input[type="text"] { flex: 1; min-width: 180px; border: 1px solid #e0e0e0; border-radius: 7px; padding: 9px 12px; font-size: 0.9rem; }
+  .addbar select, .addbar input[type="date"] { border: 1px solid #e0e0e0; border-radius: 7px; padding: 9px 10px; font-size: 0.85rem; background: #fafafa; }
+  .addbar button { background: #1a1a2e; color: white; border: none; border-radius: 7px; padding: 9px 18px; font-size: 0.9rem; cursor: pointer; }
+  .addbar button:hover { background: #2d2d4e; }
+
+  .filters { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .filters select { border: 1px solid #e0e0e0; border-radius: 7px; padding: 6px 10px; font-size: 0.82rem; background: white; }
+  .filters .count { font-size: 0.8rem; color: #888; margin-left: auto; }
+
+  .section-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #888; margin: 22px 0 8px; }
+
+  .task-row { background: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .task-row.done { opacity: 0.55; }
+  .task-row.done .t-title { text-decoration: line-through; }
+  .chk { width: 20px; height: 20px; cursor: pointer; accent-color: #2e7d32; flex-shrink: 0; }
+  .t-main { flex: 1; min-width: 0; }
+  .t-title { font-size: 0.95rem; font-weight: 600; }
+  .t-title[contenteditable="true"] { outline: 1px dashed #7ec8e3; padding: 2px 4px; border-radius: 4px; }
+  .t-meta { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; align-items: center; }
+  .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+  .prio-high { background: #ffebee; color: #c62828; }
+  .prio-medium { background: #fff3e0; color: #e65100; }
+  .prio-low { background: #e3f2fd; color: #1565c0; }
+  .proj-badge { background: #f0f0f0; color: #666; font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; }
+  .due { font-size: 0.75rem; color: #aaa; }
+  .due.overdue { color: #c62828; font-weight: 600; }
+  .t-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .icon-btn { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 4px 6px; border-radius: 6px; color: #aaa; }
+  .icon-btn:hover { background: #f5f5f5; color: #333; }
+
+  .empty { text-align: center; padding: 50px; color: #aaa; }
+  .loading { text-align: center; padding: 60px; color: #aaa; }
+  .error { background: #fff3e0; border: 1px solid #ffcc02; border-radius: 8px; padding: 16px; color: #e65100; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -58,9 +90,36 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
 </header>
 
 <div class="container">
-  <div class="icon">🚧</div>
-  <h2>Task-Dashboard kommt bald</h2>
-  <p>Hier entsteht eine von Claude verwaltete Task-Liste – Design (Listen- oder Kanban-Ansicht, Umfang) wird noch mit Stefan abgestimmt.</p>
+
+  <div class="addbar">
+    <input type="text" id="newTitle" placeholder="Neue Aufgabe… (Enter zum Hinzufügen)" onkeydown="if(event.key==='Enter') addTask()">
+    <select id="newPriority">
+      <option value="">Priorität</option>
+      <option value="high">Hoch</option>
+      <option value="medium">Mittel</option>
+      <option value="low">Niedrig</option>
+    </select>
+    <input type="text" id="newProject" placeholder="Projekt" style="max-width:120px">
+    <input type="date" id="newDue">
+    <button onclick="addTask()">+ Hinzufügen</button>
+  </div>
+
+  <div class="filters">
+    <select id="filterProject" onchange="render()"><option value="">Alle Projekte</option></select>
+    <select id="filterPriority" onchange="render()">
+      <option value="">Alle Prioritäten</option>
+      <option value="high">Hoch</option>
+      <option value="medium">Mittel</option>
+      <option value="low">Niedrig</option>
+    </select>
+    <label style="font-size:0.82rem;color:#888;display:flex;align-items:center;gap:5px">
+      <input type="checkbox" id="showDone" onchange="render()"> Erledigte anzeigen
+    </label>
+    <span class="count" id="taskCount"></span>
+  </div>
+
+  <div id="content"><div class="loading">Lade Tasks...</div></div>
+
 </div>
 
 <script>
@@ -68,13 +127,147 @@ const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
+let userId = null;
+let allTasks = [];
+
 db.auth.getSession().then(({ data }) => {
-  if (!data.session) window.location.href = 'me-db-login.html';
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  userId = data.session.user.id;
+  loadTasks();
 });
 
 async function logout() {
   await db.auth.signOut();
   window.location.href = 'me-db-login.html';
+}
+
+async function loadTasks() {
+  try {
+    const { data, error } = await db.from('tasks').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    allTasks = data || [];
+    populateProjectFilter();
+    render();
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="error">Fehler beim Laden: ${e.message}</div>`;
+  }
+}
+
+function populateProjectFilter() {
+  const sel = document.getElementById('filterProject');
+  const current = sel.value;
+  const projects = [...new Set(allTasks.map(t => t.project).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Alle Projekte</option>' + projects.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  sel.value = current;
+}
+
+async function addTask() {
+  const title = document.getElementById('newTitle').value.trim();
+  if (!title) return;
+  const priority = document.getElementById('newPriority').value || null;
+  const project = document.getElementById('newProject').value.trim() || null;
+  const due_date = document.getElementById('newDue').value || null;
+
+  const { data, error } = await db.from('tasks').insert({
+    user_id: userId, title, priority, project, due_date, status: 'open', source: 'manual'
+  }).select();
+  if (error) { alert('Fehler: ' + error.message); return; }
+
+  allTasks.unshift(data[0]);
+  document.getElementById('newTitle').value = '';
+  document.getElementById('newPriority').value = '';
+  document.getElementById('newProject').value = '';
+  document.getElementById('newDue').value = '';
+  populateProjectFilter();
+  render();
+}
+
+async function toggleDone(id, currentlyDone) {
+  const newStatus = currentlyDone ? 'open' : 'done';
+  const { error } = await db.from('tasks').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { alert('Fehler: ' + error.message); return; }
+  const t = allTasks.find(t => t.id === id);
+  if (t) t.status = newStatus;
+  render();
+}
+
+async function deleteTask(id) {
+  if (!confirm('Aufgabe wirklich löschen?')) return;
+  const { error } = await db.from('tasks').delete().eq('id', id);
+  if (error) { alert('Fehler: ' + error.message); return; }
+  allTasks = allTasks.filter(t => t.id !== id);
+  render();
+}
+
+async function saveTitle(id, el) {
+  const newTitle = el.textContent.trim();
+  const t = allTasks.find(t => t.id === id);
+  if (!newTitle || newTitle === t.title) { el.textContent = t.title; return; }
+  const { error } = await db.from('tasks').update({ title: newTitle, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { alert('Fehler: ' + error.message); el.textContent = t.title; return; }
+  t.title = newTitle;
+}
+
+function esc(s) {
+  const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML;
+}
+
+function fmtDue(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const overdue = d < today;
+  const label = d.toLocaleDateString('de-DE', { day:'2-digit', month:'short' });
+  return `<span class="due ${overdue ? 'overdue' : ''}">${overdue ? '⚠ ' : '📅 '}${label}</span>`;
+}
+
+function taskRow(t) {
+  const done = t.status === 'done';
+  const prio = t.priority ? `<span class="badge prio-${t.priority}">${t.priority === 'high' ? 'Hoch' : t.priority === 'medium' ? 'Mittel' : 'Niedrig'}</span>` : '';
+  const proj = t.project ? `<span class="proj-badge">${esc(t.project)}</span>` : '';
+  const due = fmtDue(t.due_date);
+  return `
+    <div class="task-row ${done ? 'done' : ''}">
+      <input type="checkbox" class="chk" ${done ? 'checked' : ''} onchange="toggleDone(${t.id}, ${done})">
+      <div class="t-main">
+        <div class="t-title" contenteditable="true" onblur="saveTitle(${t.id}, this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${esc(t.title)}</div>
+        <div class="t-meta">${prio}${proj}${due}</div>
+      </div>
+      <div class="t-actions">
+        <button class="icon-btn" onclick="deleteTask(${t.id})" title="Löschen">🗑</button>
+      </div>
+    </div>`;
+}
+
+function render() {
+  const fProject = document.getElementById('filterProject').value;
+  const fPriority = document.getElementById('filterPriority').value;
+  const showDone = document.getElementById('showDone').checked;
+
+  let list = allTasks.filter(t => {
+    if (fProject && t.project !== fProject) return false;
+    if (fPriority && t.priority !== fPriority) return false;
+    if (!showDone && t.status === 'done') return false;
+    return true;
+  });
+
+  document.getElementById('taskCount').textContent = `${list.filter(t => t.status !== 'done').length} offen`;
+
+  if (list.length === 0) {
+    document.getElementById('content').innerHTML = '<div class="empty">Keine Aufgaben gefunden.</div>';
+    return;
+  }
+
+  const open = list.filter(t => t.status === 'open');
+  const inProgress = list.filter(t => t.status === 'in_progress');
+  const done = list.filter(t => t.status === 'done');
+
+  let html = '';
+  if (inProgress.length) html += `<div class="section-title">In Arbeit</div>` + inProgress.map(taskRow).join('');
+  if (open.length) html += `<div class="section-title">Offen</div>` + open.map(taskRow).join('');
+  if (done.length) html += `<div class="section-title">Erledigt</div>` + done.map(taskRow).join('');
+
+  document.getElementById('content').innerHTML = html;
 }
 </script>
 </body>
