@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Abos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 900px; margin: 28px auto; padding: 0 24px 60px; }
+
+  .hero { background: white; border-radius: 14px; padding: 26px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; gap: 28px; flex-wrap: wrap; margin-bottom: 20px; }
+  .hero .big { font-size: 2.6rem; font-weight: 800; }
+  .hero .big .u { font-size: 1rem; color: #aaa; font-weight: 500; margin-left: 4px; }
+  .hero .label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+  .hero .sub { font-size: 0.8rem; color: #aaa; margin-top: 6px; }
+
+  .filters { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .chip { border: 1px solid #d8d8d8; background: white; border-radius: 20px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; }
+  .chip.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+  .filters .right { margin-left: auto; }
+  .btn-add { background: #1a1a2e; color: white; border: none; border-radius: 7px; padding: 8px 16px; font-size: 0.85rem; cursor: pointer; }
+  .btn-add:hover { background: #2d2d4e; }
+
+  .sub-row { background: white; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 8px; }
+  .sub-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .sub-name { font-size: 0.98rem; font-weight: 700; flex: 1; min-width: 140px; border: none; background: transparent; }
+  .sub-provider { font-size: 0.75rem; color: #999; }
+  .badge { font-size: 0.68rem; padding: 2px 9px; border-radius: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .badge.active { background: #e8f5e9; color: #2e7d32; }
+  .badge.check { background: #fff3e0; color: #e65100; }
+  .badge.cancelled { background: #f5f5f5; color: #999; }
+  .sub-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 10px; }
+  .sub-fields label { font-size: 0.65rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 2px; }
+  .sub-fields input, .sub-fields select { width: 100%; border: 1px solid #e0e0e0; border-radius: 6px; padding: 6px 8px; font-size: 0.82rem; }
+  .sub-notes { margin-top: 8px; }
+  .sub-notes textarea { width: 100%; border: 1px solid #e0e0e0; border-radius: 6px; padding: 6px 8px; font-size: 0.8rem; resize: vertical; min-height: 36px; font-family: inherit; }
+  .sub-actions { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; }
+  .sub-actions button { font-size: 0.78rem; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #e0e0e0; background: white; }
+  .sub-actions .save-btn { background: #2e7d32; color: white; border-color: #2e7d32; }
+  .sub-actions .del-btn:hover { background: #ffebee; color: #c62828; border-color: #ffebee; }
+
+  .empty { text-align: center; padding: 50px; color: #aaa; }
+  .loading { text-align: center; padding: 60px; color: #aaa; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; padding: 11px 20px; border-radius: 8px; font-size: 0.88rem; opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+/* === Hamburger-Navigation (immer aktiv) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 1.2rem; }
+  .container { padding: 0 14px 60px; margin: 18px auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#8a8aa5;font-weight:400"> &middot; Abos</span></h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Messungen</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameter</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sport-Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Werte</a>
+    </div></div>
+    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <div class="hero">
+    <div>
+      <div class="big" id="totalMonthly">…<span class="u">€/Monat</span></div>
+      <div class="label">Aktive Abos</div>
+      <div class="sub" id="totalSub"></div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <button class="chip active" data-f="all" onclick="setFilter('all')">Alle</button>
+    <button class="chip" data-f="active" onclick="setFilter('active')">Aktiv</button>
+    <button class="chip" data-f="check" onclick="setFilter('check')">Zu prüfen</button>
+    <button class="chip" data-f="cancelled" onclick="setFilter('cancelled')">Gekündigt</button>
+    <div class="right"><button class="btn-add" onclick="addNew()">+ Neues Abo</button></div>
+  </div>
+
+  <div id="content"><div class="loading">Lade Abos…</div></div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+let userId = null;
+let allSubs = [];
+let filter = 'all';
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  userId = data.session.user.id;
+  loadSubs();
+});
+
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+
+function monthlyEquivalent(price, interval) {
+  if (price == null) return 0;
+  switch (interval) {
+    case 'monthly': return price;
+    case 'yearly': return price / 12;
+    case '6months': return price / 6;
+    default: return 0; // 'check' / unbekannt -> nicht in Summe
+  }
+}
+
+async function loadSubs() {
+  const { data, error } = await db.from('subscriptions').select('*').order('price', { ascending: false });
+  if (error) { document.getElementById('content').innerHTML = `<div class="empty">Fehler: ${error.message}</div>`; return; }
+  allSubs = data || [];
+  renderTotal();
+  render();
+}
+
+function renderTotal() {
+  const active = allSubs.filter(s => s.status === 'active');
+  const total = active.reduce((s,x) => s + monthlyEquivalent(parseFloat(x.price)||0, x.interval), 0);
+  const checkCount = allSubs.filter(s => s.status === 'check').length;
+  document.getElementById('totalMonthly').innerHTML = `${total.toFixed(2)}<span class="u">€/Monat</span>`;
+  document.getElementById('totalSub').textContent = `${active.length} aktive Abos` + (checkCount ? ` · ${checkCount} zu prüfen (nicht in Summe)` : '');
+}
+
+function setFilter(f) {
+  filter = f;
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.f === f));
+  render();
+}
+
+function render() {
+  const list = filter === 'all' ? allSubs : allSubs.filter(s => s.status === filter);
+  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">Keine Abos in dieser Ansicht.</div>'; return; }
+  document.getElementById('content').innerHTML = list.map(subRow).join('');
+}
+
+function subRow(s) {
+  const intervalOpts = ['monthly','yearly','6months','check'].map(i =>
+    `<option value="${i}" ${s.interval===i?'selected':''}>${i==='monthly'?'monatlich':i==='yearly'?'jährlich':i==='6months'?'6 Monate':'unklar'}</option>`).join('');
+  const statusOpts = ['active','check','cancelled'].map(st =>
+    `<option value="${st}" ${s.status===st?'selected':''}>${st==='active'?'Aktiv':st==='check'?'Zu prüfen':'Gekündigt'}</option>`).join('');
+  return `
+    <div class="sub-row" id="row-${s.id}">
+      <div class="sub-top">
+        <input class="sub-name" value="${esc(s.name)}" id="name-${s.id}">
+        <span class="badge ${s.status}">${s.status==='active'?'Aktiv':s.status==='check'?'Zu prüfen':'Gekündigt'}</span>
+      </div>
+      <div class="sub-provider">${esc(s.provider || '')}</div>
+      <div class="sub-fields">
+        <div><label>Preis (€)</label><input type="number" step="0.01" value="${s.price ?? ''}" id="price-${s.id}"></div>
+        <div><label>Rhythmus</label><select id="interval-${s.id}">${intervalOpts}</select></div>
+        <div><label>Status</label><select id="status-${s.id}">${statusOpts}</select></div>
+        <div><label>Kategorie</label><input type="text" value="${esc(s.category||'')}" id="category-${s.id}"></div>
+        <div><label>Zahlweg</label><input type="text" value="${esc(s.payment_method||'')}" id="pm-${s.id}"></div>
+        <div><label>Anbieter</label><input type="text" value="${esc(s.provider||'')}" id="provider-${s.id}"></div>
+      </div>
+      <div class="sub-notes"><textarea id="notes-${s.id}" placeholder="Notizen…">${esc(s.notes||'')}</textarea></div>
+      <div class="sub-actions">
+        <button class="del-btn" onclick="deleteSub(${s.id})">🗑 Löschen</button>
+        <button class="save-btn" onclick="saveSub(${s.id})">Speichern</button>
+      </div>
+    </div>`;
+}
+
+async function saveSub(id) {
+  const update = {
+    name: document.getElementById(`name-${id}`).value.trim(),
+    price: parseFloat(document.getElementById(`price-${id}`).value) || null,
+    interval: document.getElementById(`interval-${id}`).value,
+    status: document.getElementById(`status-${id}`).value,
+    category: document.getElementById(`category-${id}`).value.trim() || null,
+    payment_method: document.getElementById(`pm-${id}`).value.trim() || null,
+    provider: document.getElementById(`provider-${id}`).value.trim() || null,
+    notes: document.getElementById(`notes-${id}`).value.trim() || null,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await db.from('subscriptions').update(update).eq('id', id);
+  if (error) { showToast('Fehler: ' + error.message); return; }
+  const idx = allSubs.findIndex(s => s.id === id);
+  if (idx >= 0) allSubs[idx] = { ...allSubs[idx], ...update };
+  renderTotal(); render();
+  showToast('Gespeichert ✓');
+}
+
+async function deleteSub(id) {
+  if (!confirm('Abo wirklich löschen?')) return;
+  const { error } = await db.from('subscriptions').delete().eq('id', id);
+  if (error) { showToast('Fehler: ' + error.message); return; }
+  allSubs = allSubs.filter(s => s.id !== id);
+  renderTotal(); render();
+  showToast('Gelöscht');
+}
+
+async function addNew() {
+  const { data, error } = await db.from('subscriptions')
+    .insert({ user_id: userId, name: 'Neues Abo', interval: 'monthly', status: 'check' })
+    .select();
+  if (error) { showToast('Fehler: ' + error.message); return; }
+  allSubs.unshift(data[0]);
+  setFilter('all');
+  showToast('Abo angelegt – bitte Details ausfüllen');
+}
+</script>
+</body>
+</html>
