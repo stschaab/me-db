@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>MeDB &middot; Parameter</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 1200px; margin: 32px auto; padding: 0 24px; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .toolbar span { font-size: 0.8rem; color: #888; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #2e7d32; color: white; padding: 12px 20px; border-radius: 8px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+  .toast.error { background: #c62828; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  th { background: #f0f0f0; text-align: left; padding: 10px 12px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #666; border-bottom: 2px solid #e0e0e0; white-space: nowrap; }
+  td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; }
+  .cat-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; background: #e8eaf6; color: #3949ab; white-space: nowrap; }
+  input[type="text"], input[type="number"] {
+    border: 1px solid #e0e0e0; border-radius: 6px; padding: 5px 8px;
+    font-size: 0.85rem; width: 100%; background: #fafafa;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  input:focus { outline: none; border-color: #7ec8e3; background: white; }
+  input.changed { border-color: #fb8c00; background: #fff8e1; }
+  .save-btn {
+    background: #1a1a2e; color: white; border: none; border-radius: 6px;
+    padding: 5px 12px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .save-btn.visible { opacity: 1; }
+  .save-btn:hover { background: #2d2d4e; }
+  .loading { text-align: center; padding: 60px; color: #aaa; }
+  .col-name { min-width: 130px; }
+  .col-cat  { min-width: 120px; }
+  .col-unit { width: 90px; }
+  .col-num  { width: 100px; }
+  .col-note { min-width: 200px; }
+  .col-save { width: 80px; text-align: center; }
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Parameter Verwaltung</h1>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Messungen</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameter</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Werte</a>
+    </div></div>
+    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+
+<div class="container">
+  <div class="toolbar">
+    <input id="paramFilter" type="text" placeholder="Filtern nach Name oder Kategorie…"
+      style="padding:8px 14px;border:1px solid #ddd;border-radius:6px;font-size:0.88rem;width:300px;outline:none"
+      oninput="filterParams(this.value)">
+    <span id="status" style="font-size:0.8rem;color:#aaa"></span>
+  </div>
+  <div id="content"><div class="loading">Daten werden geladen...</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const HEADERS = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' };
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) window.location.href = 'me-db-login.html';
+  else loadParams();
+});
+
+async function logout() {
+  await db.auth.signOut();
+  window.location.href = 'me-db-login.html';
+}
+
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+async function loadParams() {
+  const [pResp, mResp] = await Promise.all([
+    fetch(`${SUPABASE_URL}/rest/v1/parameters?order=category,name`, { headers: HEADERS }),
+    fetch(`${SUPABASE_URL}/rest/v1/measurements?select=parameter_id`, { headers: HEADERS }),
+  ]);
+  const data = await pResp.json();
+  const meas = await mResp.json();
+  const counts = {};
+  for (const m of (Array.isArray(meas) ? meas : [])) counts[m.parameter_id] = (counts[m.parameter_id] || 0) + 1;
+  window._counts = counts;
+  render(data);
+}
+
+function esc(s) { return String(s).replace(/"/g, '&quot;'); }
+
+function render(params) {
+  document.getElementById('status').textContent = `${params.length} Parameter`;
+  window._allParamCount = params.length;
+  const counts = window._counts || {};
+
+  let html = `<div style="overflow-x:auto"><table>
+    <thead><tr>
+      <th class="col-name">Name</th>
+      <th class="col-cat">Kategorie</th>
+      <th class="col-unit">Einheit</th>
+      <th class="col-unit">Einheit SI</th>
+      <th class="col-num">Ref Low</th>
+      <th class="col-num">Ref High</th>
+      <th class="col-num">Ref Low SI</th>
+      <th class="col-num">Ref High SI</th>
+      <th class="col-note">Notiz</th>
+      <th style="width:50px;text-align:center">Mess.</th>
+      <th class="col-save"></th>
+      <th style="width:70px"></th>
+    </tr></thead>
+    <tbody>`;
+
+  for (const p of params) {
+    const searchKey = `${p.name} ${p.category || ''}`.toLowerCase();
+    const cnt = counts[p.id] || 0;
+    const delDisabled = cnt > 0;
+    html += `<tr id="row-${p.id}" data-id="${p.id}" data-search="${searchKey}">
+      <td class="col-name"><input type="text" class="field" data-field="name" value="${esc(p.name)}"></td>
+      <td class="col-cat"><input type="text" class="field" data-field="category" value="${esc(p.category || '')}" placeholder="—"></td>
+      <td class="col-unit"><input type="text" class="field" data-field="unit" value="${esc(p.unit || '')}" placeholder="—"></td>
+      <td class="col-unit"><input type="text" class="field" data-field="unit_si" value="${esc(p.unit_si || '')}" placeholder="—"></td>
+      <td class="col-num"><input type="number" class="field" data-field="ref_range_low" value="${p.ref_range_low ?? ''}" placeholder="—" step="any"></td>
+      <td class="col-num"><input type="number" class="field" data-field="ref_range_high" value="${p.ref_range_high ?? ''}" placeholder="—" step="any"></td>
+      <td class="col-num"><input type="number" class="field" data-field="ref_range_low_si" value="${p.ref_range_low_si ?? ''}" placeholder="—" step="any"></td>
+      <td class="col-num"><input type="number" class="field" data-field="ref_range_high_si" value="${p.ref_range_high_si ?? ''}" placeholder="—" step="any"></td>
+      <td class="col-note"><input type="text" class="field" data-field="ref_note" value="${esc(p.ref_note || '')}" placeholder="—"></td>
+      <td style="text-align:center;color:#888;font-size:0.82rem">${cnt}</td>
+      <td class="col-save"><button class="save-btn" onclick="save(${p.id})">Speichern</button></td>
+      <td style="text-align:center">
+        <button onclick="deleteParam(${p.id}, ${cnt})" ${delDisabled ? `disabled title="Erst die ${cnt} Messung(en) löschen"` : ''}
+          style="background:none;border:none;cursor:${delDisabled ? 'not-allowed' : 'pointer'};color:${delDisabled ? '#ccc' : '#c62828'};font-size:0.8rem">Löschen</button>
+      </td>
+    </tr>`;
+  }
+
+  html += '</tbody></table></div>';
+  document.getElementById('content').innerHTML = html;
+
+  // Änderungen markieren
+  document.querySelectorAll('input.field').forEach(inp => {
+    const original = inp.value;
+    inp.addEventListener('input', () => {
+      const row = inp.closest('tr');
+      inp.classList.toggle('changed', inp.value !== original);
+      const anyChanged = [...row.querySelectorAll('input.changed')].length > 0;
+      row.querySelector('.save-btn').classList.toggle('visible', anyChanged);
+    });
+  });
+}
+
+function filterParams(q) {
+  const term = q.trim().toLowerCase();
+  const rows = document.querySelectorAll('#content tbody tr');
+  let visible = 0;
+  rows.forEach(r => {
+    const match = !term || r.dataset.search.includes(term);
+    r.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  const total = window._allParamCount || rows.length;
+  document.getElementById('status').textContent =
+    visible === total ? `${total} Parameter` : `${visible} von ${total}`;
+}
+
+async function save(id) {
+  const row = document.getElementById('row-' + id);
+  const inputs = row.querySelectorAll('input.field');
+  const numFields = ['ref_range_low', 'ref_range_high', 'ref_range_low_si', 'ref_range_high_si'];
+  const update = {};
+  for (const inp of inputs) {
+    const field = inp.dataset.field;
+    const val = inp.value.trim();
+    if (numFields.includes(field)) {
+      update[field] = val === '' ? null : parseFloat(val);
+    } else {
+      update[field] = val === '' ? null : val;
+    }
+  }
+  if (!update.name) { showToast('Name darf nicht leer sein', true); return; }
+
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/parameters?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: { ...HEADERS, 'Prefer': 'return=minimal' },
+    body: JSON.stringify(update)
+  });
+
+  if (resp.ok || resp.status === 204) {
+    row.querySelectorAll('input.changed').forEach(i => i.classList.remove('changed'));
+    row.querySelector('.save-btn').classList.remove('visible');
+    showToast('Gespeichert');
+  } else {
+    const err = await resp.text();
+    showToast('Fehler: ' + err, true);
+  }
+}
+
+async function deleteParam(id, cnt) {
+  if (cnt > 0) { showToast(`Erst die ${cnt} Messung(en) dieses Parameters löschen.`, true); return; }
+  const row = document.getElementById('row-' + id);
+  const name = row.querySelector('input[data-field="name"]').value;
+  if (!confirm(`Parameter „${name}" wirklich endgültig löschen?`)) return;
+
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/parameters?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: { ...HEADERS, 'Prefer': 'return=minimal' },
+  });
+  if (resp.ok || resp.status === 204) {
+    row.remove();
+    showToast('Parameter gelöscht');
+  } else {
+    showToast('Fehler: ' + (await resp.text()), true);
+  }
+}
+
+</script>
+</body>
+</html>
