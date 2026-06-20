@@ -178,8 +178,8 @@ async function loadSportStat() {
     }
 
     document.getElementById('sportStat').innerHTML = `
-      <div class="stat"><span class="n">${last4wH.toFixed(1)}</span><span class="u">Std.</span> ${trendHtml}</div>
-      <div class="trend-label">vs. Ø der vorherigen 12 Wochen</div>
+      <div class="stat"><span class="n">${last4wWeeklyAvgH.toFixed(1)}</span><span class="u">Std./Woche</span> ${trendHtml}</div>
+      <div class="trend-label">letzte 4 Wochen · vs. Ø der vorherigen 12 Wochen</div>
     `;
   } catch (e) {
     document.getElementById('sportStat').innerHTML = `<div class="stat"><span class="n" style="font-size:0.9rem;color:#bbb">keine Daten</span></div>`;
