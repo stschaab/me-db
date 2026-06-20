@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>MeDB &middot; Sport-Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 1000px; margin: 32px auto; padding: 0 24px; }
+
+  .hero { background: white; border-radius: 14px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; gap: 32px; flex-wrap: wrap; margin-bottom: 24px; }
+  .hero .big { font-size: 3rem; font-weight: 800; }
+  .hero .big .u { font-size: 1.2rem; color: #aaa; font-weight: 500; margin-left: 6px; }
+  .hero .label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+  .trend { font-size: 1.3rem; font-weight: 700; padding: 6px 16px; border-radius: 20px; }
+  .trend.up { background: #e8f5e9; color: #2e7d32; }
+  .trend.down { background: #ffebee; color: #c62828; }
+  .trend.flat { background: #f5f5f5; color: #888; }
+  .trend-sub { font-size: 0.8rem; color: #aaa; margin-top: 6px; }
+
+  .section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin: 28px 0 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+  .card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .card .t { font-size: 0.8rem; color: #888; margin-bottom: 4px; }
+  .card .v { font-size: 1.5rem; font-weight: 700; }
+
+  .loading { text-align: center; padding: 60px; color: #aaa; }
+  .error { background: #fff3e0; border: 1px solid #ffcc02; border-radius: 8px; padding: 16px; color: #e65100; }
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sport-Dashboard</h1>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Messungen</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameter</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sport-Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Werte</a>
+    </div></div>
+    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+
+<div class="container">
+  <div id="content"><div class="loading">Daten werden geladen...</div></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) window.location.href = 'me-db-login.html';
+  else loadData();
+});
+
+async function logout() {
+  await db.auth.signOut();
+  window.location.href = 'me-db-login.html';
+}
+
+async function loadData() {
+  try {
+    const today = new Date();
+    const since = new Date(today); since.setDate(since.getDate() - 112); // 16 weeks: 4 + 12
+    const sinceStr = since.toISOString().substring(0,10);
+
+    const { data, error } = await db.from('activities')
+      .select('date,type,duration_sec')
+      .gte('date', sinceStr);
+    if (error) throw error;
+
+    render(data || []);
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="error">Fehler beim Laden: ${e.message}</div>`;
+  }
+}
+
+function render(data) {
+  const today = new Date();
+  const cut4w = new Date(today); cut4w.setDate(cut4w.getDate() - 28);
+  const cut4wStr = cut4w.toISOString().substring(0,10);
+
+  const last4w = data.filter(a => a.date >= cut4wStr);
+  const prev12w = data.filter(a => a.date < cut4wStr);
+
+  const last4wSec = last4w.reduce((s,a) => s + (a.duration_sec || 0), 0);
+  const prev12wSec = prev12w.reduce((s,a) => s + (a.duration_sec || 0), 0);
+
+  const last4wH = last4wSec / 3600;
+  const last4wWeeklyAvgH = last4wH / 4;
+  const prevWeeklyAvgH = (prev12wSec / 3600) / 12;
+
+  let trendHtml = '<span class="trend flat">– keine Vergleichsdaten</span>';
+  let trendSub = '';
+  if (prevWeeklyAvgH > 0) {
+    const diffPct = Math.round(((last4wWeeklyAvgH - prevWeeklyAvgH) / prevWeeklyAvgH) * 100);
+    const cls = diffPct > 3 ? 'up' : (diffPct < -3 ? 'down' : 'flat');
+    const arrow = cls === 'up' ? '↑' : (cls === 'down' ? '↓' : '→');
+    trendHtml = `<span class="trend ${cls}">${arrow} ${Math.abs(diffPct)}%</span>`;
+    trendSub = `Ø ${last4wWeeklyAvgH.toFixed(1)} Std./Woche (letzte 4) vs. Ø ${prevWeeklyAvgH.toFixed(1)} Std./Woche (vorherige 12)`;
+  }
+
+  let html = `
+    <div class="hero">
+      <div>
+        <div class="big">${last4wH.toFixed(1)}<span class="u">Std.</span></div>
+        <div class="label">Aktivität – letzte 4 Wochen</div>
+      </div>
+      <div>
+        ${trendHtml}
+        <div class="trend-sub">${trendSub}</div>
+      </div>
+    </div>
+  `;
+
+  // Breakdown by type, last 4 weeks
+  const byType = {};
+  for (const a of last4w) {
+    const t = a.type || 'Sonstige';
+    byType[t] = (byType[t] || 0) + (a.duration_sec || 0);
+  }
+  const types = Object.entries(byType).sort((a,b) => b[1] - a[1]);
+
+  if (types.length) {
+    html += `<div class="section-title">Nach Sportart – letzte 4 Wochen</div><div class="grid">`;
+    for (const [type, sec] of types) {
+      const h = sec / 3600;
+      html += `<div class="card"><div class="t">${type}</div><div class="v">${h.toFixed(1)} Std.</div></div>`;
+    }
+    html += `</div>`;
+  }
+
+  html += `<div class="section-title">Anzahl Aktivitäten</div><div class="grid">
+    <div class="card"><div class="t">Letzte 4 Wochen</div><div class="v">${last4w.length}</div></div>
+    <div class="card"><div class="t">Vorherige 12 Wochen</div><div class="v">${prev12w.length}</div></div>
+  </div>`;
+
+  document.getElementById('content').innerHTML = html;
+}
+</script>
+</body>
+</html>
