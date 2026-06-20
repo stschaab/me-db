@@ -2,6 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MeDB &middot; Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -188,7 +189,7 @@ async function loadSportStat() {
 async function loadLabStat() {
   try {
     const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/measurements?select=measured_at,value,value_si,unit,parameters(id,name,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)&order=measured_at.desc`,
+      `${SUPABASE_URL}/rest/v1/measurements?select=measured_at,value,value_si,unit,lab,parameters(id,name,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)&order=measured_at.desc`,
       { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
     );
     const data = await resp.json();
@@ -227,11 +228,12 @@ async function loadLabStat() {
       const val = worst.value_si ?? worst.value;
       const unit = p.unit_si || worst.unit || '';
       const label = worstDir === 'high' ? '⚠ Zu hoch' : '⚠ Zu niedrig';
+      const labLine = worst.lab ? ` · ${worst.lab}` : '';
       document.getElementById('labStat').innerHTML = `
         <div class="alert-box ${worstDir}">
           <div class="a-label">${label}</div>
           <div class="a-name">${p.name}</div>
-          <div class="a-val">${val} ${unit}</div>
+          <div class="a-val">${val} ${unit}${labLine}</div>
         </div>`;
     } else {
       document.getElementById('labStat').innerHTML = `<div class="all-ok">✓ Alle Werte im Bereich</div>`;
