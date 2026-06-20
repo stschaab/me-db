@@ -50,6 +50,11 @@
   .shop-stat .u { font-size: 0.85rem; color: #aaa; }
   .shop-sub { margin-top: 4px; font-size: 0.75rem; color: #aaa; }
   .shop-none { margin-top: 16px; font-size: 0.85rem; color: #2e7d32; }
+  .hrv-stat { margin-top: 16px; display: flex; align-items: baseline; gap: 8px; }
+  .hrv-stat .n { font-size: 1.8rem; font-weight: 700; }
+  .hrv-stat .u { font-size: 0.85rem; color: #aaa; }
+  .hrv-sub { margin-top: 4px; font-size: 0.75rem; color: #aaa; }
+  .hrv-none { margin-top: 16px; font-size: 0.85rem; color: #aaa; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -110,6 +115,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-chat.html">KI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
     <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-hrv.html">HRV</a>
     <a href="me-db-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
   </nav>
@@ -146,6 +152,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div id="shopStat">…</div>
     </a>
 
+    <a class="tile" href="me-db-hrv.html">
+      <div class="icon">💓</div>
+      <div class="title">HRV</div>
+      <div class="desc">Herzratenvariabilität via Polar H10</div>
+      <div id="hrvStat">…</div>
+    </a>
+
   </div>
 </div>
 
@@ -156,7 +169,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'me-db-login.html';
-  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); }
+  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); }
 });
 
 async function logout() {
@@ -307,6 +320,25 @@ async function loadShopStat() {
     }
   } catch (e) {
     document.getElementById('shopStat').innerHTML = '';
+  }
+}
+
+async function loadHrvStat() {
+  try {
+    const { data, error } = await db.from('hrv_measurements')
+      .select('measured_at,rmssd').order('measured_at', { ascending: false }).limit(1);
+    if (error) throw error;
+    if (data && data.length) {
+      const r = data[0];
+      const date = new Date(r.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short' });
+      document.getElementById('hrvStat').innerHTML = `
+        <div class="hrv-stat"><span class="n">${r.rmssd ?? '–'}</span><span class="u">ms RMSSD</span></div>
+        <div class="hrv-sub">letzte Messung ${date}</div>`;
+    } else {
+      document.getElementById('hrvStat').innerHTML = `<div class="hrv-none">Noch keine Messung</div>`;
+    }
+  } catch (e) {
+    document.getElementById('hrvStat').innerHTML = '';
   }
 }
 </script>
