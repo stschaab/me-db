@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>MeDB &middot; Messungen</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  header span { opacity: 0.5; font-size: 0.85rem; margin-left: 12px; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 1200px; margin: 32px auto; padding: 0 24px; }
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+  .toolbar input { padding: 8px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.88rem; width: 320px; outline: none; }
+  .toolbar input:focus { border-color: #7ec8e3; }
+  .toolbar span { font-size: 0.8rem; color: #aaa; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  th { background: #f8f8f8; text-align: left; padding: 10px 14px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; border-bottom: 1px solid #eee; cursor: pointer; user-select: none; white-space: nowrap; }
+  th:hover { color: #555; }
+  th .sort-icon { margin-left: 4px; opacity: 0.4; }
+  th.sorted .sort-icon { opacity: 1; }
+  td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid #f0f0f0; }
+  tr:last-child td { border-bottom: none; }
+  .ok   { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; }
+  .high { background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; }
+  .low  { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; }
+  .na   { background: #f5f5f5; color: #999;    padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; }
+  .loading { text-align: center; padding: 60px; color: #aaa; }
+  .error { background: #fff3e0; border: 1px solid #ffcc02; border-radius: 8px; padding: 16px; color: #e65100; }
+  .mfield { border: 1px solid #e0e0e0; border-radius: 6px; padding: 4px 7px; font-size: 0.84rem; background: #fafafa; }
+  .mfield:focus { outline: none; border-color: #7ec8e3; background: white; }
+  .mfield.changed { border-color: #fb8c00; background: #fff8e1; }
+  .msave-btn { background: #1a1a2e; color: white; border: none; border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; cursor: pointer; }
+  .msave-btn:hover { background: #2d2d4e; }
+  .mdel-btn { background: none; border: none; color: #c62828; cursor: pointer; font-size: 0.78rem; margin-left: 6px; }
+  .mdel-btn:hover { text-decoration: underline; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #2e7d32; color: white; padding: 12px 20px; border-radius: 8px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+  .toast.error { background: #c62828; }
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Messungen</h1>
+    <span id="lastUpdate">Lädt...</span>
+  </div>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Messungen</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameter</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Werte</a>
+    </div></div>
+    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+
+<div class="container">
+  <div class="toolbar">
+    <input id="tableFilter" type="text" placeholder="Filtern nach Parameter, Kategorie oder Labor…" oninput="applyFilter()">
+    <span id="filterCount"></span>
+  </div>
+  <div id="content"><div class="loading">Daten werden geladen...</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+let allRows = [];
+let sortCol = 'date';
+let sortAsc = false;
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) window.location.href = 'me-db-login.html';
+  else loadData();
+});
+
+async function logout() {
+  await db.auth.signOut();
+  window.location.href = 'me-db-login.html';
+}
+
+function statusLabel(val, low, high) {
+  if (val === null || val === undefined) return ['na', '—'];
+  if (low !== null && low !== undefined && val < low) return ['low', 'Zu niedrig'];
+  if (high !== null && high !== undefined && val > high) return ['high', 'Zu hoch'];
+  return ['ok', 'Im Bereich'];
+}
+
+async function loadData() {
+  try {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/measurements?select=id,measured_at,value,value_text,unit,value_si,lab,notes,parameters(id,name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)&order=measured_at.desc`,
+      { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
+    );
+    const data = await resp.json();
+    if (!Array.isArray(data)) throw new Error(JSON.stringify(data));
+    allRows = data;
+    renderTable();
+    document.getElementById('lastUpdate').textContent = `${data.length} Messungen · Stand: ${new Date().toLocaleDateString('de-DE')}`;
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<div class="error">Fehler beim Laden: ${e.message}</div>`;
+  }
+}
+
+function renderTable() {
+  const q = document.getElementById('tableFilter').value.trim().toLowerCase();
+  let rows = allRows.filter(row => {
+    if (!q) return true;
+    const key = [row.parameters.name, row.parameters.category || '', row.lab || ''].join(' ').toLowerCase();
+    return key.includes(q);
+  });
+
+  // Sort
+  rows = rows.slice().sort((a, b) => {
+    let av, bv;
+    if (sortCol === 'date')     { av = a.measured_at; bv = b.measured_at; }
+    if (sortCol === 'param')    { av = a.parameters.name; bv = b.parameters.name; }
+    if (sortCol === 'category') { av = a.parameters.category || ''; bv = b.parameters.category || ''; }
+    if (sortCol === 'value')    { av = a.value ?? -Infinity; bv = b.value ?? -Infinity; }
+    if (sortCol === 'value_si') { av = a.value_si ?? -Infinity; bv = b.value_si ?? -Infinity; }
+    if (sortCol === 'lab')      { av = a.lab || ''; bv = b.lab || ''; }
+    if (av < bv) return sortAsc ? -1 : 1;
+    if (av > bv) return sortAsc ? 1 : -1;
+    return 0;
+  });
+
+  const icons = { date: '↕', param: '↕', category: '↕', value: '↕', value_si: '↕', lab: '↕' };
+  icons[sortCol] = sortAsc ? '↑' : '↓';
+
+  let html = `<table>
+    <thead><tr>
+      <th class="${sortCol==='param'?'sorted':''}" onclick="setSort('param')">Parameter <span class="sort-icon">${icons.param}</span></th>
+      <th class="${sortCol==='category'?'sorted':''}" onclick="setSort('category')">Kategorie <span class="sort-icon">${icons.category}</span></th>
+      <th class="${sortCol==='date'?'sorted':''}" onclick="setSort('date')">Datum <span class="sort-icon">${icons.date}</span></th>
+      <th class="${sortCol==='value'?'sorted':''}" onclick="setSort('value')">Wert <span class="sort-icon">${icons.value}</span></th>
+      <th>Einheit</th>
+      <th class="${sortCol==='value_si'?'sorted':''}" onclick="setSort('value_si')">Wert SI <span class="sort-icon">${icons.value_si}</span></th>
+      <th>Einheit SI</th>
+      <th class="${sortCol==='lab'?'sorted':''}" onclick="setSort('lab')">Labor <span class="sort-icon">${icons.lab}</span></th>
+      <th>Status</th>
+      <th></th>
+    </tr></thead><tbody>`;
+
+  for (const row of rows) {
+    const p = row.parameters;
+    const val = row.value;
+    const valSi = row.value_si;
+    const display = row.value_text || (val !== null && val !== undefined ? val : '—');
+    const displaySi = valSi !== null && valSi !== undefined ? valSi : '—';
+    const unitOrig = row.unit || p.unit || '—';
+    const unitSi = p.unit_si || '—';
+    const [cls, label] = statusLabel(valSi ?? val, p.ref_range_low_si ?? p.ref_range_low, p.ref_range_high_si ?? p.ref_range_high);
+    const date = new Date(row.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
+    html += `<tr id="mrow-${row.id}" data-id="${row.id}">
+      <td><strong>${p.name}</strong></td>
+      <td>${p.category || '—'}</td>
+      <td><input type="date" class="mfield" data-field="measured_at" value="${row.measured_at}" style="width:140px"></td>
+      <td><input type="number" class="mfield" data-field="value" value="${val ?? ''}" step="any" style="width:80px"></td>
+      <td><input type="text" class="mfield" data-field="unit" value="${esc(row.unit || '')}" placeholder="—" style="width:70px"></td>
+      <td><input type="number" class="mfield" data-field="value_si" value="${valSi ?? ''}" step="any" style="width:80px"></td>
+      <td>${unitSi}</td>
+      <td><input type="text" class="mfield" data-field="lab" value="${esc(row.lab || '')}" placeholder="—" style="width:95px"></td>
+      <td><span class="${cls}">${label}</span></td>
+      <td style="white-space:nowrap">
+        <button class="msave-btn" onclick="saveMeas('${row.id}')" style="display:none">Speichern</button>
+        <button class="mdel-btn" onclick="deleteMeas('${row.id}')">Löschen</button>
+      </td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('filterCount').textContent =
+    rows.length === allRows.length ? `${allRows.length} Einträge` : `${rows.length} von ${allRows.length}`;
+
+  // Änderungen je Zeile markieren → Speichern-Button zeigen
+  document.querySelectorAll('.mfield').forEach(inp => {
+    const original = inp.value;
+    inp.addEventListener('input', () => {
+      const r = inp.closest('tr');
+      inp.classList.toggle('changed', inp.value !== original);
+      const any = r.querySelectorAll('.mfield.changed').length > 0;
+      r.querySelector('.msave-btn').style.display = any ? '' : 'none';
+    });
+  });
+}
+
+function esc(s) { return String(s).replace(/"/g, '&quot;'); }
+
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+async function saveMeas(id) {
+  const row = document.getElementById('mrow-' + id);
+  const update = {};
+  for (const inp of row.querySelectorAll('.mfield')) {
+    const f = inp.dataset.field, v = inp.value.trim();
+    if (f === 'value' || f === 'value_si') update[f] = v === '' ? null : parseFloat(v);
+    else update[f] = v === '' ? null : v;
+  }
+  if (!update.measured_at) { showToast('Datum darf nicht leer sein', true); return; }
+
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/measurements?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    body: JSON.stringify(update)
+  });
+  if (resp.ok || resp.status === 204) {
+    const r = allRows.find(x => String(x.id) === String(id));
+    if (r) Object.assign(r, update);
+    showToast('Gespeichert');
+    renderTable();
+  } else {
+    showToast('Fehler: ' + (await resp.text()), true);
+  }
+}
+
+async function deleteMeas(id) {
+  const row = allRows.find(x => String(x.id) === String(id));
+  const name = row ? row.parameters.name : 'Messung';
+  if (!confirm(`Messung „${name}" wirklich löschen?`)) return;
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/measurements?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Prefer': 'return=minimal' },
+  });
+  if (resp.ok || resp.status === 204) {
+    allRows = allRows.filter(x => String(x.id) !== String(id));
+    showToast('Messung gelöscht');
+    renderTable();
+  } else {
+    showToast('Fehler: ' + (await resp.text()), true);
+  }
+}
+
+function setSort(col) {
+  if (sortCol === col) sortAsc = !sortAsc;
+  else { sortCol = col; sortAsc = true; }
+  renderTable();
+}
+
+function applyFilter() { renderTable(); }
+</script>
+</body>
+</html>
