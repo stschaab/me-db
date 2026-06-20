@@ -45,6 +45,11 @@
   .task-stat .u { font-size: 0.85rem; color: #aaa; }
   .task-sub { margin-top: 4px; font-size: 0.75rem; color: #aaa; }
   .task-none { margin-top: 16px; font-size: 0.85rem; color: #2e7d32; }
+  .shop-stat { margin-top: 16px; display: flex; align-items: baseline; gap: 8px; }
+  .shop-stat .n { font-size: 1.8rem; font-weight: 700; }
+  .shop-stat .u { font-size: 0.85rem; color: #aaa; }
+  .shop-sub { margin-top: 4px; font-size: 0.75rem; color: #aaa; }
+  .shop-none { margin-top: 16px; font-size: 0.85rem; color: #2e7d32; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -104,6 +109,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     </div></div>
     <a href="me-db-chat.html">KI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Einkauf</a>
     <a href="me-db-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
   </nav>
@@ -133,6 +139,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div id="taskStat">…</div>
     </a>
 
+    <a class="tile" href="me-db-einkaufsliste.html">
+      <div class="icon">🛒</div>
+      <div class="title">Einkaufsliste</div>
+      <div class="desc">Produkte &amp; Läden, nach Shop sortiert</div>
+      <div id="shopStat">…</div>
+    </a>
+
   </div>
 </div>
 
@@ -143,7 +156,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'me-db-login.html';
-  else { loadSportStat(); loadLabStat(); loadTaskStat(); }
+  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); }
 });
 
 async function logout() {
@@ -274,6 +287,26 @@ async function loadTaskStat() {
     }
   } catch (e) {
     document.getElementById('taskStat').innerHTML = '';
+  }
+}
+
+async function loadShopStat() {
+  try {
+    const { data, error } = await db.from('shopping_items')
+      .select('checked, shop_id').eq('checked', false);
+    if (error) throw error;
+    const open = data || [];
+    const total = open.length;
+    if (total > 0) {
+      const shopCount = new Set(open.map(i => i.shop_id).filter(Boolean)).size;
+      document.getElementById('shopStat').innerHTML = `
+        <div class="shop-stat"><span class="n">${total}</span><span class="u">${total === 1 ? 'Artikel offen' : 'Artikel offen'}</span></div>
+        <div class="shop-sub">${shopCount} ${shopCount === 1 ? 'Shop' : 'Shops'}</div>`;
+    } else {
+      document.getElementById('shopStat').innerHTML = `<div class="shop-none">✓ Liste leer</div>`;
+    }
+  } catch (e) {
+    document.getElementById('shopStat').innerHTML = '';
   }
 }
 </script>
