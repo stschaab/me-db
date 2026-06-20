@@ -63,6 +63,7 @@
   .supp-stat .n { font-size: 1.25rem; font-weight: 700; }
   .supp-stat .u { font-size: 0.7rem; color: #aaa; }
   .supp-sub { margin-top: 3px; font-size: 0.65rem; color: #aaa; }
+  .vor-stat { margin-top: 10px; font-size: 0.72rem; color: #888; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -126,6 +127,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-hrv.html">HRV</a>
     <a href="me-db-abos.html">Abos</a>
     <a href="me-db-supplements.html">Supplements</a>
+    <a href="me-db-vorsorge.html">Vorsorge</a>
     <a href="me-db-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
   </nav>
@@ -183,6 +185,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div id="abosStat">…</div>
     </a>
 
+    <a class="tile" href="me-db-vorsorge.html">
+      <div class="icon">🗂️</div>
+      <div class="title">Vorsorgeordner</div>
+      <div class="desc">Notfall-Übersicht für die Kinder</div>
+      <div id="vorsorgeStat">…</div>
+    </a>
+
   </div>
 </div>
 
@@ -193,7 +202,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'me-db-login.html';
-  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); }
+  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); }
 });
 
 async function logout() {
@@ -402,6 +411,18 @@ async function loadSuppStat() {
       <div class="supp-sub">${active.length} aktiv</div>`;
   } catch (e) {
     document.getElementById('suppStat').innerHTML = '';
+  }
+}
+
+async function loadVorsorgeStat() {
+  try {
+    const { count, error } = await db.from('vorsorge_items').select('id', { count: 'exact', head: true });
+    if (error) throw error;
+    document.getElementById('vorsorgeStat').innerHTML = count
+      ? `<div class="vor-stat">${count} Einträge</div>`
+      : `<div class="vor-stat">Noch leer</div>`;
+  } catch (e) {
+    document.getElementById('vorsorgeStat').innerHTML = '';
   }
 }
 </script>
