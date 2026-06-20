@@ -55,6 +55,10 @@
   .hrv-stat .u { font-size: 0.7rem; color: #aaa; }
   .hrv-sub { margin-top: 3px; font-size: 0.65rem; color: #aaa; }
   .hrv-none { margin-top: 10px; font-size: 0.72rem; color: #aaa; }
+  .abos-stat { margin-top: 10px; display: flex; align-items: baseline; gap: 6px; }
+  .abos-stat .n { font-size: 1.25rem; font-weight: 700; }
+  .abos-stat .u { font-size: 0.7rem; color: #aaa; }
+  .abos-sub { margin-top: 3px; font-size: 0.65rem; color: #aaa; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -116,6 +120,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-tasks.html">Tasks</a>
     <a href="me-db-einkaufsliste.html">Einkauf</a>
     <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-abos.html">Abos</a>
     <a href="me-db-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
   </nav>
@@ -159,6 +164,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div id="hrvStat">…</div>
     </a>
 
+    <a class="tile" href="me-db-abos.html">
+      <div class="icon">💳</div>
+      <div class="title">Abos</div>
+      <div class="desc">Alle Abonnements im Überblick</div>
+      <div id="abosStat">…</div>
+    </a>
+
   </div>
 </div>
 
@@ -169,7 +181,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'me-db-login.html';
-  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); }
+  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); }
 });
 
 async function logout() {
@@ -339,6 +351,27 @@ async function loadHrvStat() {
     }
   } catch (e) {
     document.getElementById('hrvStat').innerHTML = '';
+  }
+}
+
+async function loadAbosStat() {
+  try {
+    const { data, error } = await db.from('subscriptions').select('price,interval,status');
+    if (error) throw error;
+    const active = (data||[]).filter(s => s.status === 'active');
+    const checkCount = (data||[]).filter(s => s.status === 'check').length;
+    const monthly = active.reduce((sum, s) => {
+      const p = parseFloat(s.price) || 0;
+      if (s.interval === 'monthly') return sum + p;
+      if (s.interval === 'yearly') return sum + p/12;
+      if (s.interval === '6months') return sum + p/6;
+      return sum;
+    }, 0);
+    document.getElementById('abosStat').innerHTML = `
+      <div class="abos-stat"><span class="n">${monthly.toFixed(0)}</span><span class="u">€/Monat</span></div>
+      <div class="abos-sub">${active.length} aktiv${checkCount ? ' · ' + checkCount + ' zu prüfen' : ''}</div>`;
+  } catch (e) {
+    document.getElementById('abosStat').innerHTML = '';
   }
 }
 </script>
