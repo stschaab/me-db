@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>MeDB &middot; Projektdoku</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0; color: #1a1a2e; background: #f8f9fa; }
+  .doc { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
+  header { background: #1a1a2e; color: white; padding: 14px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header .brand { color: white; font-size: 1.3rem; font-weight: 600; border: none; padding: 0; margin: 0; }
+  nav { display: flex; align-items: center; flex-wrap: wrap; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 16px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 16px; padding: 0; }
+  .navdrop { position: relative; margin-left: 16px; }
+  .navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+  .navdrop-label:hover { text-decoration: underline; }
+  .navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+  .navdrop:hover .navdrop-menu { display: block; }
+  .navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+  .navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+  h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 12px; }
+  h2 { color: #2980b9; margin-top: 40px; border-left: 4px solid #3498db; padding-left: 12px; }
+  h3 { color: #555; margin-top: 24px; }
+  .card { background: white; border-radius: 10px; padding: 20px 28px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+  .box { background: #eaf4fb; border: 2px solid #3498db; border-radius: 8px; padding: 8px 16px; font-weight: 600; font-size: 0.95em; }
+  .box.green { background: #eafaf1; border-color: #27ae60; }
+  .box.orange { background: #fef9e7; border-color: #f39c12; }
+  .box.red { background: #fdedec; border-color: #e74c3c; }
+  .box.gray { background: #f2f3f4; border-color: #95a5a6; }
+  .box.purple { background: #f5eef8; border-color: #8e44ad; }
+  .arrow { font-size: 1.4em; color: #7f8c8d; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th { background: #2980b9; color: white; padding: 10px 14px; text-align: left; }
+  td { padding: 9px 14px; border-bottom: 1px solid #ecf0f1; vertical-align: top; }
+  tr:nth-child(even) td { background: #f7fbfe; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.9em; }
+  .key-box { background: #fef9e7; border: 1px solid #f39c12; border-radius: 6px; padding: 12px 16px; margin: 10px 0; font-family: monospace; font-size: 0.85em; word-break: break-all; }
+  .note { background: #eafaf1; border-left: 4px solid #27ae60; padding: 10px 14px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 0.9em; }
+  .warning { background: #fdedec; border-left: 4px solid #e74c3c; padding: 10px 14px; margin: 10px 0; border-radius: 0 6px 6px 0; font-size: 0.9em; }
+  ul li { margin: 6px 0; }
+  .badge { display: inline-block; font-size: 0.75em; padding: 2px 8px; border-radius: 20px; background: #e8f5e9; color: #2e7d32; font-weight: 600; }
+  .badge.new { background: #e3f2fd; color: #1565c0; }
+  .badge.updated { background: #fff3e0; color: #e65100; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">MeDB</span>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Messungen</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameter</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Werte</a>
+    </div></div>
+    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+<div class="doc">
+
+<h1>Health DB – System Setup Übersicht</h1>
+<p style="color:#666; margin-top:-10px;">Stand: Juni 2026 &nbsp;|&nbsp; Stefan Schaab</p>
+
+<!-- ====== DIENSTE ====== -->
+<h2>1. Beteiligte Web-Dienste</h2>
+<div class="card">
+  <table>
+    <tr><th>Dienst</th><th>Zweck</th><th>URL / Login</th></tr>
+    <tr><td><strong>GitHub Pages</strong></td><td>Frontend-Hosting (kostenlos, öffentlich)</td><td>stschaab.github.io/me-db</td></tr>
+    <tr><td><strong>Supabase</strong></td><td>PostgreSQL-Datenbank + REST API + pgvector</td><td>supabase.com → Projekt "Health Data"<br>ID: <code>thgawuqcogugzurrijkp</code></td></tr>
+    <tr><td><strong>Cloudflare Workers</strong></td><td>API-Proxy (versteckt Claude API Key)</td><td>dash.cloudflare.com → Worker <code>health-db-ai</code></td></tr>
+    <tr><td><strong>Anthropic</strong></td><td>Claude API (KI-Chat + Embeddings)</td><td>console.anthropic.com</td></tr>
+    <tr><td><strong>Voyage AI</strong></td><td>Embedding-Modell für Vektordatenbank</td><td>voyageai.com → Key im Cloudflare Worker Secret</td></tr>
+    <tr><td><strong>Google Drive</strong></td><td>Rohdaten: Labor-PDFs, Scans</td><td>G:\Meine Ablage\Stefan Gesundheit\Labor Befunde\</td></tr>
+    <tr><td><strong>Strava</strong></td><td>Fitness-Aktivitäten (importiert ✓)</td><td>strava.com / developers.strava.com</td></tr>
+    <tr><td><strong>GitHub</strong></td><td>Code-Hosting, Token für Push</td><td>github.com/stschaab/me-db · Token läuft ab: 2026-07-13</td></tr>
+  </table>
+</div>
+
+<!-- ====== LOGIN-KETTEN ====== -->
+<h2>2. Login-Ketten</h2>
+<div class="card">
+  <h3>GitHub / Supabase / Cloudflare</h3>
+  <div class="flow">
+    <div class="box gray">Du</div><div class="arrow">→</div>
+    <div class="box">"Sign in with Google"</div><div class="arrow">→</div>
+    <div class="box green">Google Account<br>(st.schaab@gmail.com)</div>
+  </div>
+  <p>Alle drei Dienste nutzen Google als Basis (direkt oder via GitHub). Kette: <strong>Supabase → GitHub → Google</strong>.</p>
+
+  <h3>App-Login (Endnutzer)</h3>
+  <div class="flow">
+    <div class="box gray">me-db-login.html</div><div class="arrow">→</div>
+    <div class="box orange">Supabase Auth<br>(E-Mail + Passwort)</div><div class="arrow">→</div>
+    <div class="box green">JWT Token im Browser</div>
+  </div>
+  <p>Die App hat eigene Nutzerkonten in Supabase. Eingeloggte User sehen nur ihre eigenen Daten (Row Level Security).</p>
+
+  <h3>GitHub Push (Deployment)</h3>
+  <div class="flow">
+    <div class="box gray">PowerShell / Claude Code</div><div class="arrow">→</div>
+    <div class="box">GitHub API<br>+ Personal Access Token</div><div class="arrow">→</div>
+    <div class="box green">github.com/stschaab/me-db</div>
+  </div>
+  <p>Token ist als Windows-Umgebungsvariable gespeichert: <code>$env:GITHUB_TOKEN</code> → läuft ab 2026-07-13.</p>
+</div>
+
+<!-- ====== ARCHITEKTUR ====== -->
+<h2>3. Gesamtarchitektur</h2>
+<div class="card">
+  <div class="flow" style="justify-content:center; font-size:1.0em; flex-wrap:wrap; gap:12px;">
+    <div style="text-align:center">
+      <div class="box gray" style="margin-bottom:4px">Browser (Du)</div>
+      <div style="font-size:0.8em;color:#888">HTML-Dateien</div>
+    </div>
+    <div class="arrow">↕ REST</div>
+    <div style="text-align:center">
+      <div class="box orange" style="margin-bottom:4px">Supabase</div>
+      <div style="font-size:0.8em;color:#888">PostgreSQL + pgvector</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+      <div class="arrow">↕ Chat-Anfragen</div>
+    </div>
+    <div style="text-align:center">
+      <div class="box purple" style="margin-bottom:4px">Cloudflare Worker</div>
+      <div style="font-size:0.8em;color:#888">health-db-ai</div>
+    </div>
+    <div class="arrow">↕ API</div>
+    <div style="text-align:center">
+      <div class="box green" style="margin-bottom:4px">Anthropic + Voyage AI</div>
+      <div style="font-size:0.8em;color:#888">Claude + Embeddings</div>
+    </div>
+  </div>
+  <br>
+  <div class="note">Die HTML-Dateien haben <strong>keinen eigenen Server</strong>. Sie sprechen direkt über REST mit Supabase. Der Cloudflare Worker übernimmt alle KI-Aufgaben (versteckt die API-Keys): <strong>Chat, PDF-Verarbeitung, Werte-Extraktion, Embeddings</strong>. PDFs liegen im Supabase <strong>Storage Bucket</strong> <code>medical-reports</code>.</div>
+</div>
+
+<!-- ====== DATENBANK ====== -->
+<h2>4. Datenbank-Struktur</h2>
+<div class="card">
+  <table>
+    <tr><th>Tabelle</th><th>Was drin steht</th><th>Wichtige Spalten</th></tr>
+    <tr>
+      <td><strong>parameters</strong></td>
+      <td>Definition aller Laborwerte<br>(69 Parameter)</td>
+      <td><code>id, name, category, unit, unit_si, ref_range_low, ref_range_high, ref_range_low_si, ref_range_high_si, ref_note</code></td>
+    </tr>
+    <tr>
+      <td><strong>measurements</strong></td>
+      <td>Einzelne Messwerte (91 Einträge)</td>
+      <td><code>id, parameter_id, measured_at, value, unit, value_si, value_text, lab, notes</code></td>
+    </tr>
+    <tr>
+      <td><strong>activities</strong></td>
+      <td>Strava Fitness-Aktivitäten</td>
+      <td><code>strava_id, type, date, duration_sec, distance_m, avg_heartrate, calories</code></td>
+    </tr>
+    <tr>
+      <td><strong>chat_messages</strong> <span class="badge new">neu</span></td>
+      <td>KI-Chat Nachrichten + Vektoren<br>(52 Nachrichten, 44 mit Embedding)</td>
+      <td><code>id, session_id, user_id, role, content, embedding (vector 1024), created_at</code></td>
+    </tr>
+    <tr>
+      <td><strong>chat_sessions</strong> <span class="badge new">neu</span></td>
+      <td>Chat-Session Titel (editierbar)</td>
+      <td><code>session_id, user_id, title, created_at, updated_at</code></td>
+    </tr>
+    <tr>
+      <td><strong>documents</strong> <span class="badge new">neu</span></td>
+      <td>PDF-Abschnitte als Vektoren<br>(für KI-Chat-Suche über Befunde)</td>
+      <td><code>id, user_id, source_file, chunk_index, chunk_text, embedding (vector 1024), lab, doc_date</code></td>
+    </tr>
+    <tr>
+      <td><strong>lab_reports</strong> <span class="badge new">neu</span></td>
+      <td>Verarbeitete Berichte (Metadaten + Status)</td>
+      <td><code>id, file_name, storage_path, lab, doc_date, report_type, status, chunk_count</code></td>
+    </tr>
+    <tr>
+      <td><strong>staged_measurements</strong> <span class="badge new">neu</span></td>
+      <td>Zwischenspeicher Werte-Import<br>(vor Übernahme in measurements)</td>
+      <td><code>id, raw_name, matched_parameter_id, value, unit, ref_low/high, measured_at, is_duplicate, status</code></td>
+    </tr>
+    <tr>
+      <td><strong>users</strong></td>
+      <td>Nutzerkonten (Supabase Auth)</td>
+      <td>verwaltet durch Supabase Auth</td>
+    </tr>
+  </table>
+
+  <h3>SI-Einheiten Konzept <span class="badge updated">wichtig</span></h3>
+  <p>Originalwerte bleiben immer erhalten. Zusätzlich gibt es umgerechnete SI-Werte:</p>
+  <table>
+    <tr><th>Spalte</th><th>Wo</th><th>Bedeutung</th></tr>
+    <tr><td><code>measurements.unit</code></td><td>measurements</td><td>Originale Einheit dieser Messung (z.B. mg/l bei russischem Labor)</td></tr>
+    <tr><td><code>measurements.value_si</code></td><td>measurements</td><td>Wert umgerechnet in internationale Einheit</td></tr>
+    <tr><td><code>parameters.unit_si</code></td><td>parameters</td><td>Internationale Zieleinheit (z.B. mmol/l für Magnesium)</td></tr>
+    <tr><td><code>parameters.ref_range_low/high_si</code></td><td>parameters</td><td>Referenzbereich in SI-Einheit</td></tr>
+  </table>
+  <div class="note">Beispiel Magnesium: Russland misst in mg/l (20.98 mg/l = 0.863 mmol/l), Deutschland in mmol/l (0.93 mmol/l). Die App zeigt immer mmol/l im Dashboard und Trend.</div>
+
+  <h3>Row Level Security (RLS)</h3>
+  <p><code>lab_reports</code>, <code>staged_measurements</code>, <code>documents</code>, <code>chat_*</code> und der Storage Bucket haben RLS-Policies (anon + authenticated). <code>parameters</code> und <code>measurements</code> haben RLS <strong>deaktiviert</strong> — der Anon-Key darf hier direkt lesen/schreiben/löschen (Einzelnutzer-Setup), daher funktioniert das volle Bearbeiten/Löschen im Frontend.</p>
+</div>
+
+<!-- ====== FRONTEND ====== -->
+<h2>5. Frontend-Dateien</h2>
+<div class="card">
+  <p>Alle Dateien liegen lokal unter <code>C:\Users\Stefan\Downloads\</code> und sind auf <strong>GitHub Pages</strong> gehostet unter <code>stschaab.github.io/me-db/</code>.</p>
+  <table>
+    <tr><th>Datei</th><th>Funktion</th><th></th></tr>
+    <tr><td><code>me-db-dashboard.html</code></td><td>Kacheln: letzter Messwert pro Parameter, nach Kategorie gruppiert, SI-Werte</td><td><span class="badge updated">aktualisiert</span></td></tr>
+    <tr><td><code>me-db-measurements.html</code></td><td>Alle Messungen, filterbar + sortierbar, <strong>bearbeiten + löschen pro Zeile</strong></td><td><span class="badge updated">CRUD</span></td></tr>
+    <tr><td><code>me-db-parameters.html</code></td><td>Parameter <strong>voll editierbar</strong> (Name, Kategorie, Einheiten, Referenzen) + <strong>löschen</strong> (nur bei 0 Messungen)</td><td><span class="badge updated">CRUD</span></td></tr>
+    <tr><td><code>me-db-trend.html</code></td><td>Zeitverlauf-Diagramm (Chart.js), zeigt SI-Werte mit SI-Referenzlinien</td><td></td></tr>
+    <tr><td><code>me-db-chat.html</code></td><td>KI-Chat mit Gedächtnis + <strong>Suche über PDF-Befunde</strong>, Session-History</td><td><span class="badge updated">aktualisiert</span></td></tr>
+    <tr><td><code>me-db-import.html</code></td><td>PDF hochladen → KI-Verarbeitung (Metadaten + Vektoren)</td><td><span class="badge new">neu</span></td></tr>
+    <tr><td><code>me-db-bucket.html</code></td><td>Reine Ansicht der Roh-PDFs im Storage Bucket</td><td><span class="badge new">neu</span></td></tr>
+    <tr><td><code>me-db-werte-review.html</code></td><td>Werte aus PDF extrahieren → prüfen (Duplikat-Check) → in measurements übernehmen</td><td><span class="badge new">neu</span></td></tr>
+    <tr><td><code>me-db-activities.html</code> / <code>me-db-strava.html</code></td><td>Strava Aktivitäten + OAuth Import</td><td></td></tr>
+    <tr><td><code>me-db-users.html</code> / <code>me-db-login.html</code></td><td>Nutzerverwaltung / Login</td><td></td></tr>
+    <tr><td><code>me-db-setup.html</code></td><td>Diese Dokumentation</td><td></td></tr>
+  </table>
+  <div class="note">Navigation einheitlich mit Dropdown-Gruppen: <strong>Dashboard · Daten▾ (Messungen·Trend·Parameter) · Sport▾ (Strava·Aktivitäten) · Import▾ (Berichte·Bucket·Werte) · KI Chat · Users · Abmelden</strong></div>
+</div>
+
+<!-- ====== KI CHAT ====== -->
+<h2>6. KI-Chat System</h2>
+<div class="card">
+  <h3>Datenfluss einer Chat-Anfrage</h3>
+  <div class="flow" style="flex-direction:column; align-items:flex-start; gap:8px;">
+    <div class="flow"><div class="box gray">me-db-chat.html lädt Kontext</div><div class="arrow">→</div><div class="box orange">Supabase: alle Messwerte (2000 limit)</div></div>
+    <div class="flow"><div class="box gray">User schreibt Frage</div><div class="arrow">→</div><div class="box purple">Cloudflare Worker (health-db-ai)</div></div>
+    <div class="flow"><div class="box purple">Worker fügt hinzu:</div><div class="arrow">→</div><div class="box">System-Prompt + Kontext + ähnliche frühere Nachrichten</div></div>
+    <div class="flow"><div class="box purple">Worker ruft auf:</div><div class="arrow">→</div><div class="box green">Claude API (claude-sonnet-4-5)</div></div>
+    <div class="flow"><div class="box green">Antwort zurück</div><div class="arrow">+</div><div class="box orange">Speichern in chat_messages (ctx.waitUntil)</div></div>
+    <div class="flow"><div class="box orange">Voyage AI voyage-3</div><div class="arrow">→</div><div class="box">Embedding (1024 Zahlen) für Frage + Antwort</div></div>
+  </div>
+
+  <h3>Gedächtnis-System (pgvector)</h3>
+  <table>
+    <tr><th>Komponente</th><th>Detail</th></tr>
+    <tr><td>Embedding-Modell</td><td>Voyage AI <code>voyage-3</code>, 1024 Dimensionen</td></tr>
+    <tr><td>Speicherort</td><td>Supabase <code>chat_messages.embedding</code> (vector Typ)</td></tr>
+    <tr><td>Suche</td><td>Cosine Similarity — bei jeder neuen Frage werden die 5 ähnlichsten früheren Nachrichten geladen</td></tr>
+    <tr><td>Stand</td><td>52 Nachrichten gesamt, 44 mit Embedding</td></tr>
+    <tr><td>Session-Titel</td><td>Editierbar per Doppelklick, gespeichert in <code>chat_sessions</code> Tabelle</td></tr>
+  </table>
+
+  <h3>Cloudflare Worker: health-db-ai</h3>
+  <table>
+    <tr><th>Eigenschaft</th><th>Wert</th></tr>
+    <tr><td>URL</td><td><code>https://health-db-ai.st-schaab.workers.dev</code></td></tr>
+    <tr><td>Secrets</td><td><code>ANTHROPIC_API_KEY</code>, <code>VOYAGE_API_KEY</code>, <code>SUPABASE_URL</code>, <code>SUPABASE_SERVICE_KEY</code></td></tr>
+    <tr><td>Modell</td><td>claude-sonnet-4-6 (Chat + PDF + Werte-Extraktion)</td></tr>
+    <tr><td>Deploy</td><td>Per Cloudflare-API + PowerShell (Token <code>CLOUDFLARE_API_TOKEN</code>), kein wrangler nötig</td></tr>
+  </table>
+  <h3>Worker-Endpunkte <span class="badge new">erweitert</span></h3>
+  <table>
+    <tr><th>Endpoint</th><th>Funktion</th></tr>
+    <tr><td><code>POST / · /chat</code></td><td>KI-Chat mit Vector Memory + semantischer Suche über PDF-Befunde</td></tr>
+    <tr><td><code>POST /process-pdf</code></td><td>Claude liest PDF → Metadaten + Abschnitte → <code>documents</code> (Vektoren) + <code>lab_reports</code></td></tr>
+    <tr><td><code>POST /extract-measurements</code></td><td>Claude erkennt Messwerte, ordnet Parametern zu → <code>staged_measurements</code> (mit Duplikat-Check)</td></tr>
+    <tr><td><code>POST /import-measurements</code></td><td>Bestätigte Staging-Werte → <code>measurements</code></td></tr>
+    <tr><td><code>POST /assign-parameter</code></td><td>Wert einem Parameter zuordnen oder neuen Parameter anlegen (idempotent)</td></tr>
+  </table>
+</div>
+
+<!-- ====== KEYS ====== -->
+<h2>7. Keys & Credentials</h2>
+<div class="card">
+  <table>
+    <tr><th>Key</th><th>Woher</th><th>Wo gespeichert / benutzt</th></tr>
+    <tr>
+      <td><strong>Supabase URL</strong><br><code>https://thgawuqcogugzurrijkp.supabase.co</code></td>
+      <td>Supabase → Settings → API</td>
+      <td>In allen HTML-Dateien (kein Geheimnis)</td>
+    </tr>
+    <tr>
+      <td><strong>Supabase Anon Key</strong> (JWT)</td>
+      <td>Supabase → Settings → API → "anon public"</td>
+      <td>In allen HTML-Dateien — öffentlich, nur RLS schützt die Daten</td>
+    </tr>
+    <tr>
+      <td><strong>Supabase Service Role Key</strong></td>
+      <td>Supabase → Settings → API → "service_role"</td>
+      <td>Nur im Cloudflare Worker Secret — niemals im Frontend!</td>
+    </tr>
+    <tr>
+      <td><strong>GitHub Personal Access Token</strong></td>
+      <td>github.com → Settings → Developer Settings → Tokens</td>
+      <td>Windows-Umgebungsvariable <code>GITHUB_TOKEN</code> · läuft ab 2026-07-13</td>
+    </tr>
+    <tr>
+      <td><strong>Claude API Key</strong></td>
+      <td>console.anthropic.com</td>
+      <td>Cloudflare Worker Secret <code>ANTHROPIC_API_KEY</code></td>
+    </tr>
+    <tr>
+      <td><strong>Voyage AI API Key</strong></td>
+      <td>voyageai.com</td>
+      <td>Cloudflare Worker Secret <code>VOYAGE_API_KEY</code></td>
+    </tr>
+    <tr>
+      <td><strong>Strava Client ID: 257620</strong></td>
+      <td>strava.com → Settings → API Application</td>
+      <td>Im OAuth-Flow (URL-Parameter)</td>
+    </tr>
+  </table>
+  <div class="warning">⚠️ <strong>Service Role Key, Claude API Key, Voyage AI Key</strong> niemals in HTML oder GitHub! Diese geben vollen Zugriff auf DB und API.</div>
+</div>
+
+<!-- ====== DATENQUELLEN ====== -->
+<h2>8. Datenquellen (Labor-Befunde)</h2>
+<div class="card">
+  <p>PDFs liegen in <code>G:\Meine Ablage\Stefan Gesundheit\Labor Befunde\</code></p>
+  <table>
+    <tr><th>Labor / Quelle</th><th>Datum</th><th>Was</th><th>In DB?</th></tr>
+    <tr><td><strong>SYNLAB (Dr. Ruppert, Erlangen)</strong></td><td>Dez 2024</td><td>Großes Blutbild, Vitamine, Mineralien</td><td>✓</td></tr>
+    <tr><td><strong>SYNLAB (Dr. Ruppert, Erlangen)</strong></td><td>17.12.2025</td><td>Vollständiges Blutbild (91 Werte), inkl. LDL⚠, Differentialblutbild, Elektrolyte</td><td>✓</td></tr>
+    <tr><td><strong>ГЕМОТЕСТ (Russland)</strong></td><td>Apr 2025</td><td>Aminosäurenprofil, Mineralien (inkl. Magnesium in mg/l)</td><td>✓</td></tr>
+    <tr><td><strong>Verisana</strong></td><td>Mrz 2025</td><td>Hormone</td><td>✓</td></tr>
+    <tr><td><strong>Cerascreen</strong></td><td>versch.</td><td>Ferritin, B12, Vitamin D (x3), Cortisol (x2), hsCRP</td><td>✓</td></tr>
+    <tr><td><strong>Strava</strong></td><td>laufend</td><td>Laufen, Radfahren, etc.</td><td>✓</td></tr>
+    <tr><td><strong>Blutdruck / Waage</strong></td><td>—</td><td>Tagesaktuelle Werte</td><td>— noch nicht</td></tr>
+  </table>
+
+  <h3>Workflow: Neue Laborwerte importieren</h3>
+  <div class="flow" style="flex-direction:column; align-items:flex-start; gap:6px;">
+    <div class="flow"><div class="box gray">PDF im Google Drive</div><div class="arrow">→</div><div class="box">Claude liest PDF (Read-Tool)</div></div>
+    <div class="flow"><div class="box">Werte + Einheiten extrahieren</div><div class="arrow">→</div><div class="box">Gegen parameters-Tabelle prüfen</div></div>
+    <div class="flow"><div class="box orange">Neue Parameter anlegen (POST)</div><div class="arrow">+</div><div class="box orange">Messwerte + unit + value_si eintragen</div><div class="arrow">→</div><div class="box green">Supabase</div></div>
+  </div>
+  <div class="note">Claude kann PDFs direkt lesen (bis ca. 10 Seiten), Werte extrahieren und via Supabase REST API eintragen — ohne manuelles Copy-Paste.</div>
+</div>
+
+<!-- ====== CLAUDE ALS WERKZEUG ====== -->
+<h2>9. Claude Code als Entwicklungswerkzeug</h2>
+<div class="card">
+  <table>
+    <tr><th>Was Claude tun kann</th><th>Wie</th></tr>
+    <tr><td>PDFs lesen (lokal oder Drive)</td><td>Read-Tool (bis ~10 Seiten)</td></tr>
+    <tr><td>Supabase Daten lesen/schreiben</td><td>REST API mit Anon Key oder Dashboard-API</td></tr>
+    <tr><td>Supabase Schema ändern (Tabellen, Policies)</td><td>Dashboard Management API via Browser-Tool</td></tr>
+    <tr><td>HTML-Dateien erstellen/bearbeiten</td><td>Direkt auf Dateisystem (Edit/Write-Tool)</td></tr>
+    <tr><td>Zu GitHub pushen</td><td>GitHub API + <code>GITHUB_TOKEN</code> aus Windows-Env</td></tr>
+    <tr><td>Dateien in Drive suchen/kopieren</td><td>Drive MCP (<code>search_files</code>, <code>copy_file</code>)</td></tr>
+    <tr><td>E-Mails durchsuchen</td><td>Gmail MCP</td></tr>
+    <tr><td>Browser steuern (Supabase UI)</td><td>Chrome MCP + JavaScript-Injection</td></tr>
+  </table>
+
+  <h3>MCP-Server (aktive Verbindungen)</h3>
+  <table>
+    <tr><th>MCP-Server</th><th>Zugriff auf</th></tr>
+    <tr><td>Google Drive MCP</td><td>Dateien suchen, lesen, kopieren</td></tr>
+    <tr><td>Gmail MCP</td><td>E-Mails suchen und lesen</td></tr>
+    <tr><td>Chrome MCP</td><td>Browser steuern (Supabase Dashboard, etc.)</td></tr>
+    <tr><td>Computer-Use MCP</td><td>Desktop-Screenshots und Steuerung</td></tr>
+    <tr><td>Calendar MCP</td><td>Google Kalender</td></tr>
+  </table>
+
+  <div class="note">Claude ist der "Kleber" zwischen den Diensten — er liest PDFs, prüft die DB, rechnet SI-Einheiten um und pflegt das Frontend, alles in einem Gespräch.</div>
+</div>
+
+<!-- ====== GEPLANT ====== -->
+<h2>10. PDF-Import-Pipeline <span class="badge">aktiv</span></h2>
+<div class="card">
+  <div class="flow" style="flex-wrap:wrap;gap:8px">
+    <div class="box gray">PDF hochladen</div><div class="arrow">→</div>
+    <div class="box orange">Storage Bucket</div><div class="arrow">→</div>
+    <div class="box purple">/process-pdf<br>(Claude liest)</div><div class="arrow">→</div>
+    <div class="box green">documents (Vektoren)<br>+ lab_reports</div>
+  </div>
+  <div class="flow" style="flex-wrap:wrap;gap:8px">
+    <div class="box purple">/extract-measurements</div><div class="arrow">→</div>
+    <div class="box orange">staged_measurements<br>(Review + Duplikat-Check)</div><div class="arrow">→</div>
+    <div class="box green">measurements (live)</div>
+  </div>
+  <div class="note">Neue/unbekannte Parameter können beim Review direkt angelegt werden. Duplikat-Erkennung: gleicher Parameter + (gleicher Wert ODER Datum ±7 Tage). Passwortgeschützte PDFs vorher entschlüsseln.</div>
+</div>
+
+<h2>11. Geplante Erweiterungen</h2>
+<div class="card">
+  <table>
+    <tr><th>Feature</th><th>Idee</th></tr>
+    <tr><td>Voll-Automatik</td><td>Daily-Check-Agent lädt neue Scans automatisch in den Bucket und verarbeitet sie</td></tr>
+    <tr><td>Auto-SI-Umrechnung</td><td>Beim Import value_si pro Parameter automatisch berechnen (statt Best-Effort)</td></tr>
+    <tr><td>Datum fix je Bericht</td><td>Abnahmedatum einmal je Bericht bestätigen statt pro KI-Lauf neu raten</td></tr>
+    <tr><td>Blutdruck / Waage</td><td>Manuelle oder automatische Eingabe von Tagesmessungen</td></tr>
+    <tr><td>Ira Zugriff</td><td>Multi-User: shared_access Tabelle, Ira kann Stefans Daten lesen</td></tr>
+    <tr><td>Dashboard Kategorien</td><td>"Sonstige" Kategorie für kleine Gruppen (Insulin, Homocystein, Hormone) zusammenfassen</td></tr>
+  </table>
+</div>
+
+<hr style="margin-top:50px; border-color:#ddd;">
+<p style="color:#999; font-size:0.85em;">Aktualisiert mit Claude Code · Juni 2026</p>
+
+</div>
+<script>function logout(){ window.location.href = 'me-db-login.html'; }</script>
+</body>
+</html>
