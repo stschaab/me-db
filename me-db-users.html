@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>MeDB &middot; Users</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 600px; margin: 40px auto; padding: 0 24px; }
+  .add-card { background: white; border-radius: 10px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; }
+  .add-card h2 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 16px; }
+  .add-row { display: flex; gap: 10px; }
+  input[type="text"], input[type="email"] { border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px 14px; font-size: 0.95rem; background: #fafafa; flex: 1; }
+  input:focus { outline: none; border-color: #7ec8e3; background: white; }
+  .btn { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 10px 20px; font-size: 0.9rem; cursor: pointer; white-space: nowrap; }
+  .btn:hover { background: #2d2d4e; }
+  .btn-del { background: none; border: none; color: #e65100; cursor: pointer; font-size: 0.85rem; padding: 4px 8px; border-radius: 6px; }
+  .btn-del:hover { background: #fff3e0; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  th { background: #f0f0f0; text-align: left; padding: 10px 16px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #666; border-bottom: 2px solid #e0e0e0; }
+  td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
+  tr:last-child td { border-bottom: none; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #2e7d32; color: white; padding: 12px 20px; border-radius: 8px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+  .toast.error { background: #c62828; }
+  .loading { text-align: center; padding: 40px; color: #aaa; }
+  .you { font-size: 0.75rem; color: #aaa; margin-left: 6px; }
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>User Management</h1>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Messungen</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameter</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Werte</a>
+    </div></div>
+    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+
+<div class="container">
+  <div class="add-card">
+    <h2>Neuen Nutzer hinzufügen</h2>
+    <div class="add-row">
+      <input type="email" id="newEmail" placeholder="gmail-adresse@gmail.com" onkeydown="if(event.key==='Enter') addUser()">
+      <input type="text" id="newName" placeholder="Name (optional)" style="max-width:160px" onkeydown="if(event.key==='Enter') addUser()">
+      <button class="btn" onclick="addUser()">Hinzufügen</button>
+    </div>
+  </div>
+
+  <div id="content"><div class="loading">Lädt...</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+let currentEmail = '';
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) window.location.href = 'me-db-login.html';
+  else { currentEmail = data.session.user.email; loadUsers(); }
+});
+
+async function logout() {
+  await db.auth.signOut();
+  window.location.href = 'me-db-login.html';
+}
+
+async function loadUsers() {
+  const { data, error } = await db.from('allowed_users').select('*').order('name');
+  if (error) { showToast('Fehler: ' + error.message, true); return; }
+
+  let html = `<table><thead><tr><th>E-Mail</th><th>Name</th><th></th></tr></thead><tbody>`;
+  for (const u of data) {
+    const isYou = u.email === currentEmail;
+    html += `<tr>
+      <td>${u.email}${isYou ? '<span class="you">(du)</span>' : ''}</td>
+      <td>${u.name || '—'}</td>
+      <td style="text-align:right">
+        ${isYou ? '' : `<button class="btn-del" onclick="deleteUser(${u.id}, '${u.email}')">Entfernen</button>`}
+      </td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('content').innerHTML = html;
+}
+
+async function addUser() {
+  const email = document.getElementById('newEmail').value.trim().toLowerCase();
+  const name = document.getElementById('newName').value.trim() || null;
+  if (!email) return;
+
+  const { error } = await db.from('allowed_users').insert({ email, name });
+  if (error) { showToast('Fehler: ' + error.message, true); return; }
+
+  document.getElementById('newEmail').value = '';
+  document.getElementById('newName').value = '';
+  showToast(`${email} hinzugefügt`);
+  loadUsers();
+}
+
+async function deleteUser(id, email) {
+  if (!confirm(`${email} wirklich entfernen?`)) return;
+  const { error } = await db.from('allowed_users').delete().eq('id', id);
+  if (error) { showToast('Fehler: ' + error.message, true); return; }
+  showToast(`${email} entfernt`);
+  loadUsers();
+}
+
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 2500);
+}
+</script>
+</body>
+</html>
