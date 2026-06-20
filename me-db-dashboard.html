@@ -59,6 +59,10 @@
   .abos-stat .n { font-size: 1.25rem; font-weight: 700; }
   .abos-stat .u { font-size: 0.7rem; color: #aaa; }
   .abos-sub { margin-top: 3px; font-size: 0.65rem; color: #aaa; }
+  .supp-stat { margin-top: 10px; display: flex; align-items: baseline; gap: 6px; }
+  .supp-stat .n { font-size: 1.25rem; font-weight: 700; }
+  .supp-stat .u { font-size: 0.7rem; color: #aaa; }
+  .supp-sub { margin-top: 3px; font-size: 0.65rem; color: #aaa; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -121,6 +125,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-einkaufsliste.html">Einkauf</a>
     <a href="me-db-hrv.html">HRV</a>
     <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-supplements.html">Supplements</a>
     <a href="me-db-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
   </nav>
@@ -171,6 +176,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div id="abosStat">…</div>
     </a>
 
+    <a class="tile" href="me-db-supplements.html">
+      <div class="icon">💊</div>
+      <div class="title">Supplementplan</div>
+      <div class="desc">Mengen, Zeiten &amp; Kosten im Blick</div>
+      <div id="suppStat">…</div>
+    </a>
+
   </div>
 </div>
 
@@ -181,7 +193,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'me-db-login.html';
-  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); }
+  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); }
 });
 
 async function logout() {
@@ -372,6 +384,24 @@ async function loadAbosStat() {
       <div class="abos-sub">${active.length} aktiv${checkCount ? ' · ' + checkCount + ' zu prüfen' : ''}</div>`;
   } catch (e) {
     document.getElementById('abosStat').innerHTML = '';
+  }
+}
+
+async function loadSuppStat() {
+  try {
+    const { data, error } = await db.from('supplements').select('daily_amount,package_amount,package_price,active');
+    if (error) throw error;
+    const active = (data||[]).filter(s => s.active);
+    let total = 0;
+    for (const s of active) {
+      const pp = parseFloat(s.package_price), pa = parseFloat(s.package_amount), da = parseFloat(s.daily_amount);
+      if (pp && pa && da) total += (pp/pa)*da;
+    }
+    document.getElementById('suppStat').innerHTML = `
+      <div class="supp-stat"><span class="n">${total.toFixed(2)}</span><span class="u">€/Tag</span></div>
+      <div class="supp-sub">${active.length} aktiv</div>`;
+  } catch (e) {
+    document.getElementById('suppStat').innerHTML = '';
   }
 }
 </script>
