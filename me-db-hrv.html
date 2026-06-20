@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; HRV</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 800px; margin: 28px auto; padding: 0 24px 60px; }
+
+  .panel { background: white; border-radius: 14px; padding: 26px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 20px; }
+  .connect-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .btn { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 12px 22px; font-size: 1rem; cursor: pointer; }
+  .btn:hover { background: #2d2d4e; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn.stop { background: #c62828; }
+  .btn.stop:hover { background: #b71c1c; }
+  .status { font-size: 0.88rem; color: #888; }
+  .status.connected { color: #2e7d32; font-weight: 600; }
+  .status.error { color: #c62828; font-weight: 600; }
+
+  .live { display: none; margin-top: 22px; text-align: center; }
+  .live.show { display: block; }
+  .live .hr { font-size: 3.2rem; font-weight: 800; }
+  .live .hr .u { font-size: 1.1rem; color: #aaa; font-weight: 500; }
+  .live .timer { font-size: 1.1rem; color: #555; margin-top: 6px; }
+  .live .count { font-size: 0.8rem; color: #aaa; margin-top: 4px; }
+  .ring { width: 14px; height: 14px; border-radius: 50%; background: #c62828; display: inline-block; animation: pulse 1s infinite; margin-right: 6px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+  .result { display: none; margin-top: 20px; }
+  .result.show { display: block; }
+  .rgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 14px; }
+  .rcard { background: #f5f5f5; border-radius: 10px; padding: 14px; text-align: center; }
+  .rcard .v { font-size: 1.5rem; font-weight: 700; }
+  .rcard .l { font-size: 0.7rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+
+  .hint { font-size: 0.8rem; color: #aaa; margin-top: 14px; line-height: 1.5; }
+
+  .section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin: 28px 0 12px; }
+  .chart-wrap { background: white; border-radius: 14px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); height: 280px; }
+
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-top: 12px; }
+  th { background: #f0f0f0; text-align: left; padding: 9px 12px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #666; }
+  td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; }
+  tr:last-child td { border-bottom: none; }
+  .del-btn { background: none; border: none; cursor: pointer; color: #ccc; font-size: 0.9rem; }
+  .del-btn:hover { color: #c62828; }
+
+  .loading { text-align: center; padding: 40px; color: #aaa; }
+  .empty { text-align: center; padding: 30px; color: #aaa; font-size: 0.88rem; }
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+/* === Hamburger-Navigation (immer aktiv) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 1.2rem; }
+  .container { padding: 0 14px 60px; margin: 18px auto; }
+  table { display: block; overflow-x: auto; white-space: nowrap; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#8a8aa5;font-weight:400"> &middot; HRV</span></h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Messungen</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameter</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sport-Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Werte</a>
+    </div></div>
+    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <div class="panel">
+    <div class="connect-row">
+      <button class="btn" id="connectBtn" onclick="connectAndMeasure()">⌚ Polar H10 verbinden &amp; messen</button>
+      <span class="status" id="status">Nicht verbunden</span>
+    </div>
+
+    <div class="live" id="live">
+      <div class="hr"><span class="ring"></span><span id="liveHr">–</span><span class="u"> bpm</span></div>
+      <div class="timer" id="liveTimer">60s</div>
+      <div class="count" id="liveCount">0 RR-Werte erfasst</div>
+      <button class="btn stop" style="margin-top:14px" onclick="stopMeasurement()">Stoppen &amp; auswerten</button>
+    </div>
+
+    <div class="result" id="result">
+      <div class="rgrid" id="rgrid"></div>
+    </div>
+
+    <div class="hint">Funktioniert nur in Chrome/Edge (Desktop &amp; Android) über Web Bluetooth – nicht in Safari/iOS. H10 muss in Reichweite und nicht mit einer anderen App verbunden sein (z.B. Polar Beat schließen). Brustgurt anlegen, befeuchten, 60 Sekunden ruhig sitzen/liegen für ein sauberes Ergebnis.</div>
+  </div>
+
+  <div class="section-title">RMSSD-Trend</div>
+  <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+
+  <div class="section-title">Verlauf</div>
+  <div id="history"><div class="loading">Lade…</div></div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+let userId = null;
+let chart = null;
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  userId = data.session.user.id;
+  loadHistory();
+});
+
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+/* ---------- Bluetooth / Messung ---------- */
+const MEASURE_SEC = 60;
+let bleDevice = null, bleChar = null;
+let rrBuffer = [];
+let measureTimer = null;
+let secondsLeft = MEASURE_SEC;
+
+function setStatus(text, cls) {
+  const el = document.getElementById('status');
+  el.textContent = text;
+  el.className = 'status' + (cls ? ' ' + cls : '');
+}
+
+async function connectAndMeasure() {
+  if (!navigator.bluetooth) {
+    setStatus('Web Bluetooth nicht verfügbar – bitte Chrome/Edge benutzen', 'error');
+    return;
+  }
+  try {
+    setStatus('Suche Gerät…');
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ services: ['heart_rate'] }],
+      optionalServices: ['heart_rate']
+    });
+    bleDevice.addEventListener('gattserverdisconnected', () => setStatus('Verbindung getrennt', 'error'));
+
+    setStatus('Verbinde…');
+    const server = await bleDevice.gatt.connect();
+    const service = await server.getPrimaryService('heart_rate');
+    bleChar = await service.getCharacteristic('heart_rate_measurement');
+
+    setStatus('Verbunden: ' + (bleDevice.name || 'H10'), 'connected');
+    startMeasurement();
+  } catch (e) {
+    setStatus('Fehler: ' + e.message, 'error');
+  }
+}
+
+function startMeasurement() {
+  rrBuffer = [];
+  secondsLeft = MEASURE_SEC;
+  document.getElementById('connectBtn').disabled = true;
+  document.getElementById('result').classList.remove('show');
+  document.getElementById('live').classList.add('show');
+  document.getElementById('liveTimer').textContent = secondsLeft + 's';
+  document.getElementById('liveCount').textContent = '0 RR-Werte erfasst';
+
+  bleChar.addEventListener('characteristicvaluechanged', onHrData);
+  bleChar.startNotifications();
+
+  measureTimer = setInterval(() => {
+    secondsLeft--;
+    document.getElementById('liveTimer').textContent = secondsLeft + 's';
+    if (secondsLeft <= 0) stopMeasurement();
+  }, 1000);
+}
+
+function onHrData(event) {
+  const value = event.target.value;
+  const flags = value.getUint8(0);
+  const rate16 = flags & 0x1;
+  let index = 1, hr;
+  if (rate16) { hr = value.getUint16(index, true); index += 2; }
+  else { hr = value.getUint8(index); index += 1; }
+
+  const energyExpended = flags & 0x8;
+  if (energyExpended) index += 2;
+
+  document.getElementById('liveHr').textContent = hr;
+
+  const rrPresent = flags & 0x10;
+  if (rrPresent) {
+    while (index + 1 < value.byteLength) {
+      const rr1024 = value.getUint16(index, true);
+      index += 2;
+      rrBuffer.push(Math.round(rr1024 / 1024 * 1000)); // -> ms
+    }
+    document.getElementById('liveCount').textContent = rrBuffer.length + ' RR-Werte erfasst';
+  }
+}
+
+async function stopMeasurement() {
+  clearInterval(measureTimer);
+  try {
+    if (bleChar) {
+      bleChar.removeEventListener('characteristicvaluechanged', onHrData);
+      await bleChar.stopNotifications();
+    }
+  } catch (e) {}
+  document.getElementById('live').classList.remove('show');
+  document.getElementById('connectBtn').disabled = false;
+
+  if (rrBuffer.length < 5) {
+    setStatus('Zu wenige RR-Werte erfasst (' + rrBuffer.length + ') – Gurt richtig sitzen?', 'error');
+    return;
+  }
+  await computeAndSave(rrBuffer.slice());
+}
+
+/* ---------- HRV-Berechnung ---------- */
+function computeHrv(rr) {
+  const n = rr.length;
+  const meanRR = rr.reduce((s,v)=>s+v,0) / n;
+  const meanHR = 60000 / meanRR;
+  const variance = rr.reduce((s,v)=>s+Math.pow(v-meanRR,2),0) / n;
+  const sdnn = Math.sqrt(variance);
+
+  const diffs = [];
+  for (let i=1;i<n;i++) diffs.push(rr[i]-rr[i-1]);
+  const rmssd = diffs.length ? Math.sqrt(diffs.reduce((s,d)=>s+d*d,0)/diffs.length) : null;
+  const pnn50 = diffs.length ? (diffs.filter(d=>Math.abs(d)>50).length / diffs.length * 100) : null;
+
+  return { meanRR, meanHR, sdnn, rmssd, pnn50 };
+}
+
+async function computeAndSave(rr) {
+  const m = computeHrv(rr);
+  const { data, error } = await db.from('hrv_measurements').insert({
+    user_id: userId,
+    duration_sec: MEASURE_SEC,
+    rr_intervals: rr,
+    rr_count: rr.length,
+    mean_rr: Math.round(m.meanRR*10)/10,
+    mean_hr: Math.round(m.meanHR*10)/10,
+    sdnn: Math.round(m.sdnn*10)/10,
+    rmssd: m.rmssd!=null ? Math.round(m.rmssd*10)/10 : null,
+    pnn50: m.pnn50!=null ? Math.round(m.pnn50*10)/10 : null,
+    source: 'Polar H10'
+  }).select();
+
+  if (error) { setStatus('Fehler beim Speichern: ' + error.message, 'error'); return; }
+
+  setStatus('Messung gespeichert ✓', 'connected');
+  showResult(m, rr.length);
+  loadHistory();
+}
+
+function showResult(m, count) {
+  document.getElementById('rgrid').innerHTML = `
+    <div class="rcard"><div class="v">${Math.round(m.meanHR)}</div><div class="l">Ø HR bpm</div></div>
+    <div class="rcard"><div class="v">${m.rmssd!=null ? m.rmssd.toFixed(1) : '–'}</div><div class="l">RMSSD ms</div></div>
+    <div class="rcard"><div class="v">${m.sdnn.toFixed(1)}</div><div class="l">SDNN ms</div></div>
+    <div class="rcard"><div class="v">${m.pnn50!=null ? m.pnn50.toFixed(0)+'%' : '–'}</div><div class="l">pNN50</div></div>
+    <div class="rcard"><div class="v">${count}</div><div class="l">RR-Werte</div></div>
+  `;
+  document.getElementById('result').classList.add('show');
+}
+
+/* ---------- History + Chart ---------- */
+async function loadHistory() {
+  const { data, error } = await db.from('hrv_measurements')
+    .select('id,measured_at,mean_hr,rmssd,sdnn,pnn50,rr_count')
+    .order('measured_at', { ascending: false })
+    .limit(100);
+  if (error) { document.getElementById('history').innerHTML = '<div class="empty">Fehler: ' + error.message + '</div>'; return; }
+
+  renderChart((data||[]).slice().reverse());
+  renderHistory(data||[]);
+}
+
+function renderChart(rows) {
+  const labels = rows.map(r => new Date(r.measured_at).toLocaleDateString('de-DE',{day:'2-digit',month:'short'}));
+  const values = rows.map(r => r.rmssd);
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'RMSSD (ms)', data: values, borderColor: '#1a1a2e', backgroundColor: 'rgba(126,200,227,0.2)', tension: 0.25, fill: true, pointRadius: 3 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false } } }
+  });
+}
+
+function renderHistory(rows) {
+  if (!rows.length) { document.getElementById('history').innerHTML = '<div class="empty">Noch keine Messungen.</div>'; return; }
+  let html = `<table><thead><tr><th>Datum</th><th>Ø HR</th><th>RMSSD</th><th>SDNN</th><th>pNN50</th><th>RR</th><th></th></tr></thead><tbody>`;
+  for (const r of rows) {
+    const date = new Date(r.measured_at).toLocaleString('de-DE', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    html += `<tr>
+      <td>${date}</td>
+      <td>${r.mean_hr ?? '–'}</td>
+      <td>${r.rmssd ?? '–'}</td>
+      <td>${r.sdnn ?? '–'}</td>
+      <td>${r.pnn50 ?? '–'}</td>
+      <td>${r.rr_count ?? '–'}</td>
+      <td><button class="del-btn" onclick="deleteRow(${r.id})">🗑</button></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('history').innerHTML = html;
+}
+
+async function deleteRow(id) {
+  if (!confirm('Messung löschen?')) return;
+  const { error } = await db.from('hrv_measurements').delete().eq('id', id);
+  if (error) { alert('Fehler: ' + error.message); return; }
+  loadHistory();
+}
+</script>
+</body>
+</html>
