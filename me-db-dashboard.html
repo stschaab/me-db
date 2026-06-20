@@ -16,45 +16,45 @@
   .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
   .logout-btn:hover { text-decoration: underline; }
   .container { max-width: 1000px; margin: 48px auto; padding: 0 24px; }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
-  .tile { background: white; border-radius: 14px; padding: 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; text-decoration: none; color: inherit; display: block; transition: transform 0.1s, box-shadow 0.1s; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .tile { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; text-decoration: none; color: inherit; display: block; transition: transform 0.1s, box-shadow 0.1s; }
   .tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
-  .tile .icon { font-size: 2rem; margin-bottom: 12px; }
-  .tile .title { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; }
-  .tile .desc { font-size: 0.85rem; color: #888; }
-  .tile .stat { margin-top: 18px; display: flex; align-items: baseline; gap: 8px; }
-  .tile .stat .n { font-size: 1.8rem; font-weight: 700; }
-  .tile .stat .u { font-size: 0.85rem; color: #aaa; }
-  .trend { font-size: 0.95rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+  .tile .icon { font-size: 1.4rem; margin-bottom: 6px; }
+  .tile .title { font-size: 0.92rem; font-weight: 700; margin-bottom: 3px; }
+  .tile .desc { font-size: 0.7rem; color: #888; line-height: 1.3; }
+  .tile .stat { margin-top: 10px; display: flex; align-items: baseline; gap: 6px; }
+  .tile .stat .n { font-size: 1.25rem; font-weight: 700; }
+  .tile .stat .u { font-size: 0.7rem; color: #aaa; }
+  .trend { font-size: 0.78rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
   .trend.up { background: #e8f5e9; color: #2e7d32; }
   .trend.down { background: #ffebee; color: #c62828; }
   .trend.flat { background: #f5f5f5; color: #888; }
-  .tile .trend-label { font-size: 0.75rem; color: #aaa; margin-top: 6px; }
-  .badge-soon { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: #fff3e0; color: #e65100; padding: 3px 9px; border-radius: 20px; margin-top: 12px; }
-  .alert-box { margin-top: 16px; padding: 10px 12px; border-radius: 8px; background: #fff3e0; }
+  .tile .trend-label { font-size: 0.65rem; color: #aaa; margin-top: 4px; }
+  .badge-soon { display: inline-block; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 20px; margin-top: 8px; }
+  .alert-box { margin-top: 10px; padding: 7px 9px; border-radius: 7px; background: #fff3e0; }
   .alert-box.high { background: #ffebee; }
-  .alert-box .a-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: #c62828; font-weight: 700; }
+  .alert-box .a-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: #c62828; font-weight: 700; }
   .alert-box.low .a-label { color: #1565c0; }
   .alert-box.low { background: #e3f2fd; }
-  .alert-box .a-name { font-size: 0.9rem; font-weight: 700; margin-top: 2px; }
-  .alert-box .a-val { font-size: 0.8rem; color: #888; margin-top: 2px; }
-  .all-ok { margin-top: 16px; font-size: 0.85rem; color: #2e7d32; }
-  .task-stat { margin-top: 16px; display: flex; align-items: baseline; gap: 8px; }
-  .task-stat .n { font-size: 1.8rem; font-weight: 700; }
+  .alert-box .a-name { font-size: 0.78rem; font-weight: 700; margin-top: 2px; }
+  .alert-box .a-val { font-size: 0.68rem; color: #888; margin-top: 2px; }
+  .all-ok { margin-top: 10px; font-size: 0.72rem; color: #2e7d32; }
+  .task-stat { margin-top: 10px; display: flex; align-items: baseline; gap: 6px; }
+  .task-stat .n { font-size: 1.25rem; font-weight: 700; }
   .task-stat .n.due { color: #c62828; }
-  .task-stat .u { font-size: 0.85rem; color: #aaa; }
-  .task-sub { margin-top: 4px; font-size: 0.75rem; color: #aaa; }
-  .task-none { margin-top: 16px; font-size: 0.85rem; color: #2e7d32; }
-  .shop-stat { margin-top: 16px; display: flex; align-items: baseline; gap: 8px; }
-  .shop-stat .n { font-size: 1.8rem; font-weight: 700; }
-  .shop-stat .u { font-size: 0.85rem; color: #aaa; }
-  .shop-sub { margin-top: 4px; font-size: 0.75rem; color: #aaa; }
-  .shop-none { margin-top: 16px; font-size: 0.85rem; color: #2e7d32; }
-  .hrv-stat { margin-top: 16px; display: flex; align-items: baseline; gap: 8px; }
-  .hrv-stat .n { font-size: 1.8rem; font-weight: 700; }
-  .hrv-stat .u { font-size: 0.85rem; color: #aaa; }
-  .hrv-sub { margin-top: 4px; font-size: 0.75rem; color: #aaa; }
-  .hrv-none { margin-top: 16px; font-size: 0.85rem; color: #aaa; }
+  .task-stat .u { font-size: 0.7rem; color: #aaa; }
+  .task-sub { margin-top: 3px; font-size: 0.65rem; color: #aaa; }
+  .task-none { margin-top: 10px; font-size: 0.72rem; color: #2e7d32; }
+  .shop-stat { margin-top: 10px; display: flex; align-items: baseline; gap: 6px; }
+  .shop-stat .n { font-size: 1.25rem; font-weight: 700; }
+  .shop-stat .u { font-size: 0.7rem; color: #aaa; }
+  .shop-sub { margin-top: 3px; font-size: 0.65rem; color: #aaa; }
+  .shop-none { margin-top: 10px; font-size: 0.72rem; color: #2e7d32; }
+  .hrv-stat { margin-top: 10px; display: flex; align-items: baseline; gap: 6px; }
+  .hrv-stat .n { font-size: 1.25rem; font-weight: 700; }
+  .hrv-stat .u { font-size: 0.7rem; color: #aaa; }
+  .hrv-sub { margin-top: 3px; font-size: 0.65rem; color: #aaa; }
+  .hrv-none { margin-top: 10px; font-size: 0.72rem; color: #aaa; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -77,7 +77,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   header { padding: 14px 16px; }
   header h1 { font-size: 1.2rem; }
   .container { padding: 0 14px; margin: 18px auto; }
-  .tiles { grid-template-columns: 1fr !important; }
+  .tiles { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
   .grid { grid-template-columns: repeat(2, 1fr) !important; }
   table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
   input, select, textarea, button { font-size: 16px !important; }
