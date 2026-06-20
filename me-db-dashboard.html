@@ -39,6 +39,12 @@
   .alert-box .a-name { font-size: 0.9rem; font-weight: 700; margin-top: 2px; }
   .alert-box .a-val { font-size: 0.8rem; color: #888; margin-top: 2px; }
   .all-ok { margin-top: 16px; font-size: 0.85rem; color: #2e7d32; }
+  .task-stat { margin-top: 16px; display: flex; align-items: baseline; gap: 8px; }
+  .task-stat .n { font-size: 1.8rem; font-weight: 700; }
+  .task-stat .n.due { color: #c62828; }
+  .task-stat .u { font-size: 0.85rem; color: #aaa; }
+  .task-sub { margin-top: 4px; font-size: 0.75rem; color: #aaa; }
+  .task-none { margin-top: 16px; font-size: 0.85rem; color: #2e7d32; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -124,7 +130,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div class="icon">✅</div>
       <div class="title">Task-Dashboard</div>
       <div class="desc">Aufgaben &amp; To-dos, von Claude verwaltet</div>
-      <span class="badge-soon">In Arbeit</span>
+      <div id="taskStat">…</div>
     </a>
 
   </div>
@@ -137,7 +143,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'me-db-login.html';
-  else { loadSportStat(); loadLabStat(); }
+  else { loadSportStat(); loadLabStat(); loadTaskStat(); }
 });
 
 async function logout() {
@@ -240,6 +246,34 @@ async function loadLabStat() {
     }
   } catch (e) {
     document.getElementById('labStat').innerHTML = '';
+  }
+}
+
+async function loadTaskStat() {
+  try {
+    const today = new Date().toISOString().substring(0,10);
+    const { data, error } = await db.from('tasks')
+      .select('status,due_date')
+      .neq('status', 'done');
+    if (error) throw error;
+
+    const open = data || [];
+    const due = open.filter(t => t.due_date && t.due_date <= today).length;
+    const total = open.length;
+
+    if (due > 0) {
+      document.getElementById('taskStat').innerHTML = `
+        <div class="task-stat"><span class="n due">${due}</span><span class="u">${due === 1 ? 'Task fällig' : 'Tasks fällig'}</span></div>
+        <div class="task-sub">${total} offen insgesamt</div>`;
+    } else if (total > 0) {
+      document.getElementById('taskStat').innerHTML = `
+        <div class="task-stat"><span class="n">${total}</span><span class="u">${total === 1 ? 'Task offen' : 'Tasks offen'}</span></div>
+        <div class="task-sub">nichts fällig</div>`;
+    } else {
+      document.getElementById('taskStat').innerHTML = `<div class="task-none">✓ Keine offenen Tasks</div>`;
+    }
+  } catch (e) {
+    document.getElementById('taskStat').innerHTML = '';
   }
 }
 </script>
