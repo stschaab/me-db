@@ -332,7 +332,7 @@ async function loadHrvStat() {
       const r = data[0];
       const date = new Date(r.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short' });
       document.getElementById('hrvStat').innerHTML = `
-        <div class="hrv-stat"><span class="n">${r.rmssd ?? '–'}</span><span class="u">ms RMSSD</span></div>
+        <div class="hrv-stat"><span class="n">${r.rmssd ?? '–'}</span><span class="u">ms RMSSD (HRV)</span></div>
         <div class="hrv-sub">letzte Messung ${date}</div>`;
     } else {
       document.getElementById('hrvStat').innerHTML = `<div class="hrv-none">Noch keine Messung</div>`;
