@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>MeDB &middot; Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  header span { opacity: 0.5; font-size: 0.85rem; margin-left: 12px; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 1600px; margin: 32px auto; padding: 0 24px; }
+  .section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin: 32px 0 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+  .card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .card .param { font-size: 0.8rem; color: #888; margin-bottom: 4px; }
+  .card .value { font-size: 1.6rem; font-weight: 700; }
+  .card .unit { font-size: 0.8rem; color: #aaa; margin-left: 4px; }
+  .card .date { font-size: 0.75rem; color: #bbb; margin-top: 4px; }
+  .card .range { font-size: 0.75rem; margin-top: 6px; padding: 3px 8px; border-radius: 20px; display: inline-block; }
+  .ok   { background: #e8f5e9; color: #2e7d32; }
+  .high { background: #fff3e0; color: #e65100; }
+  .low  { background: #e3f2fd; color: #1565c0; }
+  .na   { background: #f5f5f5; color: #999; }
+  .loading { text-align: center; padding: 60px; color: #aaa; }
+  .error { background: #fff3e0; border: 1px solid #ffcc02; border-radius: 8px; padding: 16px; color: #e65100; }
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Health Dashboard</h1>
+    <span id="lastUpdate">Lädt...</span>
+  </div>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Messungen</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameter</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Werte</a>
+    </div></div>
+    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+
+<div class="container">
+  <div id="content"><div class="loading">Daten werden geladen...</div></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) window.location.href = 'me-db-login.html';
+  else loadData();
+});
+
+async function logout() {
+  await db.auth.signOut();
+  window.location.href = 'me-db-login.html';
+}
+
+async function loadData() {
+  try {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/measurements?select=measured_at,value,value_text,unit,value_si,lab,parameters(id,name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)&order=measured_at.desc`,
+      { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
+    );
+    const data = await resp.json();
+    if (!Array.isArray(data)) throw new Error(JSON.stringify(data));
+    render(data);
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<div class="error">Fehler beim Laden: ${e.message}</div>`;
+  }
+}
+
+function statusLabel(val, low, high) {
+  if (val === null || val === undefined) return ['na', '—'];
+  if (low !== null && low !== undefined && val < low) return ['low', 'Zu niedrig'];
+  if (high !== null && high !== undefined && val > high) return ['high', 'Zu hoch'];
+  return ['ok', 'Im Bereich'];
+}
+
+function render(data) {
+  const latest = {};
+  for (const row of data) {
+    const name = row.parameters.name;
+    if (!latest[name]) latest[name] = row;
+  }
+
+  const byCategory = {};
+  for (const [name, row] of Object.entries(latest)) {
+    const cat = row.parameters.category || 'Sonstige';
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push({ name, row });
+  }
+
+  const mainCats = ['Vitamin', 'Mineralstoff', 'Hämoglobin', 'Aminosäurenprofil', 'Stoffwechsel'];
+  let html = '';
+
+  // Collect all categories not in mainCats into "Weitere"
+  const weitereItems = [];
+  for (const [cat, items] of Object.entries(byCategory)) {
+    if (!mainCats.includes(cat)) weitereItems.push(...items);
+  }
+
+  const catsToRender = [...mainCats, '__weitere__'];
+
+  for (const cat of catsToRender) {
+    const items = cat === '__weitere__' ? weitereItems : byCategory[cat];
+    if (!items || items.length === 0) continue;
+    const label = cat === '__weitere__' ? 'Weitere' : cat;
+    html += `<div class="section-title">${label}</div><div class="grid">`;
+    for (const { name, row } of items) {
+      const p = row.parameters;
+      const val = row.value;
+      const valSi = row.value_si;
+      const display = row.value_text || (val !== null ? val : '—');
+      const displaySi = valSi !== null && valSi !== undefined ? valSi : null;
+      const unitOrig = row.unit || p.unit || '';
+      const unitSi = p.unit_si || '';
+      const [cls, label] = statusLabel(valSi ?? val, p.ref_range_low_si ?? p.ref_range_low, p.ref_range_high_si ?? p.ref_range_high);
+      const date = new Date(row.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
+      const lab = row.lab ? ` · ${row.lab}` : '';
+      html += `
+        <div class="card" onclick="window.location='me-db-trend.html?param=${p.id}'" style="cursor:pointer" title="Trend anzeigen">
+          <div class="param">${name}</div>
+          <div><span class="value">${displaySi ?? display}</span><span class="unit">${unitSi || unitOrig}</span></div>
+          ${unitSi && unitSi !== unitOrig ? `<div style="font-size:0.75rem;color:#bbb">${display} ${unitOrig}</div>` : ''}
+          <div class="date">${date}${lab}</div>
+          <span class="range ${cls}">${label}</span>
+        </div>`;
+    }
+    html += '</div>';
+  }
+
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('lastUpdate').textContent = `${Object.keys(latest).length} Parameter · Stand: ${new Date().toLocaleDateString('de-DE')}`;
+}
+</script>
+</body>
+</html>
