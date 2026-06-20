@@ -56,18 +56,18 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop:hover .navdrop-menu { display: block; }
 .navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
 .navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
-/* === Mobile-Optimierung === */
-.hamburger { display: none; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+/* === Hamburger-Navigation (immer aktiv) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
 @media (max-width: 768px) {
-  header { padding: 14px 16px; flex-wrap: wrap; }
+  header { padding: 14px 16px; }
   header h1 { font-size: 1.2rem; }
-  .hamburger { display: block; }
-  nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
-  nav.open { display: flex; }
-  nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
-  .navdrop { width: 100%; margin-left: 0 !important; }
-  .navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
-  .navdrop-menu a { padding: 12px 10px 12px 24px !important; }
   .container { padding: 0 14px; margin: 18px auto; }
   .tiles { grid-template-columns: 1fr !important; }
   .grid { grid-template-columns: repeat(2, 1fr) !important; }
