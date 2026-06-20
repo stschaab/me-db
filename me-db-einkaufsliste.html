@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Einkaufsliste</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 760px; margin: 28px auto; padding: 0 24px 70px; }
+
+  .addbar { background: white; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 16px; position: relative; }
+  .addrow { display: flex; gap: 8px; flex-wrap: wrap; }
+  .addbar input[type="text"] { flex: 1; min-width: 160px; border: 1px solid #e0e0e0; border-radius: 7px; padding: 10px 12px; font-size: 0.95rem; }
+  .addbar select { border: 1px solid #e0e0e0; border-radius: 7px; padding: 10px; font-size: 0.9rem; background: #fafafa; }
+  .addbar button.add { background: #1a1a2e; color: white; border: none; border-radius: 7px; padding: 10px 18px; font-size: 0.95rem; cursor: pointer; white-space: nowrap; }
+  .addbar button.add:hover { background: #2d2d4e; }
+  .ac { position: absolute; left: 16px; right: 16px; top: 58px; background: white; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,0.12); z-index: 50; max-height: 260px; overflow-y: auto; display: none; }
+  .ac.open { display: block; }
+  .ac-item { padding: 10px 14px; cursor: pointer; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
+  .ac-item:hover, .ac-item.sel { background: #eef6fb; }
+  .ac-item .sh { font-size: 0.72rem; color: #999; }
+  .ac-new { color: #1565c0; font-weight: 600; }
+
+  .filters { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .chip { border: 1px solid #d8d8d8; background: white; border-radius: 20px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; }
+  .chip.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+  .filters .right { margin-left: auto; display: flex; gap: 8px; }
+  .linkbtn { background: none; border: none; color: #1565c0; font-size: 0.82rem; cursor: pointer; text-decoration: underline; }
+
+  .shopgroup { margin-bottom: 18px; }
+  .shop-h { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #555; margin: 10px 0 8px; display: flex; align-items: center; gap: 8px; }
+  .shop-dot { width: 9px; height: 9px; border-radius: 50%; background: #7ec8e3; }
+
+  .item { background: white; border-radius: 10px; padding: 11px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 12px; margin-bottom: 7px; }
+  .item.checked { opacity: 0.5; }
+  .item.checked .i-name { text-decoration: line-through; }
+  .chk { width: 20px; height: 20px; cursor: pointer; accent-color: #2e7d32; flex-shrink: 0; }
+  .i-main { flex: 1; min-width: 0; }
+  .i-name { font-size: 0.95rem; font-weight: 600; }
+  .i-qty { font-size: 0.78rem; color: #999; }
+  .i-shop { border: 1px solid #e0e0e0; border-radius: 6px; padding: 5px 8px; font-size: 0.78rem; background: #fafafa; }
+  .icon-btn { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 4px 6px; border-radius: 6px; color: #bbb; }
+  .icon-btn:hover { background: #f5f5f5; color: #c62828; }
+
+  .empty { text-align: center; padding: 50px; color: #aaa; }
+  .loading { text-align: center; padding: 60px; color: #aaa; }
+
+  /* Verwalten-Panel */
+  .panel { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-top: 18px; }
+  .panel h3 { font-size: 0.95rem; margin-bottom: 10px; }
+  .panel.hidden { display: none; }
+  .mini-add { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .mini-add input, .mini-add select { border: 1px solid #e0e0e0; border-radius: 7px; padding: 8px 10px; font-size: 0.85rem; }
+  .mini-add input { flex: 1; min-width: 120px; }
+  .mini-add button { background: #2e7d32; color: white; border: none; border-radius: 7px; padding: 8px 14px; font-size: 0.85rem; cursor: pointer; }
+  .mrow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; }
+  .mrow:last-child { border-bottom: none; }
+  .mrow .grow { flex: 1; }
+  .mrow select { border: 1px solid #e0e0e0; border-radius: 6px; padding: 5px 8px; font-size: 0.8rem; }
+  .tabbtn { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 3px 6px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; padding: 11px 20px; border-radius: 8px; font-size: 0.88rem; opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+/* === Hamburger-Navigation (immer aktiv) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 1.2rem; }
+  .container { padding: 0 14px 70px; margin: 18px auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#8a8aa5;font-weight:400"> &middot; Einkauf</span></h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Messungen</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameter</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sport-Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Werte</a>
+    </div></div>
+    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Abmelden</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <div class="addbar">
+    <div class="addrow">
+      <input type="text" id="prodInput" placeholder="Produkt tippen…" autocomplete="off"
+        oninput="onType()" onkeydown="onKey(event)">
+      <input type="text" id="qtyInput" placeholder="Menge" style="max-width:90px">
+      <select id="shopSelect"><option value="">Shop…</option></select>
+      <button class="add" onclick="addItem()">+ Auf Liste</button>
+    </div>
+    <div class="ac" id="ac"></div>
+  </div>
+
+  <div class="filters">
+    <div id="shopChips"></div>
+    <div class="right">
+      <button class="linkbtn" onclick="togglePanel('shopPanel')">Shops</button>
+      <button class="linkbtn" onclick="togglePanel('prodPanel')">Produkte</button>
+      <button class="linkbtn" onclick="clearChecked()">Erledigte entfernen</button>
+    </div>
+  </div>
+
+  <div id="content"><div class="loading">Lade Einkaufsliste…</div></div>
+
+  <!-- Shop-Verwaltung -->
+  <div class="panel hidden" id="shopPanel">
+    <h3>Shops verwalten</h3>
+    <div class="mini-add">
+      <input type="text" id="newShop" placeholder="Neuer Shop (z.B. Rewe)" onkeydown="if(event.key==='Enter')addShop()">
+      <button onclick="addShop()">+ Shop</button>
+    </div>
+    <div id="shopList"></div>
+  </div>
+
+  <!-- Produkt-Verwaltung -->
+  <div class="panel hidden" id="prodPanel">
+    <h3>Produkte verwalten</h3>
+    <div class="mini-add">
+      <input type="text" id="newProd" placeholder="Neues Produkt (z.B. Brot)">
+      <select id="newProdShop"><option value="">Default-Shop…</option></select>
+      <button onclick="addProductFromPanel()">+ Produkt</button>
+    </div>
+    <div id="prodList"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+let userId = null;
+let shops = [];
+let products = [];
+let items = [];
+let activeShop = '';      // '' = alle
+let acIndex = -1;
+let acMatches = [];
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  userId = data.session.user.id;
+  loadAll();
+});
+
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+function esc(s){ const d=document.createElement('div'); d.textContent = s??''; return d.innerHTML; }
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+function shopName(id){ const s = shops.find(s=>s.id===id); return s ? s.name : '—'; }
+
+async function loadAll() {
+  const [sh, pr, it] = await Promise.all([
+    db.from('shops').select('*').order('sort_order').order('name'),
+    db.from('products').select('*').order('name'),
+    db.from('shopping_items').select('*, products(id,name,default_shop_id)').order('created_at', { ascending: true })
+  ]);
+  shops = sh.data || [];
+  products = pr.data || [];
+  items = it.data || [];
+  fillShopSelects();
+  renderChips();
+  render();
+  renderShopPanel();
+  renderProdPanel();
+}
+
+function fillShopSelects() {
+  const opts = '<option value="">Shop…</option>' + shops.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  document.getElementById('shopSelect').innerHTML = opts;
+  document.getElementById('newProdShop').innerHTML = '<option value="">Default-Shop…</option>' + shops.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+}
+
+/* ---------- Autocomplete ---------- */
+function onType() {
+  const q = document.getElementById('prodInput').value.trim().toLowerCase();
+  const ac = document.getElementById('ac');
+  acIndex = -1;
+  if (!q) { ac.classList.remove('open'); return; }
+  acMatches = products.filter(p => p.name.toLowerCase().includes(q)).slice(0, 8);
+  let html = acMatches.map((p,i) =>
+    `<div class="ac-item" data-i="${i}" onclick="pickProduct(${p.id})">
+       <span>${esc(p.name)}</span><span class="sh">${esc(shopName(p.default_shop_id))}</span>
+     </div>`).join('');
+  const exact = products.some(p => p.name.toLowerCase() === q);
+  if (!exact) html += `<div class="ac-item ac-new" onclick="addItem()">+ „${esc(document.getElementById('prodInput').value.trim())}" neu anlegen &amp; aufnehmen</div>`;
+  ac.innerHTML = html;
+  ac.classList.add('open');
+}
+
+function pickProduct(pid) {
+  const p = products.find(p=>p.id===pid);
+  document.getElementById('prodInput').value = p.name;
+  if (p.default_shop_id) document.getElementById('shopSelect').value = p.default_shop_id;
+  document.getElementById('ac').classList.remove('open');
+  document.getElementById('qtyInput').focus();
+}
+
+function onKey(e) {
+  const ac = document.getElementById('ac');
+  if (!ac.classList.contains('open')) { if (e.key==='Enter') addItem(); return; }
+  const rows = [...ac.querySelectorAll('.ac-item')];
+  if (e.key === 'ArrowDown') { acIndex = Math.min(acIndex+1, rows.length-1); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { acIndex = Math.max(acIndex-1, 0); e.preventDefault(); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (acIndex >= 0 && rows[acIndex]) { rows[acIndex].click(); return; }
+    addItem(); return;
+  } else return;
+  rows.forEach((r,i)=>r.classList.toggle('sel', i===acIndex));
+}
+
+/* ---------- Items ---------- */
+async function ensureProduct(name, shopId) {
+  const existing = products.find(p => p.name.toLowerCase() === name.toLowerCase());
+  if (existing) return existing;
+  const { data, error } = await db.from('products')
+    .insert({ user_id: userId, name, default_shop_id: shopId || null }).select();
+  if (error) { showToast('Fehler: ' + error.message); return null; }
+  products.push(data[0]); products.sort((a,b)=>a.name.localeCompare(b.name));
+  renderProdPanel();
+  return data[0];
+}
+
+async function addItem() {
+  const name = document.getElementById('prodInput').value.trim();
+  if (!name) return;
+  const qty = document.getElementById('qtyInput').value.trim() || null;
+  let shopId = document.getElementById('shopSelect').value || null;
+
+  const prod = await ensureProduct(name, shopId);
+  if (!prod) return;
+  if (!shopId) shopId = prod.default_shop_id || null;
+
+  const { data, error } = await db.from('shopping_items')
+    .insert({ user_id: userId, product_id: prod.id, shop_id: shopId, qty, checked: false })
+    .select('*, products(id,name,default_shop_id)');
+  if (error) { showToast('Fehler: ' + error.message); return; }
+  items.push(data[0]);
+
+  document.getElementById('prodInput').value = '';
+  document.getElementById('qtyInput').value = '';
+  document.getElementById('shopSelect').value = '';
+  document.getElementById('ac').classList.remove('open');
+  document.getElementById('prodInput').focus();
+  renderChips(); render();
+  showToast(prod.name + ' aufgenommen');
+}
+
+async function addProductToList(pid) {
+  const p = products.find(p=>p.id===pid);
+  const { data, error } = await db.from('shopping_items')
+    .insert({ user_id: userId, product_id: p.id, shop_id: p.default_shop_id || null, checked: false })
+    .select('*, products(id,name,default_shop_id)');
+  if (error) { showToast('Fehler: ' + error.message); return; }
+  items.push(data[0]);
+  renderChips(); render();
+  showToast(p.name + ' aufgenommen');
+}
+
+async function toggleChecked(id, cur) {
+  const { error } = await db.from('shopping_items').update({ checked: !cur }).eq('id', id);
+  if (error) { showToast('Fehler: ' + error.message); return; }
+  const it = items.find(i=>i.id===id); if (it) it.checked = !cur;
+  render();
+}
+
+async function deleteItem(id) {
+  const { error } = await db.from('shopping_items').delete().eq('id', id);
+  if (error) { showToast('Fehler: ' + error.message); return; }
+  items = items.filter(i=>i.id!==id);
+  renderChips(); render();
+}
+
+async function changeItemShop(id, shopId) {
+  const { error } = await db.from('shopping_items').update({ shop_id: shopId || null }).eq('id', id);
+  if (error) { showToast('Fehler: ' + error.message); return; }
+  const it = items.find(i=>i.id===id); if (it) it.shop_id = shopId ? +shopId : null;
+  renderChips(); render();
+}
+
+async function clearChecked() {
+  const ids = items.filter(i=>i.checked).map(i=>i.id);
+  if (!ids.length) { showToast('Nichts erledigt'); return; }
+  const { error } = await db.from('shopping_items').delete().in('id', ids);
+  if (error) { showToast('Fehler: ' + error.message); return; }
+  items = items.filter(i=>!i.checked);
+  renderChips(); render();
+  showToast(ids.length + ' entfernt');
+}
+
+/* ---------- Filter-Chips ---------- */
+function renderChips() {
+  const counts = {};
+  for (const it of items) { if (it.checked) continue; const k = it.shop_id||'_'; counts[k]=(counts[k]||0)+1; }
+  const openTotal = items.filter(i=>!i.checked).length;
+  let html = `<button class="chip ${activeShop===''?'active':''}" onclick="setShop('')">Alle (${openTotal})</button>`;
+  for (const s of shops) {
+    const c = counts[s.id]||0;
+    html += `<button class="chip ${activeShop==String(s.id)?'active':''}" onclick="setShop('${s.id}')">${esc(s.name)} (${c})</button>`;
+  }
+  document.getElementById('shopChips').innerHTML = html;
+}
+function setShop(id){ activeShop = id; renderChips(); render(); }
+
+/* ---------- Liste rendern ---------- */
+function render() {
+  const open = items.filter(i => !i.checked && (activeShop==='' || String(i.shop_id)===activeShop));
+  const done = items.filter(i => i.checked && (activeShop==='' || String(i.shop_id)===activeShop));
+
+  if (open.length === 0 && done.length === 0) {
+    document.getElementById('content').innerHTML = '<div class="empty">Liste ist leer. Tippe oben ein Produkt ein.</div>';
+    return;
+  }
+
+  // gruppieren nach shop (sortiert)
+  const order = shops.map(s=>s.id);
+  const groups = {};
+  for (const it of open) { const k = it.shop_id||'_'; (groups[k]=groups[k]||[]).push(it); }
+  const keys = Object.keys(groups).sort((a,b)=>{
+    if (a==='_') return 1; if (b==='_') return -1;
+    return order.indexOf(+a) - order.indexOf(+b);
+  });
+
+  let html = '';
+  for (const k of keys) {
+    const label = k==='_' ? 'Ohne Shop' : shopName(+k);
+    html += `<div class="shopgroup"><div class="shop-h"><span class="shop-dot"></span>${esc(label)}</div>`;
+    for (const it of groups[k]) html += itemRow(it);
+    html += `</div>`;
+  }
+  if (done.length) {
+    html += `<div class="shopgroup"><div class="shop-h" style="color:#bbb"><span class="shop-dot" style="background:#ccc"></span>Erledigt (${done.length})</div>`;
+    for (const it of done) html += itemRow(it);
+    html += `</div>`;
+  }
+  document.getElementById('content').innerHTML = html;
+}
+
+function itemRow(it) {
+  const name = it.products ? it.products.name : '(gelöscht)';
+  const shopOpts = '<option value="">– Shop –</option>' + shops.map(s=>`<option value="${s.id}" ${it.shop_id===s.id?'selected':''}>${esc(s.name)}</option>`).join('');
+  return `
+    <div class="item ${it.checked?'checked':''}">
+      <input type="checkbox" class="chk" ${it.checked?'checked':''} onchange="toggleChecked(${it.id}, ${it.checked})">
+      <div class="i-main">
+        <div class="i-name">${esc(name)}</div>
+        ${it.qty?`<div class="i-qty">${esc(it.qty)}</div>`:''}
+      </div>
+      <select class="i-shop" onchange="changeItemShop(${it.id}, this.value)">${shopOpts}</select>
+      <button class="icon-btn" onclick="deleteItem(${it.id})" title="Entfernen">🗑</button>
+    </div>`;
+}
+
+/* ---------- Panels ---------- */
+function togglePanel(id){ document.getElementById(id).classList.toggle('hidden'); }
+
+function renderShopPanel() {
+  document.getElementById('shopList').innerHTML = shops.map(s=>`
+    <div class="mrow"><span class="grow">${esc(s.name)}</span>
+      <button class="tabbtn" onclick="deleteShop(${s.id})" title="Löschen">🗑</button>
+    </div>`).join('') || '<div style="color:#aaa;font-size:0.85rem">Noch keine Shops</div>';
+}
+async function addShop() {
+  const name = document.getElementById('newShop').value.trim();
+  if (!name) return;
+  const maxOrder = shops.reduce((m,s)=>Math.max(m, s.sort_order||0), 0);
+  const { data, error } = await db.from('shops').insert({ user_id:userId, name, sort_order:maxOrder+1 }).select();
+  if (error) { showToast('Fehler: '+error.message); return; }
+  shops.push(data[0]);
+  document.getElementById('newShop').value='';
+  fillShopSelects(); renderChips(); renderShopPanel(); renderProdPanel();
+  showToast('Shop angelegt');
+}
+async function deleteShop(id) {
+  if (!confirm('Shop löschen? Produkte/Einträge behalten den Eintrag, verlieren nur die Zuordnung.')) return;
+  const { error } = await db.from('shops').delete().eq('id', id);
+  if (error) { showToast('Fehler: '+error.message); return; }
+  shops = shops.filter(s=>s.id!==id);
+  fillShopSelects(); await loadAll();
+  showToast('Shop gelöscht');
+}
+
+function renderProdPanel() {
+  if (!products.length) { document.getElementById('prodList').innerHTML = '<div style="color:#aaa;font-size:0.85rem">Noch keine Produkte</div>'; return; }
+  document.getElementById('prodList').innerHTML = products.map(p=>{
+    const opts = '<option value="">– Default-Shop –</option>' + shops.map(s=>`<option value="${s.id}" ${p.default_shop_id===s.id?'selected':''}>${esc(s.name)}</option>`).join('');
+    return `<div class="mrow">
+      <span class="grow">${esc(p.name)}</span>
+      <select onchange="setProdShop(${p.id}, this.value)">${opts}</select>
+      <button class="tabbtn" onclick="addProductToList(${p.id})" title="Auf Liste">🛒</button>
+      <button class="tabbtn" onclick="deleteProduct(${p.id})" title="Löschen">🗑</button>
+    </div>`;
+  }).join('');
+}
+async function addProductFromPanel() {
+  const name = document.getElementById('newProd').value.trim();
+  if (!name) return;
+  const shopId = document.getElementById('newProdShop').value || null;
+  const p = await ensureProduct(name, shopId);
+  if (p) { document.getElementById('newProd').value=''; document.getElementById('newProdShop').value=''; showToast('Produkt angelegt'); }
+}
+async function setProdShop(id, shopId) {
+  const { error } = await db.from('products').update({ default_shop_id: shopId||null }).eq('id', id);
+  if (error) { showToast('Fehler: '+error.message); return; }
+  const p = products.find(p=>p.id===id); if (p) p.default_shop_id = shopId? +shopId : null;
+  showToast('Default-Shop gesetzt');
+}
+async function deleteProduct(id) {
+  if (!confirm('Produkt aus dem Katalog löschen? (offene Listen-Einträge werden mit entfernt)')) return;
+  const { error } = await db.from('products').delete().eq('id', id);
+  if (error) { showToast('Fehler: '+error.message); return; }
+  products = products.filter(p=>p.id!==id);
+  items = items.filter(i=>i.product_id!==id);
+  renderProdPanel(); renderChips(); render();
+  showToast('Produkt gelöscht');
+}
+
+// Klick außerhalb schließt Autocomplete
+document.addEventListener('click', e => {
+  if (!e.target.closest('.addbar')) document.getElementById('ac').classList.remove('open');
+});
+</script>
+</body>
+</html>
