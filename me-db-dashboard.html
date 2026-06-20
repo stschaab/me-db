@@ -14,21 +14,22 @@
   nav a:hover { text-decoration: underline; }
   .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
   .logout-btn:hover { text-decoration: underline; }
-  .container { max-width: 1600px; margin: 32px auto; padding: 0 24px; }
-  .section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin: 32px 0 12px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
-  .card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-  .card .param { font-size: 0.8rem; color: #888; margin-bottom: 4px; }
-  .card .value { font-size: 1.6rem; font-weight: 700; }
-  .card .unit { font-size: 0.8rem; color: #aaa; margin-left: 4px; }
-  .card .date { font-size: 0.75rem; color: #bbb; margin-top: 4px; }
-  .card .range { font-size: 0.75rem; margin-top: 6px; padding: 3px 8px; border-radius: 20px; display: inline-block; }
-  .ok   { background: #e8f5e9; color: #2e7d32; }
-  .high { background: #fff3e0; color: #e65100; }
-  .low  { background: #e3f2fd; color: #1565c0; }
-  .na   { background: #f5f5f5; color: #999; }
-  .loading { text-align: center; padding: 60px; color: #aaa; }
-  .error { background: #fff3e0; border: 1px solid #ffcc02; border-radius: 8px; padding: 16px; color: #e65100; }
+  .container { max-width: 1000px; margin: 48px auto; padding: 0 24px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+  .tile { background: white; border-radius: 14px; padding: 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; text-decoration: none; color: inherit; display: block; transition: transform 0.1s, box-shadow 0.1s; }
+  .tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+  .tile .icon { font-size: 2rem; margin-bottom: 12px; }
+  .tile .title { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; }
+  .tile .desc { font-size: 0.85rem; color: #888; }
+  .tile .stat { margin-top: 18px; display: flex; align-items: baseline; gap: 8px; }
+  .tile .stat .n { font-size: 1.8rem; font-weight: 700; }
+  .tile .stat .u { font-size: 0.85rem; color: #aaa; }
+  .trend { font-size: 0.95rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+  .trend.up { background: #e8f5e9; color: #2e7d32; }
+  .trend.down { background: #ffebee; color: #c62828; }
+  .trend.flat { background: #f5f5f5; color: #888; }
+  .tile .trend-label { font-size: 0.75rem; color: #aaa; margin-top: 6px; }
+  .badge-soon { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: #fff3e0; color: #e65100; padding: 3px 9px; border-radius: 20px; margin-top: 12px; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -44,17 +45,19 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
 
 <header>
   <div>
-    <h1>Health Dashboard</h1>
-    <span id="lastUpdate">Lädt...</span>
+    <h1>MeDB</h1>
+    <span id="lastUpdate">&nbsp;</span>
   </div>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
     <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
       <a href="me-db-measurements.html">Messungen</a>
       <a href="me-db-trend.html">Trend</a>
       <a href="me-db-parameters.html">Parameter</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sport-Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
       <a href="me-db-activities.html">Aktivit&auml;ten</a>
     </div></div>
@@ -64,13 +67,36 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
       <a href="me-db-werte-review.html">Werte</a>
     </div></div>
     <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
     <a href="me-db-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
   </nav>
 </header>
 
 <div class="container">
-  <div id="content"><div class="loading">Daten werden geladen...</div></div>
+  <div class="tiles">
+
+    <a class="tile" href="me-db-lab-dashboard.html">
+      <div class="icon">🧪</div>
+      <div class="title">Lab-Dashboard</div>
+      <div class="desc">Laborwerte, Vitamine, Hormone &amp; Blutbild im Überblick</div>
+    </a>
+
+    <a class="tile" href="me-db-sports.html">
+      <div class="icon">🏃</div>
+      <div class="title">Sport-Dashboard</div>
+      <div class="desc">Aktivität der letzten 4 Wochen</div>
+      <div id="sportStat"><div class="stat"><span class="n">…</span></div></div>
+    </a>
+
+    <a class="tile" href="me-db-tasks.html">
+      <div class="icon">✅</div>
+      <div class="title">Task-Dashboard</div>
+      <div class="desc">Aufgaben &amp; To-dos, von Claude verwaltet</div>
+      <span class="badge-soon">In Arbeit</span>
+    </a>
+
+  </div>
 </div>
 
 <script>
@@ -80,7 +106,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'me-db-login.html';
-  else loadData();
+  else loadSportStat();
 });
 
 async function logout() {
@@ -88,82 +114,45 @@ async function logout() {
   window.location.href = 'me-db-login.html';
 }
 
-async function loadData() {
+async function loadSportStat() {
   try {
-    const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/measurements?select=measured_at,value,value_text,unit,value_si,lab,parameters(id,name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)&order=measured_at.desc`,
-      { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
-    );
-    const data = await resp.json();
-    if (!Array.isArray(data)) throw new Error(JSON.stringify(data));
-    render(data);
-  } catch(e) {
-    document.getElementById('content').innerHTML = `<div class="error">Fehler beim Laden: ${e.message}</div>`;
-  }
-}
+    const today = new Date();
+    const since = new Date(today); since.setDate(since.getDate() - 84); // 12 weeks before the last 4 weeks too
+    const sinceStr = since.toISOString().substring(0,10);
 
-function statusLabel(val, low, high) {
-  if (val === null || val === undefined) return ['na', '—'];
-  if (low !== null && low !== undefined && val < low) return ['low', 'Zu niedrig'];
-  if (high !== null && high !== undefined && val > high) return ['high', 'Zu hoch'];
-  return ['ok', 'Im Bereich'];
-}
+    const { data, error } = await db.from('activities')
+      .select('date,duration_sec')
+      .gte('date', sinceStr);
+    if (error || !data) throw error || new Error('keine Daten');
 
-function render(data) {
-  const latest = {};
-  for (const row of data) {
-    const name = row.parameters.name;
-    if (!latest[name]) latest[name] = row;
-  }
+    const cut4w = new Date(today); cut4w.setDate(cut4w.getDate() - 28);
+    const cut4wStr = cut4w.toISOString().substring(0,10);
 
-  const byCategory = {};
-  for (const [name, row] of Object.entries(latest)) {
-    const cat = row.parameters.category || 'Sonstige';
-    if (!byCategory[cat]) byCategory[cat] = [];
-    byCategory[cat].push({ name, row });
-  }
-
-  const mainCats = ['Vitamin', 'Mineralstoff', 'Hämoglobin', 'Aminosäurenprofil', 'Stoffwechsel'];
-  let html = '';
-
-  // Collect all categories not in mainCats into "Weitere"
-  const weitereItems = [];
-  for (const [cat, items] of Object.entries(byCategory)) {
-    if (!mainCats.includes(cat)) weitereItems.push(...items);
-  }
-
-  const catsToRender = [...mainCats, '__weitere__'];
-
-  for (const cat of catsToRender) {
-    const items = cat === '__weitere__' ? weitereItems : byCategory[cat];
-    if (!items || items.length === 0) continue;
-    const label = cat === '__weitere__' ? 'Weitere' : cat;
-    html += `<div class="section-title">${label}</div><div class="grid">`;
-    for (const { name, row } of items) {
-      const p = row.parameters;
-      const val = row.value;
-      const valSi = row.value_si;
-      const display = row.value_text || (val !== null ? val : '—');
-      const displaySi = valSi !== null && valSi !== undefined ? valSi : null;
-      const unitOrig = row.unit || p.unit || '';
-      const unitSi = p.unit_si || '';
-      const [cls, label] = statusLabel(valSi ?? val, p.ref_range_low_si ?? p.ref_range_low, p.ref_range_high_si ?? p.ref_range_high);
-      const date = new Date(row.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
-      const lab = row.lab ? ` · ${row.lab}` : '';
-      html += `
-        <div class="card" onclick="window.location='me-db-trend.html?param=${p.id}'" style="cursor:pointer" title="Trend anzeigen">
-          <div class="param">${name}</div>
-          <div><span class="value">${displaySi ?? display}</span><span class="unit">${unitSi || unitOrig}</span></div>
-          ${unitSi && unitSi !== unitOrig ? `<div style="font-size:0.75rem;color:#bbb">${display} ${unitOrig}</div>` : ''}
-          <div class="date">${date}${lab}</div>
-          <span class="range ${cls}">${label}</span>
-        </div>`;
+    let last4wSec = 0, prev12wSec = 0;
+    for (const a of data) {
+      if (a.date >= cut4wStr) last4wSec += (a.duration_sec || 0);
+      else prev12wSec += (a.duration_sec || 0);
     }
-    html += '</div>';
-  }
 
-  document.getElementById('content').innerHTML = html;
-  document.getElementById('lastUpdate').textContent = `${Object.keys(latest).length} Parameter · Stand: ${new Date().toLocaleDateString('de-DE')}`;
+    const last4wH = last4wSec / 3600;
+    const prevWeeklyAvgH = (prev12wSec / 3600) / 12;
+    const last4wWeeklyAvgH = last4wH / 4;
+
+    let trendHtml = '';
+    if (prevWeeklyAvgH > 0) {
+      const diffPct = Math.round(((last4wWeeklyAvgH - prevWeeklyAvgH) / prevWeeklyAvgH) * 100);
+      const cls = diffPct > 3 ? 'up' : (diffPct < -3 ? 'down' : 'flat');
+      const arrow = cls === 'up' ? '↑' : (cls === 'down' ? '↓' : '→');
+      trendHtml = `<span class="trend ${cls}">${arrow} ${Math.abs(diffPct)}%</span>`;
+    }
+
+    document.getElementById('sportStat').innerHTML = `
+      <div class="stat"><span class="n">${last4wH.toFixed(1)}</span><span class="u">Std.</span> ${trendHtml}</div>
+      <div class="trend-label">vs. Ø der vorherigen 12 Wochen</div>
+    `;
+  } catch (e) {
+    document.getElementById('sportStat').innerHTML = `<div class="stat"><span class="n" style="font-size:0.9rem;color:#bbb">keine Daten</span></div>`;
+  }
 }
 </script>
 </body>
