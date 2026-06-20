@@ -188,7 +188,7 @@ async function loadSportStat() {
 async function loadLabStat() {
   try {
     const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/measurements?select=measured_at,value,value_si,unit,unit_si,parameters(id,name,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)&order=measured_at.desc`,
+      `${SUPABASE_URL}/rest/v1/measurements?select=measured_at,value,value_si,unit,parameters(id,name,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)&order=measured_at.desc`,
       { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
     );
     const data = await resp.json();
@@ -225,7 +225,7 @@ async function loadLabStat() {
     if (worst && worstDir) {
       const p = worst.parameters;
       const val = worst.value_si ?? worst.value;
-      const unit = worst.unit_si || worst.unit || '';
+      const unit = p.unit_si || worst.unit || '';
       const label = worstDir === 'high' ? '⚠ Zu hoch' : '⚠ Zu niedrig';
       document.getElementById('labStat').innerHTML = `
         <div class="alert-box ${worstDir}">
