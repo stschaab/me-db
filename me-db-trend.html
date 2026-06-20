@@ -54,7 +54,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 .navdrop-menu a { padding: 12px 10px 12px 24px !important; }
 @media (max-width: 768px) {
   header { padding: 14px 16px; }
-  header h1 { font-size: 1.2rem; }
+  header h1 { font-size: 0.95rem; flex-wrap: wrap; }
   .container { padding: 0 14px; margin: 18px auto; }
   .tiles { grid-template-columns: 1fr !important; }
   .grid { grid-template-columns: repeat(2, 1fr) !important; }
@@ -68,7 +68,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <body>
 
 <header>
-  <h1><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#8a8aa5;font-weight:400"> &middot; Trend</span></h1>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#8a8aa5">Daten</span><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Trend</span></h1>
   <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
