@@ -131,6 +131,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-abos.html">Abos</a>
     <a href="me-db-supplements.html">Supplements</a>
     <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
   </nav>
@@ -203,8 +204,33 @@ let acMatches = [];
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   userId = data.session.user.id;
-  loadAll();
+  loadAll().then(checkVoicePrefill);
 });
+
+async function checkVoicePrefill() {
+  const raw = sessionStorage.getItem('medb_voice_prefill');
+  if (!raw) return;
+  sessionStorage.removeItem('medb_voice_prefill');
+  try {
+    const payload = JSON.parse(raw);
+    if (payload.type !== 'shopping') return;
+    let added = [];
+    for (const it of payload.data) {
+      let prod = it.matched_product_id ? products.find(p => p.id === it.matched_product_id) : null;
+      if (!prod) prod = await ensureProduct(it.name, null);
+      if (!prod) continue;
+      const shopId = prod.default_shop_id || null;
+      const { data: insData, error } = await db.from('shopping_items')
+        .insert({ user_id: userId, product_id: prod.id, shop_id: shopId, qty: it.quantity || null, checked: false })
+        .select('*, products(id,name,default_shop_id)');
+      if (error) continue;
+      items.push(insData[0]);
+      added.push(prod.name);
+    }
+    renderChips(); render();
+    showToast(added.length ? added.join(', ') + ' hinzugefügt' : 'Nichts hinzugefügt');
+  } catch {}
+}
 
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 
