@@ -22,6 +22,14 @@
   .addbar select { border: 1px solid #e0e0e0; border-radius: 7px; padding: 10px; font-size: 0.9rem; background: #fafafa; }
   .addbar button.add { background: #1a1a2e; color: white; border: none; border-radius: 7px; padding: 10px 18px; font-size: 0.95rem; cursor: pointer; white-space: nowrap; }
   .addbar button.add:hover { background: #2d2d4e; }
+  .voicebtn { background: #c62828; color: white; border: none; border-radius: 7px; padding: 10px 14px; font-size: 1rem; cursor: pointer; line-height: 1; }
+  .voicebtn:hover { background: #a91e1e; }
+  .voicebtn.listening { animation: voicepulse 1s infinite; }
+  @keyframes voicepulse { 0%,100%{box-shadow:0 0 0 0 rgba(198,40,40,0.5)} 50%{box-shadow:0 0 0 8px rgba(198,40,40,0)} }
+  .voice-status { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.85rem; z-index: 998; display: none; align-items: center; gap: 8px; }
+  .voice-status.show { display: flex; }
+  .voice-dot { width: 8px; height: 8px; border-radius: 50%; background: #c62828; animation: voicepulse2 1s infinite; }
+  @keyframes voicepulse2 { 0%,100%{opacity:1} 50%{opacity:0.3} }
   .ac { position: absolute; left: 16px; right: 16px; top: 58px; background: white; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,0.12); z-index: 50; max-height: 260px; overflow-y: auto; display: none; }
   .ac.open { display: block; }
   .ac-item { padding: 10px 14px; cursor: pointer; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
@@ -136,6 +144,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         oninput="onType()" onkeydown="onKey(event)">
       <input type="text" id="qtyInput" placeholder="Menge" style="max-width:90px">
       <select id="shopSelect"><option value="">Shop…</option></select>
+      <button class="voicebtn" id="voiceBtn" onclick="toggleVoice()" title="Per Sprache hinzufügen">🎤</button>
       <button class="add" onclick="addItem()">+ Auf Liste</button>
     </div>
     <div class="ac" id="ac"></div>
@@ -176,6 +185,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="voice-status" id="voiceStatus"><span class="voice-dot"></span><span id="voiceStatusText">Höre zu…</span></div>
 
 <script>
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
@@ -473,6 +483,95 @@ async function deleteProduct(id) {
 document.addEventListener('click', e => {
   if (!e.target.closest('.addbar')) document.getElementById('ac').classList.remove('open');
 });
+
+/* ---------- Voice-to-Shopping ---------- */
+const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
+let recognition = null;
+let isListening = false;
+
+function setupRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  const r = new SR();
+  r.lang = 'de-DE';
+  r.continuous = false;
+  r.interimResults = false;
+  return r;
+}
+
+function toggleVoice() {
+  if (isListening) { recognition?.stop(); return; }
+
+  recognition = setupRecognition();
+  if (!recognition) {
+    showToast('Spracherkennung nicht verfügbar – bitte Chrome/Edge nutzen');
+    return;
+  }
+
+  isListening = true;
+  document.getElementById('voiceBtn').classList.add('listening');
+  document.getElementById('voiceStatus').classList.add('show');
+  document.getElementById('voiceStatusText').textContent = 'Höre zu…';
+
+  recognition.onresult = async (event) => {
+    const text = event.results[0][0].transcript;
+    document.getElementById('voiceStatusText').textContent = 'Verarbeite: „' + text + '"…';
+    await parseVoiceShopping(text);
+  };
+  recognition.onerror = (event) => {
+    showToast('Fehler bei Spracherkennung: ' + event.error);
+    stopVoiceUI();
+  };
+  recognition.onend = () => { stopVoiceUI(); };
+
+  recognition.start();
+}
+
+function stopVoiceUI() {
+  isListening = false;
+  document.getElementById('voiceBtn').classList.remove('listening');
+  document.getElementById('voiceStatus').classList.remove('show');
+}
+
+async function parseVoiceShopping(text) {
+  try {
+    const resp = await fetch(WORKER_URL + '/parse-shopping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, products: products.map(p => ({ id: p.id, name: p.name })) }),
+    });
+    const data = await resp.json();
+    stopVoiceUI();
+    if (!data.success) { showToast('Konnte nichts erkennen: ' + (data.error||'')); return; }
+
+    let added = [];
+    for (const item of data.items) {
+      let prod;
+      if (item.matched_product_id) {
+        prod = products.find(p => p.id === item.matched_product_id);
+      }
+      if (!prod) {
+        // Wirklich neu: Default-Shop bleibt bewusst leer
+        prod = await ensureProduct(item.name, null);
+      }
+      if (!prod) continue;
+
+      const shopId = prod.default_shop_id || null;
+      const { data: insData, error } = await db.from('shopping_items')
+        .insert({ user_id: userId, product_id: prod.id, shop_id: shopId, qty: item.quantity || null, checked: false })
+        .select('*, products(id,name,default_shop_id)');
+      if (error) { showToast('Fehler bei ' + prod.name + ': ' + error.message); continue; }
+      items.push(insData[0]);
+      added.push(prod.name);
+    }
+
+    renderChips(); render();
+    showToast(added.length ? added.join(', ') + ' hinzugefügt' : 'Nichts hinzugefügt');
+  } catch (e) {
+    stopVoiceUI();
+    showToast('Fehler: ' + e.message);
+  }
+}
 </script>
 </body>
 </html>
