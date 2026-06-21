@@ -106,6 +106,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-abos.html">Abos</a>
     <a href="me-db-supplements.html">Supplements</a>
     <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
   </nav>
@@ -147,8 +148,27 @@ let filter = 'all';
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   userId = data.session.user.id;
-  loadSubs();
+  loadSubs().then(checkVoicePrefill);
 });
+
+async function checkVoicePrefill() {
+  const raw = sessionStorage.getItem('medb_voice_prefill');
+  if (!raw) return;
+  sessionStorage.removeItem('medb_voice_prefill');
+  try {
+    const payload = JSON.parse(raw);
+    if (payload.type !== 'subscription') return;
+    const a = payload.data;
+    const { data, error } = await db.from('subscriptions').insert({
+      user_id: userId, name: a.name || 'Neues Abo', price: a.price || null,
+      interval: a.interval || 'check', category: a.category || null, status: 'check'
+    }).select();
+    if (error) { showToast('Fehler: ' + error.message); return; }
+    allSubs.push(data[0]);
+    renderTotal(); render();
+    showToast(data[0].name + ' angelegt – bitte prüfen');
+  } catch {}
+}
 
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
