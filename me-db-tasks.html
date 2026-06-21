@@ -16,13 +16,9 @@
   .logout-btn:hover { text-decoration: underline; }
   .container { max-width: 1300px; margin: 28px auto; padding: 0 24px 60px; }
 
-  .addbar { background: white; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-  .addbar input[type="text"] { flex: 1; min-width: 160px; border: 1px solid #e0e0e0; border-radius: 7px; padding: 9px 12px; font-size: 0.9rem; }
-  .addbar select, .addbar input[type="date"] { border: 1px solid #e0e0e0; border-radius: 7px; padding: 9px 10px; font-size: 0.85rem; background: #fafafa; }
-  .addbar button { background: #1a1a2e; color: white; border: none; border-radius: 7px; padding: 9px 18px; font-size: 0.9rem; cursor: pointer; white-space: nowrap; }
-  .addbar button:hover { background: #2d2d4e; }
-
   .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .addbtn { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 7px 16px; font-size: 0.85rem; cursor: pointer; }
+  .addbtn:hover { background: #2d2d4e; }
   .viewtoggle { display: flex; border: 1px solid #d8d8d8; border-radius: 8px; overflow: hidden; }
   .viewtoggle button { background: white; border: none; padding: 7px 14px; font-size: 0.82rem; cursor: pointer; color: #666; }
   .viewtoggle button.active { background: #1a1a2e; color: white; }
@@ -157,25 +153,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
 <div class="container">
 
-  <div class="addbar">
-    <input type="text" id="newTitle" placeholder="Neue Aufgabe… (Enter zum Hinzufügen)" onkeydown="if(event.key==='Enter') addTask()">
-    <select id="newPriority">
-      <option value="">Priorität</option>
-      <option value="high">Hoch</option>
-      <option value="medium">Mittel</option>
-      <option value="low">Niedrig</option>
-    </select>
-    <input type="text" id="newProject" placeholder="Kategorie" style="max-width:130px">
-    <input type="date" id="newFollowUp" title="Wiedervorlage">
-    <button onclick="addTask()">+ Hinzufügen</button>
-  </div>
-
   <div class="toolbar">
     <div class="viewtoggle">
       <button id="btnTable" class="active" onclick="setView('table')">📋 Tabelle</button>
       <button id="btnCards" onclick="setView('cards')">🗂 Karten</button>
     </div>
     <button class="clearbtn" onclick="clearFilters()">Filter zurücksetzen</button>
+    <button class="addbtn" onclick="openDetail(null)">+ Hinzufügen</button>
     <span class="count" id="taskCount"></span>
   </div>
 
@@ -189,7 +173,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <h2><span>Aufgabe bearbeiten</span><button class="closebtn" onclick="closeDetail()">&times;</button></h2>
     <div class="dfield">
       <label>Titel</label>
-      <input type="text" id="dTitle">
+      <input type="text" id="dTitle" onkeydown="if(event.key==='Enter'){event.preventDefault();saveDetail();}">
     </div>
     <div class="dfield">
       <label>Beschreibung</label>
@@ -225,7 +209,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       </div>
     </div>
     <div class="detail-actions">
-      <button class="del-btn" onclick="deleteFromDetail()">🗑 Löschen</button>
+      <button class="del-btn" id="delFromDetailBtn" onclick="deleteFromDetail()">🗑 Löschen</button>
       <button class="save-btn" onclick="saveDetail()">Speichern</button>
     </div>
   </div>
@@ -316,26 +300,6 @@ async function loadTasks() {
   }
 }
 
-async function addTask() {
-  const title = document.getElementById('newTitle').value.trim();
-  if (!title) return;
-  const priority = document.getElementById('newPriority').value || null;
-  const project = document.getElementById('newProject').value.trim() || null;
-  const follow_up_date = document.getElementById('newFollowUp').value || null;
-
-  const { data, error } = await db.from('tasks').insert({
-    user_id: userId, title, priority, project, follow_up_date, status: 'open', source: 'manual'
-  }).select();
-  if (error) { showToast('Fehler: ' + error.message); return; }
-
-  allTasks.push(data[0]);
-  document.getElementById('newTitle').value = '';
-  document.getElementById('newPriority').value = '';
-  document.getElementById('newProject').value = '';
-  document.getElementById('newFollowUp').value = '';
-  render();
-}
-
 async function updateField(id, field, value) {
   const { error } = await db.from('tasks').update({ [field]: value, updated_at: new Date().toISOString() }).eq('id', id);
   if (error) { showToast('Fehler: ' + error.message); return false; }
@@ -376,40 +340,52 @@ async function deleteTask(id) {
   render();
 }
 
-/* ---------- Detail-Karteikarte ---------- */
+/* ---------- Detail-Karteikarte (auch fürs Anlegen neuer Aufgaben) ---------- */
 function openDetail(id) {
-  const t = allTasks.find(t => t.id === id);
-  if (!t) return;
-  detailId = id;
-  document.getElementById('dTitle').value = t.title || '';
-  document.getElementById('dDescription').value = t.description || '';
-  document.getElementById('dDone').checked = t.status === 'done';
-  document.getElementById('dPriority').value = t.priority || '';
-  document.getElementById('dProject').value = t.project || '';
-  document.getElementById('dSource').value = t.source || '';
-  document.getElementById('dFollowUp').value = t.follow_up_date || '';
+  const isNew = id == null;
+  const t = isNew ? null : allTasks.find(t => t.id === id);
+  if (!isNew && !t) return;
+  detailId = isNew ? null : id;
+  document.getElementById('dTitle').value = t?.title || '';
+  document.getElementById('dDescription').value = t?.description || '';
+  document.getElementById('dDone').checked = t?.status === 'done';
+  document.getElementById('dPriority').value = t?.priority || '';
+  document.getElementById('dProject').value = t?.project || '';
+  document.getElementById('dSource').value = t?.source || '';
+  document.getElementById('dFollowUp').value = t?.follow_up_date || '';
+  document.querySelector('.detail-card h2 span').textContent = isNew ? 'Neue Aufgabe' : 'Aufgabe bearbeiten';
+  document.getElementById('delFromDetailBtn').style.display = isNew ? 'none' : 'inline-block';
   document.getElementById('overlay').classList.add('show');
+  document.getElementById('dTitle').focus();
 }
 function closeDetail() {
   document.getElementById('overlay').classList.remove('show');
   detailId = null;
 }
 async function saveDetail() {
-  if (!detailId) return;
-  const update = {
-    title: document.getElementById('dTitle').value.trim(),
+  const title = document.getElementById('dTitle').value.trim();
+  if (!title) { showToast('Titel darf nicht leer sein'); return; }
+  const fields = {
+    title,
     description: document.getElementById('dDescription').value.trim() || null,
     status: document.getElementById('dDone').checked ? 'done' : 'open',
     priority: document.getElementById('dPriority').value || null,
     project: document.getElementById('dProject').value.trim() || null,
     source: document.getElementById('dSource').value.trim() || null,
     follow_up_date: document.getElementById('dFollowUp').value || null,
-    updated_at: new Date().toISOString()
   };
-  const { error } = await db.from('tasks').update(update).eq('id', detailId);
-  if (error) { showToast('Fehler: ' + error.message); return; }
-  const t = allTasks.find(t => t.id === detailId);
-  if (t) Object.assign(t, update);
+
+  if (detailId == null) {
+    const { data, error } = await db.from('tasks').insert({ ...fields, user_id: userId, source: fields.source || 'manual' }).select();
+    if (error) { showToast('Fehler: ' + error.message); return; }
+    allTasks.push(data[0]);
+  } else {
+    fields.updated_at = new Date().toISOString();
+    const { error } = await db.from('tasks').update(fields).eq('id', detailId);
+    if (error) { showToast('Fehler: ' + error.message); return; }
+    const t = allTasks.find(t => t.id === detailId);
+    if (t) Object.assign(t, fields);
+  }
   closeDetail();
   render();
   showToast('Gespeichert ✓');
