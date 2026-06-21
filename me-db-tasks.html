@@ -31,17 +31,20 @@
   .clearbtn:hover { background: #f5f5f5; }
 
   /* Tabelle */
-  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-  th { background: #f0f0f0; text-align: left; padding: 8px 8px; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: #666; white-space: nowrap; }
-  td { padding: 4px 6px; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; vertical-align: middle; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); table-layout: fixed; }
+  th { background: #f0f0f0; text-align: left; padding: 8px 8px; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: #666; position: relative; overflow: hidden; }
+  td { padding: 4px 6px; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; vertical-align: middle; white-space: normal; word-break: break-word; overflow-wrap: break-word; }
   tr.done td { opacity: 0.5; }
   tr.done .cell-title { text-decoration: line-through; }
   tr:hover td { background: #fafbfc; }
   .filterrow th { padding: 6px 6px; background: #f7f7f7; }
   .filterrow input, .filterrow select { width: 100%; border: 1px solid #e0e0e0; border-radius: 5px; padding: 4px 6px; font-size: 0.76rem; }
-  .cell-input { width: 100%; border: 1px solid transparent; background: transparent; border-radius: 5px; padding: 5px 6px; font-size: 0.85rem; font-family: inherit; }
+  .cell-input { width: 100%; border: 1px solid transparent; background: transparent; border-radius: 5px; padding: 5px 6px; font-size: 0.85rem; font-family: inherit; white-space: normal; word-break: break-word; overflow-wrap: break-word; }
   .cell-input:hover, .cell-input:focus { border-color: #e0e0e0; background: #fafafa; outline: none; }
   select.cell-input { cursor: pointer; }
+  div.cell-input { min-height: 28px; cursor: text; }
+  .col-resizer { position: absolute; top: 0; right: 0; width: 7px; height: 100%; cursor: col-resize; z-index: 5; }
+  .col-resizer:hover, .col-resizer.resizing { background: #7ec8e3; }
   .prio-high { color: #c62828; font-weight: 700; }
   .prio-medium { color: #e65100; }
   .prio-low { color: #1565c0; }
@@ -110,7 +113,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   header { padding: 14px 16px; }
   header h1 { font-size: 0.95rem; flex-wrap: wrap; }
   .container { padding: 0 14px; margin: 18px auto; }
-  table { display: block; overflow-x: auto; white-space: nowrap; }
+  table { display: block; overflow-x: auto; }
   .addbar { flex-direction: column; align-items: stretch; }
   .addbar input, .addbar select, .addbar button { width: 100%; }
   .dgrid { grid-template-columns: 1fr; }
@@ -243,6 +246,45 @@ let view = 'table';
 let detailId = null;
 const filters = { title: '', status: '', priority: '', project: '', followUpBefore: '', showDone: false };
 
+/* ---------- Spaltenbreiten (vom Nutzer einstellbar, persistiert) ---------- */
+const COLW_KEY = 'medb_tasks_colwidths_v1';
+const defaultColWidths = { chk: 34, title: 260, status: 110, priority: 100, project: 130, followup: 140, actions: 70 };
+let colWidths = Object.assign({}, defaultColWidths);
+try {
+  const saved = JSON.parse(localStorage.getItem(COLW_KEY) || '{}');
+  colWidths = Object.assign({}, defaultColWidths, saved);
+} catch {}
+
+function saveColWidths() { localStorage.setItem(COLW_KEY, JSON.stringify(colWidths)); }
+
+let resizing = null;
+document.addEventListener('mousedown', e => {
+  const handle = e.target.closest('.col-resizer');
+  if (!handle) return;
+  e.preventDefault();
+  resizing = { col: handle.dataset.col, startX: e.clientX, startW: colWidths[handle.dataset.col] };
+  handle.classList.add('resizing');
+});
+document.addEventListener('mousemove', e => {
+  if (!resizing) return;
+  const delta = e.clientX - resizing.startX;
+  const newW = Math.max(34, resizing.startW + delta);
+  colWidths[resizing.col] = newW;
+  const colEl = document.querySelector(`col[data-col="${resizing.col}"]`);
+  if (colEl) colEl.style.width = newW + 'px';
+});
+document.addEventListener('mouseup', () => {
+  if (!resizing) return;
+  document.querySelectorAll('.col-resizer.resizing').forEach(h => h.classList.remove('resizing'));
+  resizing = null;
+  saveColWidths();
+});
+
+function colgroupHtml() {
+  return '<colgroup>' + Object.keys(colWidths).map(k => `<col data-col="${k}" style="width:${colWidths[k]}px">`).join('') + '</colgroup>';
+}
+function resizer(col) { return `<div class="col-resizer" data-col="${col}"></div>`; }
+
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   userId = data.session.user.id;
@@ -307,6 +349,16 @@ async function updateField(id, field, value) {
 async function cellChange(id, field, el) {
   let value = el.value;
   if (value === '') value = null;
+  const ok = await updateField(id, field, value);
+  if (ok) renderRowVisuals(id);
+}
+
+async function cellChangeText(id, field, el) {
+  let value = el.textContent.trim();
+  if (value === '') value = null;
+  const t = allTasks.find(t => t.id === id);
+  if (t && t[field] === value) return; // keine Änderung
+  if (field === 'title' && !value) { el.textContent = t.title; return; } // Titel darf nicht leer sein
   const ok = await updateField(id, field, value);
   if (ok) renderRowVisuals(id);
 }
@@ -409,9 +461,15 @@ function render() {
 function renderTable(list, projects) {
   const projOpts = '<option value="">Alle</option>' + projects.map(p=>`<option value="${esc(p)}" ${filters.project===p?'selected':''}>${esc(p)}</option>`).join('');
 
-  let html = `<table><thead>
+  let html = `<table>${colgroupHtml()}<thead>
     <tr>
-      <th></th><th>Titel</th><th>Status</th><th>Priorität</th><th>Kategorie</th><th>Wiedervorlage</th><th></th>
+      <th>${resizer('chk')}</th>
+      <th>Titel${resizer('title')}</th>
+      <th>Status${resizer('status')}</th>
+      <th>Priorität${resizer('priority')}</th>
+      <th>Kategorie${resizer('project')}</th>
+      <th>Wiedervorlage${resizer('followup')}</th>
+      <th></th>
     </tr>
     <tr class="filterrow">
       <th></th>
@@ -449,7 +507,7 @@ function tableRow(t) {
   return `
     <tr data-id="${t.id}" class="${done?'done':''}">
       <td><input type="checkbox" class="chk" ${done?'checked':''} onchange="toggleDone(${t.id}, ${done})"></td>
-      <td><input class="cell-input cell-title" value="${esc(t.title)}" onchange="cellChange(${t.id},'title',this)"></td>
+      <td><div class="cell-input cell-title" contenteditable="true" onblur="cellChangeText(${t.id},'title',this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${esc(t.title)}</div></td>
       <td><select class="cell-input" onchange="cellChange(${t.id},'status',this)">
         <option value="open" ${t.status==='open'?'selected':''}>Offen</option>
         <option value="in_progress" ${t.status==='in_progress'?'selected':''}>In Arbeit</option>
@@ -461,7 +519,7 @@ function tableRow(t) {
         <option value="medium" ${t.priority==='medium'?'selected':''}>Mittel</option>
         <option value="low" ${t.priority==='low'?'selected':''}>Niedrig</option>
       </select></td>
-      <td><input class="cell-input" value="${esc(t.project||'')}" onchange="cellChange(${t.id},'project',this)" placeholder="–"></td>
+      <td><div class="cell-input" contenteditable="true" onblur="cellChangeText(${t.id},'project',this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${esc(t.project||'')}</div></td>
       <td><input type="date" class="cell-input followup-date-input ${overdue?'due-overdue':''}" value="${t.follow_up_date||''}" onchange="cellChange(${t.id},'follow_up_date',this)"></td>
       <td style="white-space:nowrap">
         <button class="openbtn" onclick="openDetail(${t.id})" title="Details">🗂</button>
