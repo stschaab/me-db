@@ -14,63 +14,40 @@
   nav a:hover { text-decoration: underline; }
   .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
   .logout-btn:hover { text-decoration: underline; }
-  .container { max-width: 1300px; margin: 28px auto; padding: 0 24px 60px; }
+  .container { max-width: 760px; margin: 28px auto; padding: 0 24px 60px; }
 
-  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-  .addbtn { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 7px 16px; font-size: 0.85rem; cursor: pointer; }
-  .addbtn:hover { background: #2d2d4e; }
-  .viewtoggle { display: flex; border: 1px solid #d8d8d8; border-radius: 8px; overflow: hidden; }
-  .viewtoggle button { background: white; border: none; padding: 7px 14px; font-size: 0.82rem; cursor: pointer; color: #666; }
-  .viewtoggle button.active { background: #1a1a2e; color: white; }
-  .toolbar .count { font-size: 0.8rem; color: #888; margin-left: auto; }
-  .clearbtn { background: none; border: 1px solid #e0e0e0; border-radius: 7px; padding: 6px 12px; font-size: 0.78rem; cursor: pointer; color: #666; }
+  .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .toolbar input[type="text"] { border: 1px solid #e0e0e0; border-radius: 7px; padding: 7px 10px; font-size: 0.85rem; flex: 1; min-width: 110px; }
+  .toolbar select { border: 1px solid #e0e0e0; border-radius: 7px; padding: 7px 8px; font-size: 0.8rem; background: white; }
+  .chipbtn { border: 1px solid #d8d8d8; background: white; border-radius: 20px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; white-space: nowrap; }
+  .chipbtn.active { background: #c62828; color: white; border-color: #c62828; }
+  .clearbtn { background: none; border: 1px solid #e0e0e0; border-radius: 7px; padding: 6px 12px; font-size: 0.78rem; cursor: pointer; color: #666; white-space: nowrap; }
   .clearbtn:hover { background: #f5f5f5; }
+  .addbtn { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 7px 16px; font-size: 0.85rem; cursor: pointer; white-space: nowrap; margin-left: auto; }
+  .addbtn:hover { background: #2d2d4e; }
+  .showdone-label { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: #888; white-space: nowrap; }
+  .count { font-size: 0.78rem; color: #888; width: 100%; text-align: right; margin-top: 2px; }
 
-  /* Tabelle */
-  table { width: auto; max-width: 100%; border-collapse: collapse; background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); table-layout: fixed; }
-  th { background: #f0f0f0; text-align: left; padding: 8px 8px; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: #666; position: relative; overflow: hidden; }
-  td { padding: 4px 6px; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; vertical-align: middle; white-space: normal; word-break: break-word; overflow-wrap: break-word; }
-  tr.done td { opacity: 0.5; }
-  tr.done .cell-title { text-decoration: line-through; }
-  tr:hover td { background: #fafbfc; }
-  .filterrow th { padding: 6px 6px; background: #f7f7f7; }
-  .filterrow input, .filterrow select { width: 100%; border: 1px solid #e0e0e0; border-radius: 5px; padding: 4px 6px; font-size: 0.76rem; }
-  .cell-input { width: 100%; border: 1px solid transparent; background: transparent; border-radius: 5px; padding: 5px 6px; font-size: 0.85rem; font-family: inherit; white-space: normal; word-break: break-word; overflow-wrap: break-word; }
-  .cell-input:hover, .cell-input:focus { border-color: #e0e0e0; background: #fafafa; outline: none; }
-  select.cell-input { cursor: pointer; }
-  div.cell-input { min-height: 28px; cursor: text; }
-  .col-resizer { position: absolute; top: 0; right: 0; width: 7px; height: 100%; cursor: col-resize; z-index: 5; }
-  .col-resizer:hover, .col-resizer.resizing { background: #7ec8e3; }
-  .prio-high { color: #c62828; font-weight: 700; }
-  .prio-medium { color: #e65100; }
-  .prio-low { color: #1565c0; }
-  .due-overdue { color: #c62828; font-weight: 700; }
-  .openbtn, .delbtn { background: none; border: none; cursor: pointer; font-size: 0.95rem; padding: 4px 6px; border-radius: 6px; color: #bbb; }
-  .openbtn:hover { background: #eef6fb; color: #1565c0; }
-  .delbtn:hover { background: #ffebee; color: #c62828; }
-  .chk { width: 17px; height: 17px; cursor: pointer; accent-color: #2e7d32; }
+  /* Liste */
+  .task-row { background: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+  .task-row.done { opacity: 0.5; }
+  .task-row.done .task-title { text-decoration: line-through; }
+  .chk { width: 19px; height: 19px; cursor: pointer; accent-color: #2e7d32; flex-shrink: 0; margin-top: 2px; }
+  .task-main { flex: 1; min-width: 0; cursor: pointer; }
+  .task-title { font-size: 0.95rem; font-weight: 600; word-break: break-word; }
+  .task-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+  .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+  .prio-high { background: #ffebee; color: #c62828; }
+  .prio-medium { background: #fff3e0; color: #e65100; }
+  .prio-low { background: #e3f2fd; color: #1565c0; }
+  .proj-badge { background: #f0f0f0; color: #666; }
+  .task-date { border: 1px solid #e0e0e0; border-radius: 6px; padding: 4px 6px; font-size: 0.78rem; background: #fafafa; flex-shrink: 0; }
+  .task-date.overdue { border-color: #ffcdd2; color: #c62828; background: #fff5f5; font-weight: 600; }
 
-  /* Karten */
-  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-  .card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; }
-  .card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
-  .card.done { opacity: 0.5; }
-  .card.done .card-title { text-decoration: line-through; }
-  .card-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; }
-  .card-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 0.72rem; }
-  .badge { padding: 2px 8px; border-radius: 20px; font-weight: 600; }
-  .badge.prio-high { background: #ffebee; color: #c62828; }
-  .badge.prio-medium { background: #fff3e0; color: #e65100; }
-  .badge.prio-low { background: #e3f2fd; color: #1565c0; }
-  .badge.proj { background: #f0f0f0; color: #666; }
-  .badge.due { background: #f5f5f5; color: #888; }
-  .badge.due.overdue { background: #ffebee; color: #c62828; }
-  .badge.status { background: #ede7f6; color: #5e35b1; }
-
-  /* Detail-Overlay (Karteikarte) */
+  /* Detail-Overlay (Bearbeiten-Fenster) */
   .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 500; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; }
   .overlay.show { display: flex; }
-  .detail-card { background: white; border-radius: 14px; padding: 26px; max-width: 520px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.25); }
+  .detail-card { background: white; border-radius: 14px; padding: 26px; max-width: 480px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.25); }
   .detail-card h2 { font-size: 1.05rem; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
   .detail-card .closebtn { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #aaa; }
   .dfield { margin-bottom: 14px; }
@@ -108,9 +85,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 @media (max-width: 768px) {
   header { padding: 14px 16px; }
   header h1 { font-size: 0.95rem; flex-wrap: wrap; }
-  .container { padding: 0 14px; margin: 18px auto; }
-  #content { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .container { padding: 0 14px 60px; margin: 18px auto; }
   .dgrid { grid-template-columns: 1fr; }
+  .task-row { flex-wrap: wrap; }
+  .task-date { margin-left: 31px; }
 }
 </style>
 </head>
@@ -152,20 +130,26 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <div class="container">
 
   <div class="toolbar">
-    <div class="viewtoggle">
-      <button id="btnTable" class="active" onclick="setView('table')">📋 Tabelle</button>
-      <button id="btnCards" onclick="setView('cards')">🗂 Karten</button>
-    </div>
+    <input type="text" id="fTitle" placeholder="Suche…" oninput="setFilter('title', this.value)">
+    <select id="fPriority" onchange="setFilter('priority', this.value)">
+      <option value="">Priorität: alle</option>
+      <option value="high">Hoch</option>
+      <option value="medium">Mittel</option>
+      <option value="low">Niedrig</option>
+    </select>
+    <select id="fProject" onchange="setFilter('project', this.value)"><option value="">Kategorie: alle</option></select>
+    <button class="chipbtn" id="dueBtn" onclick="toggleDueFilter()">🔴 Fällige Tasks</button>
+    <label class="showdone-label"><input type="checkbox" id="fShowDone" onchange="filters.showDone=this.checked;render()"> Erledigte zeigen</label>
     <button class="clearbtn" onclick="clearFilters()">Filter zurücksetzen</button>
     <button class="addbtn" onclick="openDetail(null)">+ Hinzufügen</button>
-    <span class="count" id="taskCount"></span>
+    <div class="count" id="taskCount"></div>
   </div>
 
   <div id="content"><div class="loading">Lade Tasks...</div></div>
 
 </div>
 
-<!-- Detail-Karteikarte -->
+<!-- Bearbeiten-Fenster -->
 <div class="overlay" id="overlay" onclick="if(event.target===this) closeDetail()">
   <div class="detail-card">
     <h2><span>Aufgabe bearbeiten</span><button class="closebtn" onclick="closeDetail()">&times;</button></h2>
@@ -202,7 +186,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <input type="text" id="dSource" placeholder="z.B. manual, mobile">
       </div>
       <div class="dfield">
-        <label>Wiedervorlage</label>
+        <label>Datum</label>
         <input type="date" id="dFollowUp">
       </div>
     </div>
@@ -222,48 +206,8 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 let userId = null;
 let allTasks = [];
-let view = 'table';
 let detailId = null;
-const filters = { title: '', priority: '', project: '', followUpBefore: '', showDone: false };
-
-/* ---------- Spaltenbreiten (vom Nutzer einstellbar, persistiert) ---------- */
-const COLW_KEY = 'medb_tasks_colwidths_v1';
-const defaultColWidths = { chk: 34, title: 300, priority: 100, project: 130, followup: 140, actions: 70 };
-let colWidths = Object.assign({}, defaultColWidths);
-try {
-  const saved = JSON.parse(localStorage.getItem(COLW_KEY) || '{}');
-  colWidths = Object.assign({}, defaultColWidths, saved);
-} catch {}
-
-function saveColWidths() { localStorage.setItem(COLW_KEY, JSON.stringify(colWidths)); }
-
-let resizing = null;
-document.addEventListener('mousedown', e => {
-  const handle = e.target.closest('.col-resizer');
-  if (!handle) return;
-  e.preventDefault();
-  resizing = { col: handle.dataset.col, startX: e.clientX, startW: colWidths[handle.dataset.col] };
-  handle.classList.add('resizing');
-});
-document.addEventListener('mousemove', e => {
-  if (!resizing) return;
-  const delta = e.clientX - resizing.startX;
-  const newW = Math.max(34, resizing.startW + delta);
-  colWidths[resizing.col] = newW;
-  const colEl = document.querySelector(`col[data-col="${resizing.col}"]`);
-  if (colEl) colEl.style.width = newW + 'px';
-});
-document.addEventListener('mouseup', () => {
-  if (!resizing) return;
-  document.querySelectorAll('.col-resizer.resizing').forEach(h => h.classList.remove('resizing'));
-  resizing = null;
-  saveColWidths();
-});
-
-function colgroupHtml() {
-  return '<colgroup>' + Object.keys(colWidths).map(k => `<col data-col="${k}" style="width:${colWidths[k]}px">`).join('') + '</colgroup>';
-}
-function resizer(col) { return `<div class="col-resizer" data-col="${col}"></div>`; }
+const filters = { title: '', priority: '', project: '', dueOnly: false, showDone: false };
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
@@ -274,16 +218,21 @@ db.auth.getSession().then(({ data }) => {
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1500); }
+function todayStr() { return new Date().toISOString().substring(0,10); }
 
-function setView(v) {
-  view = v;
-  document.getElementById('btnTable').classList.toggle('active', v==='table');
-  document.getElementById('btnCards').classList.toggle('active', v==='cards');
+function toggleDueFilter() {
+  filters.dueOnly = !filters.dueOnly;
+  document.getElementById('dueBtn').classList.toggle('active', filters.dueOnly);
   render();
 }
 
 function clearFilters() {
-  filters.title=''; filters.priority=''; filters.project=''; filters.followUpBefore=''; filters.showDone=false;
+  filters.title=''; filters.priority=''; filters.project=''; filters.dueOnly=false; filters.showDone=false;
+  document.getElementById('fTitle').value='';
+  document.getElementById('fPriority').value='';
+  document.getElementById('fProject').value='';
+  document.getElementById('fShowDone').checked=false;
+  document.getElementById('dueBtn').classList.remove('active');
   render();
 }
 
@@ -292,10 +241,19 @@ async function loadTasks() {
     const { data, error } = await db.from('tasks').select('*').order('follow_up_date', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false });
     if (error) throw error;
     allTasks = data || [];
+    populateProjectFilter();
     render();
   } catch (e) {
     document.getElementById('content').innerHTML = `<div class="error">Fehler beim Laden: ${e.message}</div>`;
   }
+}
+
+function populateProjectFilter() {
+  const sel = document.getElementById('fProject');
+  const cur = sel.value;
+  const projects = [...new Set(allTasks.map(t => t.project).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Kategorie: alle</option>' + projects.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  sel.value = cur;
 }
 
 async function updateField(id, field, value) {
@@ -306,26 +264,15 @@ async function updateField(id, field, value) {
   return true;
 }
 
-async function cellChange(id, field, el) {
-  let value = el.value;
-  if (value === '') value = null;
-  const ok = await updateField(id, field, value);
-  if (ok) renderRowVisuals(id);
-}
-
-async function cellChangeText(id, field, el) {
-  let value = el.textContent.trim();
-  if (value === '') value = null;
-  const t = allTasks.find(t => t.id === id);
-  if (t && t[field] === value) return; // keine Änderung
-  if (field === 'title' && !value) { el.textContent = t.title; return; } // Titel darf nicht leer sein
-  const ok = await updateField(id, field, value);
-  if (ok) renderRowVisuals(id);
-}
-
 async function toggleDone(id, currentlyDone) {
   const newStatus = currentlyDone ? 'open' : 'done';
   await updateField(id, 'status', newStatus);
+  render();
+}
+
+async function inlineDateChange(id, el) {
+  const value = el.value || null;
+  await updateField(id, 'follow_up_date', value);
   render();
 }
 
@@ -335,10 +282,11 @@ async function deleteTask(id) {
   if (error) { showToast('Fehler: ' + error.message); return; }
   allTasks = allTasks.filter(t => t.id !== id);
   if (detailId === id) closeDetail();
+  populateProjectFilter();
   render();
 }
 
-/* ---------- Detail-Karteikarte (auch fürs Anlegen neuer Aufgaben) ---------- */
+/* ---------- Bearbeiten-Fenster (auch fürs Anlegen neuer Aufgaben) ---------- */
 function openDetail(id) {
   const isNew = id == null;
   const t = isNew ? null : allTasks.find(t => t.id === id);
@@ -350,7 +298,7 @@ function openDetail(id) {
   document.getElementById('dPriority').value = t?.priority || '';
   document.getElementById('dProject').value = t?.project || '';
   document.getElementById('dSource').value = t?.source || '';
-  document.getElementById('dFollowUp').value = t?.follow_up_date || (isNew ? new Date().toISOString().substring(0,10) : '');
+  document.getElementById('dFollowUp').value = t?.follow_up_date || (isNew ? todayStr() : '');
   document.querySelector('.detail-card h2 span').textContent = isNew ? 'Neue Aufgabe' : 'Aufgabe bearbeiten';
   document.getElementById('delFromDetailBtn').style.display = isNew ? 'none' : 'inline-block';
   document.getElementById('overlay').classList.add('show');
@@ -385,6 +333,7 @@ async function saveDetail() {
     if (t) Object.assign(t, fields);
   }
   closeDetail();
+  populateProjectFilter();
   render();
   showToast('Gespeichert ✓');
 }
@@ -392,11 +341,12 @@ function deleteFromDetail() { if (detailId) deleteTask(detailId); }
 
 /* ---------- Filter-Logik ---------- */
 function applyFilters(list) {
+  const today = todayStr();
   return list.filter(t => {
     if (filters.title && !(t.title||'').toLowerCase().includes(filters.title.toLowerCase())) return false;
     if (filters.priority && t.priority !== filters.priority) return false;
     if (filters.project && t.project !== filters.project) return false;
-    if (filters.followUpBefore && (!t.follow_up_date || t.follow_up_date > filters.followUpBefore)) return false;
+    if (filters.dueOnly && (!t.follow_up_date || t.follow_up_date > today || t.status === 'done')) return false;
     if (!filters.showDone && t.status === 'done') return false;
     return true;
   });
@@ -406,102 +356,31 @@ function setFilter(field, value) { filters[field] = value; render(); }
 
 /* ---------- Render ---------- */
 function fmtDate(s) { if (!s) return ''; const d = new Date(s+'T00:00:00'); return d.toLocaleDateString('de-DE',{day:'2-digit',month:'short'}); }
-function isOverdue(s) { if (!s) return false; const d = new Date(s+'T00:00:00'); const today = new Date(); today.setHours(0,0,0,0); return d < today; }
-function prioLabel(p) { return p==='high'?'Hoch':p==='medium'?'Mittel':p==='low'?'Niedrig':'–'; }
-
-function renderRowVisuals(id) {
-  const t = allTasks.find(t => t.id === id);
-  const row = document.querySelector(`tr[data-id="${id}"]`);
-  if (!row || !t) return;
-  row.className = t.status === 'done' ? 'done' : '';
-  const fuCell = row.querySelector('.followup-date-input');
-  if (fuCell) fuCell.classList.toggle('due-overdue', isOverdue(t.follow_up_date) && t.status!=='done');
-}
+function isOverdue(s) { if (!s) return false; const d = new Date(s+'T00:00:00'); const today = new Date(); today.setHours(0,0,0,0); return d <= today; }
+function prioLabel(p) { return p==='high'?'Hoch':p==='medium'?'Mittel':'Niedrig'; }
 
 function render() {
-  const projects = [...new Set(allTasks.map(t => t.project).filter(Boolean))].sort();
   const list = applyFilters(allTasks);
-
   document.getElementById('taskCount').textContent = `${list.filter(t => t.status !== 'done').length} offen von ${allTasks.length} gesamt`;
 
-  if (view === 'table') renderTable(list, projects);
-  else renderCards(list);
+  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">Keine Aufgaben gefunden.</div>'; return; }
+  document.getElementById('content').innerHTML = list.map(taskRow).join('');
 }
 
-function renderTable(list, projects) {
-  const projOpts = '<option value="">Alle</option>' + projects.map(p=>`<option value="${esc(p)}" ${filters.project===p?'selected':''}>${esc(p)}</option>`).join('');
-
-  let html = `<table>${colgroupHtml()}<thead>
-    <tr>
-      <th>${resizer('chk')}</th>
-      <th>Titel${resizer('title')}</th>
-      <th>Priorität${resizer('priority')}</th>
-      <th>Kategorie${resizer('project')}</th>
-      <th>Wiedervorlage${resizer('followup')}</th>
-      <th></th>
-    </tr>
-    <tr class="filterrow">
-      <th></th>
-      <th><input type="text" placeholder="Suche…" value="${esc(filters.title)}" oninput="setFilter('title', this.value)"></th>
-      <th><select onchange="setFilter('priority', this.value)">
-        <option value="">Alle</option>
-        <option value="high" ${filters.priority==='high'?'selected':''}>Hoch</option>
-        <option value="medium" ${filters.priority==='medium'?'selected':''}>Mittel</option>
-        <option value="low" ${filters.priority==='low'?'selected':''}>Niedrig</option>
-      </select></th>
-      <th><select onchange="setFilter('project', this.value)">${projOpts}</select></th>
-      <th><input type="date" value="${filters.followUpBefore}" title="Wiedervorlage bis" onchange="setFilter('followUpBefore', this.value)"></th>
-      <th><label style="display:flex;align-items:center;gap:3px;font-size:0.68rem;color:#888;white-space:nowrap"><input type="checkbox" ${filters.showDone?'checked':''} onchange="filters.showDone=this.checked;render()"> erl.</label></th>
-    </tr>
-  </thead><tbody>`;
-
-  if (!list.length) {
-    html += `<tr><td colspan="6"><div class="empty">Keine Aufgaben gefunden.</div></td></tr>`;
-  } else {
-    for (const t of list) html += tableRow(t);
-  }
-  html += '</tbody></table>';
-  document.getElementById('content').innerHTML = html;
-}
-
-function tableRow(t) {
+function taskRow(t) {
   const done = t.status === 'done';
   const overdue = isOverdue(t.follow_up_date) && !done;
+  const prio = t.priority ? `<span class="badge prio-${t.priority}">${prioLabel(t.priority)}</span>` : '';
+  const proj = t.project ? `<span class="badge proj-badge">${esc(t.project)}</span>` : '';
   return `
-    <tr data-id="${t.id}" class="${done?'done':''}">
-      <td><input type="checkbox" class="chk" ${done?'checked':''} onchange="toggleDone(${t.id}, ${done})"></td>
-      <td><div class="cell-input cell-title" contenteditable="true" onblur="cellChangeText(${t.id},'title',this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${esc(t.title)}</div></td>
-      <td><select class="cell-input prio-${t.priority||''}" onchange="cellChange(${t.id},'priority',this)">
-        <option value="">–</option>
-        <option value="high" ${t.priority==='high'?'selected':''}>Hoch</option>
-        <option value="medium" ${t.priority==='medium'?'selected':''}>Mittel</option>
-        <option value="low" ${t.priority==='low'?'selected':''}>Niedrig</option>
-      </select></td>
-      <td><div class="cell-input" contenteditable="true" onblur="cellChangeText(${t.id},'project',this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${esc(t.project||'')}</div></td>
-      <td><input type="date" class="cell-input followup-date-input ${overdue?'due-overdue':''}" value="${t.follow_up_date||''}" onchange="cellChange(${t.id},'follow_up_date',this)"></td>
-      <td style="white-space:nowrap">
-        <button class="openbtn" onclick="openDetail(${t.id})" title="Details">🗂</button>
-        <button class="delbtn" onclick="deleteTask(${t.id})" title="Löschen">🗑</button>
-      </td>
-    </tr>`;
-}
-
-function renderCards(list) {
-  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">Keine Aufgaben gefunden.</div>'; return; }
-  let html = '<div class="cards">';
-  for (const t of list) {
-    const done = t.status === 'done';
-    const overdue = isOverdue(t.follow_up_date) && !done;
-    const prio = t.priority ? `<span class="badge prio-${t.priority}">${prioLabel(t.priority)}</span>` : '';
-    const proj = t.project ? `<span class="badge proj">${esc(t.project)}</span>` : '';
-    const fu = t.follow_up_date ? `<span class="badge due ${overdue?'overdue':''}">${overdue?'⚠ ':'🔁 '}${fmtDate(t.follow_up_date)}</span>` : '';
-    html += `<div class="card ${done?'done':''}" onclick="openDetail(${t.id})">
-      <div class="card-title">${esc(t.title)}</div>
-      <div class="card-meta">${prio}${proj}${fu}</div>
+    <div class="task-row ${done?'done':''}" data-id="${t.id}">
+      <input type="checkbox" class="chk" ${done?'checked':''} onchange="toggleDone(${t.id}, ${done})">
+      <div class="task-main" onclick="openDetail(${t.id})">
+        <div class="task-title">${esc(t.title)}</div>
+        <div class="task-meta">${prio}${proj}</div>
+      </div>
+      <input type="date" class="task-date ${overdue?'overdue':''}" value="${t.follow_up_date||''}" onclick="event.stopPropagation()" onchange="inlineDateChange(${t.id}, this)">
     </div>`;
-  }
-  html += '</div>';
-  document.getElementById('content').innerHTML = html;
 }
 </script>
 </body>
