@@ -130,6 +130,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-abos.html">Abos</a>
     <a href="me-db-supplements.html">Supplements</a>
     <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
   </nav>
@@ -222,8 +223,25 @@ const filters = { title: '', priority: '', project: '', dueOnly: false, showDone
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   userId = data.session.user.id;
-  loadTasks();
+  loadTasks().then(checkVoicePrefill);
 });
+
+function checkVoicePrefill() {
+  const raw = sessionStorage.getItem('medb_voice_prefill');
+  if (!raw) return;
+  sessionStorage.removeItem('medb_voice_prefill');
+  try {
+    const payload = JSON.parse(raw);
+    if (payload.type !== 'task') return;
+    const t = payload.data;
+    openDetail(null);
+    document.getElementById('dTitle').value = t.title || '';
+    document.getElementById('dDescription').value = t.description || '';
+    document.getElementById('dPriority').value = t.priority || '';
+    document.getElementById('dProject').value = t.project || '';
+    if (t.follow_up_date) document.getElementById('dFollowUp').value = t.follow_up_date;
+  } catch {}
+}
 
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
