@@ -197,12 +197,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     </div>
     <div class="dgrid">
       <div class="dfield">
-        <label>Status</label>
-        <select id="dStatus">
-          <option value="open">Offen</option>
-          <option value="in_progress">In Arbeit</option>
-          <option value="done">Erledigt</option>
-        </select>
+        <label>Erledigt</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:9px 0;font-size:0.9rem">
+          <input type="checkbox" id="dDone" style="width:18px;height:18px;accent-color:#2e7d32"> Aufgabe ist erledigt
+        </label>
       </div>
       <div class="dfield">
         <label>Priorität</label>
@@ -244,11 +242,11 @@ let userId = null;
 let allTasks = [];
 let view = 'table';
 let detailId = null;
-const filters = { title: '', status: '', priority: '', project: '', followUpBefore: '', showDone: false };
+const filters = { title: '', priority: '', project: '', followUpBefore: '', showDone: false };
 
 /* ---------- Spaltenbreiten (vom Nutzer einstellbar, persistiert) ---------- */
 const COLW_KEY = 'medb_tasks_colwidths_v1';
-const defaultColWidths = { chk: 34, title: 260, status: 110, priority: 100, project: 130, followup: 140, actions: 70 };
+const defaultColWidths = { chk: 34, title: 300, priority: 100, project: 130, followup: 140, actions: 70 };
 let colWidths = Object.assign({}, defaultColWidths);
 try {
   const saved = JSON.parse(localStorage.getItem(COLW_KEY) || '{}');
@@ -303,7 +301,7 @@ function setView(v) {
 }
 
 function clearFilters() {
-  filters.title=''; filters.status=''; filters.priority=''; filters.project=''; filters.followUpBefore=''; filters.showDone=false;
+  filters.title=''; filters.priority=''; filters.project=''; filters.followUpBefore=''; filters.showDone=false;
   render();
 }
 
@@ -385,7 +383,7 @@ function openDetail(id) {
   detailId = id;
   document.getElementById('dTitle').value = t.title || '';
   document.getElementById('dDescription').value = t.description || '';
-  document.getElementById('dStatus').value = t.status || 'open';
+  document.getElementById('dDone').checked = t.status === 'done';
   document.getElementById('dPriority').value = t.priority || '';
   document.getElementById('dProject').value = t.project || '';
   document.getElementById('dSource').value = t.source || '';
@@ -401,7 +399,7 @@ async function saveDetail() {
   const update = {
     title: document.getElementById('dTitle').value.trim(),
     description: document.getElementById('dDescription').value.trim() || null,
-    status: document.getElementById('dStatus').value,
+    status: document.getElementById('dDone').checked ? 'done' : 'open',
     priority: document.getElementById('dPriority').value || null,
     project: document.getElementById('dProject').value.trim() || null,
     source: document.getElementById('dSource').value.trim() || null,
@@ -422,7 +420,6 @@ function deleteFromDetail() { if (detailId) deleteTask(detailId); }
 function applyFilters(list) {
   return list.filter(t => {
     if (filters.title && !(t.title||'').toLowerCase().includes(filters.title.toLowerCase())) return false;
-    if (filters.status && t.status !== filters.status) return false;
     if (filters.priority && t.priority !== filters.priority) return false;
     if (filters.project && t.project !== filters.project) return false;
     if (filters.followUpBefore && (!t.follow_up_date || t.follow_up_date > filters.followUpBefore)) return false;
@@ -437,7 +434,6 @@ function setFilter(field, value) { filters[field] = value; render(); }
 function fmtDate(s) { if (!s) return ''; const d = new Date(s+'T00:00:00'); return d.toLocaleDateString('de-DE',{day:'2-digit',month:'short'}); }
 function isOverdue(s) { if (!s) return false; const d = new Date(s+'T00:00:00'); const today = new Date(); today.setHours(0,0,0,0); return d < today; }
 function prioLabel(p) { return p==='high'?'Hoch':p==='medium'?'Mittel':p==='low'?'Niedrig':'–'; }
-function statusLabel(s) { return s==='done'?'Erledigt':s==='in_progress'?'In Arbeit':'Offen'; }
 
 function renderRowVisuals(id) {
   const t = allTasks.find(t => t.id === id);
@@ -465,7 +461,6 @@ function renderTable(list, projects) {
     <tr>
       <th>${resizer('chk')}</th>
       <th>Titel${resizer('title')}</th>
-      <th>Status${resizer('status')}</th>
       <th>Priorität${resizer('priority')}</th>
       <th>Kategorie${resizer('project')}</th>
       <th>Wiedervorlage${resizer('followup')}</th>
@@ -474,12 +469,6 @@ function renderTable(list, projects) {
     <tr class="filterrow">
       <th></th>
       <th><input type="text" placeholder="Suche…" value="${esc(filters.title)}" oninput="setFilter('title', this.value)"></th>
-      <th><select onchange="setFilter('status', this.value)">
-        <option value="">Alle</option>
-        <option value="open" ${filters.status==='open'?'selected':''}>Offen</option>
-        <option value="in_progress" ${filters.status==='in_progress'?'selected':''}>In Arbeit</option>
-        <option value="done" ${filters.status==='done'?'selected':''}>Erledigt</option>
-      </select></th>
       <th><select onchange="setFilter('priority', this.value)">
         <option value="">Alle</option>
         <option value="high" ${filters.priority==='high'?'selected':''}>Hoch</option>
@@ -493,7 +482,7 @@ function renderTable(list, projects) {
   </thead><tbody>`;
 
   if (!list.length) {
-    html += `<tr><td colspan="7"><div class="empty">Keine Aufgaben gefunden.</div></td></tr>`;
+    html += `<tr><td colspan="6"><div class="empty">Keine Aufgaben gefunden.</div></td></tr>`;
   } else {
     for (const t of list) html += tableRow(t);
   }
@@ -508,11 +497,6 @@ function tableRow(t) {
     <tr data-id="${t.id}" class="${done?'done':''}">
       <td><input type="checkbox" class="chk" ${done?'checked':''} onchange="toggleDone(${t.id}, ${done})"></td>
       <td><div class="cell-input cell-title" contenteditable="true" onblur="cellChangeText(${t.id},'title',this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${esc(t.title)}</div></td>
-      <td><select class="cell-input" onchange="cellChange(${t.id},'status',this)">
-        <option value="open" ${t.status==='open'?'selected':''}>Offen</option>
-        <option value="in_progress" ${t.status==='in_progress'?'selected':''}>In Arbeit</option>
-        <option value="done" ${t.status==='done'?'selected':''}>Erledigt</option>
-      </select></td>
       <td><select class="cell-input prio-${t.priority||''}" onchange="cellChange(${t.id},'priority',this)">
         <option value="">–</option>
         <option value="high" ${t.priority==='high'?'selected':''}>Hoch</option>
@@ -536,11 +520,10 @@ function renderCards(list) {
     const overdue = isOverdue(t.follow_up_date) && !done;
     const prio = t.priority ? `<span class="badge prio-${t.priority}">${prioLabel(t.priority)}</span>` : '';
     const proj = t.project ? `<span class="badge proj">${esc(t.project)}</span>` : '';
-    const status = `<span class="badge status">${statusLabel(t.status)}</span>`;
     const fu = t.follow_up_date ? `<span class="badge due ${overdue?'overdue':''}">${overdue?'⚠ ':'🔁 '}${fmtDate(t.follow_up_date)}</span>` : '';
     html += `<div class="card ${done?'done':''}" onclick="openDetail(${t.id})">
       <div class="card-title">${esc(t.title)}</div>
-      <div class="card-meta">${status}${prio}${proj}${fu}</div>
+      <div class="card-meta">${prio}${proj}${fu}</div>
     </div>`;
   }
   html += '</div>';
