@@ -163,7 +163,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <option value="low">Niedrig</option>
     </select>
     <input type="text" id="newProject" placeholder="Kategorie" style="max-width:130px">
-    <input type="date" id="newDue" title="Fällig am">
+    <input type="date" id="newFollowUp" title="Wiedervorlage">
     <button onclick="addTask()">+ Hinzufügen</button>
   </div>
 
@@ -219,11 +219,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <input type="text" id="dSource" placeholder="z.B. manual, mobile">
       </div>
       <div class="dfield">
-        <label>Fälligkeitsdatum</label>
-        <input type="date" id="dDue">
-      </div>
-      <div class="dfield">
-        <label>Nachverfolgung (Wiedervorlage)</label>
+        <label>Wiedervorlage</label>
         <input type="date" id="dFollowUp">
       </div>
     </div>
@@ -245,7 +241,7 @@ let userId = null;
 let allTasks = [];
 let view = 'table';
 let detailId = null;
-const filters = { title: '', status: '', priority: '', project: '', dueBefore: '', showDone: false };
+const filters = { title: '', status: '', priority: '', project: '', followUpBefore: '', showDone: false };
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
@@ -265,13 +261,13 @@ function setView(v) {
 }
 
 function clearFilters() {
-  filters.title=''; filters.status=''; filters.priority=''; filters.project=''; filters.dueBefore=''; filters.showDone=false;
+  filters.title=''; filters.status=''; filters.priority=''; filters.project=''; filters.followUpBefore=''; filters.showDone=false;
   render();
 }
 
 async function loadTasks() {
   try {
-    const { data, error } = await db.from('tasks').select('*').order('due_date', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false });
+    const { data, error } = await db.from('tasks').select('*').order('follow_up_date', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false });
     if (error) throw error;
     allTasks = data || [];
     render();
@@ -285,10 +281,10 @@ async function addTask() {
   if (!title) return;
   const priority = document.getElementById('newPriority').value || null;
   const project = document.getElementById('newProject').value.trim() || null;
-  const due_date = document.getElementById('newDue').value || null;
+  const follow_up_date = document.getElementById('newFollowUp').value || null;
 
   const { data, error } = await db.from('tasks').insert({
-    user_id: userId, title, priority, project, due_date, status: 'open', source: 'manual'
+    user_id: userId, title, priority, project, follow_up_date, status: 'open', source: 'manual'
   }).select();
   if (error) { showToast('Fehler: ' + error.message); return; }
 
@@ -296,7 +292,7 @@ async function addTask() {
   document.getElementById('newTitle').value = '';
   document.getElementById('newPriority').value = '';
   document.getElementById('newProject').value = '';
-  document.getElementById('newDue').value = '';
+  document.getElementById('newFollowUp').value = '';
   render();
 }
 
@@ -341,7 +337,6 @@ function openDetail(id) {
   document.getElementById('dPriority').value = t.priority || '';
   document.getElementById('dProject').value = t.project || '';
   document.getElementById('dSource').value = t.source || '';
-  document.getElementById('dDue').value = t.due_date || '';
   document.getElementById('dFollowUp').value = t.follow_up_date || '';
   document.getElementById('overlay').classList.add('show');
 }
@@ -358,7 +353,6 @@ async function saveDetail() {
     priority: document.getElementById('dPriority').value || null,
     project: document.getElementById('dProject').value.trim() || null,
     source: document.getElementById('dSource').value.trim() || null,
-    due_date: document.getElementById('dDue').value || null,
     follow_up_date: document.getElementById('dFollowUp').value || null,
     updated_at: new Date().toISOString()
   };
@@ -379,7 +373,7 @@ function applyFilters(list) {
     if (filters.status && t.status !== filters.status) return false;
     if (filters.priority && t.priority !== filters.priority) return false;
     if (filters.project && t.project !== filters.project) return false;
-    if (filters.dueBefore && (!t.due_date || t.due_date > filters.dueBefore)) return false;
+    if (filters.followUpBefore && (!t.follow_up_date || t.follow_up_date > filters.followUpBefore)) return false;
     if (!filters.showDone && t.status === 'done') return false;
     return true;
   });
@@ -398,8 +392,8 @@ function renderRowVisuals(id) {
   const row = document.querySelector(`tr[data-id="${id}"]`);
   if (!row || !t) return;
   row.className = t.status === 'done' ? 'done' : '';
-  const dueCell = row.querySelector('.due-date-input');
-  if (dueCell) dueCell.classList.toggle('due-overdue', isOverdue(t.due_date) && t.status!=='done');
+  const fuCell = row.querySelector('.followup-date-input');
+  if (fuCell) fuCell.classList.toggle('due-overdue', isOverdue(t.follow_up_date) && t.status!=='done');
 }
 
 function render() {
@@ -417,7 +411,7 @@ function renderTable(list, projects) {
 
   let html = `<table><thead>
     <tr>
-      <th></th><th>Titel</th><th>Status</th><th>Priorität</th><th>Kategorie</th><th>Fällig</th><th>Wiedervorlage</th><th></th>
+      <th></th><th>Titel</th><th>Status</th><th>Priorität</th><th>Kategorie</th><th>Wiedervorlage</th><th></th>
     </tr>
     <tr class="filterrow">
       <th></th>
@@ -435,14 +429,13 @@ function renderTable(list, projects) {
         <option value="low" ${filters.priority==='low'?'selected':''}>Niedrig</option>
       </select></th>
       <th><select onchange="setFilter('project', this.value)">${projOpts}</select></th>
-      <th><input type="date" value="${filters.dueBefore}" title="fällig bis" onchange="setFilter('dueBefore', this.value)"></th>
-      <th></th>
+      <th><input type="date" value="${filters.followUpBefore}" title="Wiedervorlage bis" onchange="setFilter('followUpBefore', this.value)"></th>
       <th><label style="display:flex;align-items:center;gap:3px;font-size:0.68rem;color:#888;white-space:nowrap"><input type="checkbox" ${filters.showDone?'checked':''} onchange="filters.showDone=this.checked;render()"> erl.</label></th>
     </tr>
   </thead><tbody>`;
 
   if (!list.length) {
-    html += `<tr><td colspan="8"><div class="empty">Keine Aufgaben gefunden.</div></td></tr>`;
+    html += `<tr><td colspan="7"><div class="empty">Keine Aufgaben gefunden.</div></td></tr>`;
   } else {
     for (const t of list) html += tableRow(t);
   }
@@ -452,7 +445,7 @@ function renderTable(list, projects) {
 
 function tableRow(t) {
   const done = t.status === 'done';
-  const overdue = isOverdue(t.due_date) && !done;
+  const overdue = isOverdue(t.follow_up_date) && !done;
   return `
     <tr data-id="${t.id}" class="${done?'done':''}">
       <td><input type="checkbox" class="chk" ${done?'checked':''} onchange="toggleDone(${t.id}, ${done})"></td>
@@ -469,8 +462,7 @@ function tableRow(t) {
         <option value="low" ${t.priority==='low'?'selected':''}>Niedrig</option>
       </select></td>
       <td><input class="cell-input" value="${esc(t.project||'')}" onchange="cellChange(${t.id},'project',this)" placeholder="–"></td>
-      <td><input type="date" class="cell-input due-date-input ${overdue?'due-overdue':''}" value="${t.due_date||''}" onchange="cellChange(${t.id},'due_date',this)"></td>
-      <td><input type="date" class="cell-input" value="${t.follow_up_date||''}" onchange="cellChange(${t.id},'follow_up_date',this)"></td>
+      <td><input type="date" class="cell-input followup-date-input ${overdue?'due-overdue':''}" value="${t.follow_up_date||''}" onchange="cellChange(${t.id},'follow_up_date',this)"></td>
       <td style="white-space:nowrap">
         <button class="openbtn" onclick="openDetail(${t.id})" title="Details">🗂</button>
         <button class="delbtn" onclick="deleteTask(${t.id})" title="Löschen">🗑</button>
@@ -483,15 +475,14 @@ function renderCards(list) {
   let html = '<div class="cards">';
   for (const t of list) {
     const done = t.status === 'done';
-    const overdue = isOverdue(t.due_date) && !done;
+    const overdue = isOverdue(t.follow_up_date) && !done;
     const prio = t.priority ? `<span class="badge prio-${t.priority}">${prioLabel(t.priority)}</span>` : '';
     const proj = t.project ? `<span class="badge proj">${esc(t.project)}</span>` : '';
     const status = `<span class="badge status">${statusLabel(t.status)}</span>`;
-    const due = t.due_date ? `<span class="badge due ${overdue?'overdue':''}">${overdue?'⚠ ':'📅 '}${fmtDate(t.due_date)}</span>` : '';
-    const fu = t.follow_up_date ? `<span class="badge due">🔁 ${fmtDate(t.follow_up_date)}</span>` : '';
+    const fu = t.follow_up_date ? `<span class="badge due ${overdue?'overdue':''}">${overdue?'⚠ ':'🔁 '}${fmtDate(t.follow_up_date)}</span>` : '';
     html += `<div class="card ${done?'done':''}" onclick="openDetail(${t.id})">
       <div class="card-title">${esc(t.title)}</div>
-      <div class="card-meta">${status}${prio}${proj}${due}${fu}</div>
+      <div class="card-meta">${status}${prio}${proj}${fu}</div>
     </div>`;
   }
   html += '</div>';
