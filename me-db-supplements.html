@@ -29,20 +29,29 @@
   .btn-add { background: #1a1a2e; color: white; border: none; border-radius: 7px; padding: 8px 16px; font-size: 0.85rem; cursor: pointer; }
   .btn-add:hover { background: #2d2d4e; }
 
-  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-  th { background: #f0f0f0; text-align: left; padding: 9px 10px; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: #666; }
-  td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; vertical-align: middle; }
-  tr:last-child td { border-bottom: none; }
-  tr.inactive { opacity: 0.45; }
-  input.cell { width: 100%; border: 1px solid transparent; background: transparent; border-radius: 5px; padding: 5px 6px; font-size: 0.85rem; }
-  input.cell:hover, input.cell:focus { border-color: #e0e0e0; background: #fafafa; outline: none; }
-  input.num { text-align: right; }
-  .daily-cost { font-weight: 700; text-align: right; white-space: nowrap; }
-  .row-actions { display: flex; gap: 4px; justify-content: flex-end; white-space: nowrap; }
-  .icon-btn { background: none; border: none; cursor: pointer; font-size: 0.95rem; padding: 4px 6px; border-radius: 6px; color: #bbb; }
-  .icon-btn:hover { background: #f5f5f5; color: #333; }
-  .icon-btn.del:hover { color: #c62828; }
-  .chk { width: 17px; height: 17px; cursor: pointer; accent-color: #2e7d32; }
+  .supp-row { background: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+  .supp-row.inactive { opacity: 0.5; }
+  .supp-row.inactive .supp-title { text-decoration: line-through; }
+  .chk { width: 17px; height: 17px; cursor: pointer; accent-color: #2e7d32; margin-top: 2px; flex-shrink: 0; }
+  .supp-main { flex: 1; min-width: 0; cursor: pointer; }
+  .supp-title { font-size: 0.95rem; font-weight: 600; word-break: break-word; }
+  .supp-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; font-size: 0.78rem; color: #888; }
+  .supp-meta .badge { background: #f0f0f0; padding: 2px 8px; border-radius: 20px; }
+  .supp-cost { font-weight: 700; font-size: 0.95rem; white-space: nowrap; flex-shrink: 0; align-self: center; }
+  .supp-cost .u { font-size: 0.68rem; color: #aaa; font-weight: 500; }
+
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 500; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .detail-card { background: white; border-radius: 14px; padding: 26px; max-width: 480px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.25); }
+  .detail-card h2 { font-size: 1.05rem; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
+  .detail-card .closebtn { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #aaa; }
+  .dfield { margin-bottom: 14px; }
+  .dfield label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: #888; display: block; margin-bottom: 4px; }
+  .dfield input, .dfield select, .dfield textarea { width: 100%; border: 1px solid #e0e0e0; border-radius: 7px; padding: 9px 10px; font-size: 0.9rem; font-family: inherit; }
+  .dgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .detail-actions { display: flex; justify-content: space-between; margin-top: 18px; }
+  .detail-actions .save-btn { background: #2e7d32; color: white; border: none; border-radius: 8px; padding: 10px 20px; font-size: 0.9rem; cursor: pointer; }
+  .detail-actions .del-btn { background: none; border: 1px solid #ffcdd2; color: #c62828; border-radius: 8px; padding: 10px 16px; font-size: 0.85rem; cursor: pointer; }
 
   .empty { text-align: center; padding: 50px; color: #aaa; }
   .loading { text-align: center; padding: 60px; color: #aaa; }
@@ -70,7 +79,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   header { padding: 14px 16px; }
   header h1 { font-size: 0.95rem; flex-wrap: wrap; }
   .container { padding: 0 14px 60px; margin: 18px auto; }
-  table { display: block; overflow-x: auto; white-space: nowrap; }
+  .dgrid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -128,11 +137,33 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <button class="chip active" data-f="all" onclick="setFilter('all')">Alle</button>
     <button class="chip" data-f="active" onclick="setFilter('active')">Aktiv</button>
     <button class="chip" data-f="inactive" onclick="setFilter('inactive')">Pausiert</button>
-    <div class="right"><button class="btn-add" onclick="addNew()">+ Supplement</button></div>
+    <div class="right"><button class="btn-add" onclick="openDetail(null)">+ Supplement</button></div>
   </div>
 
   <div id="content"><div class="loading">Lade Supplementplan…</div></div>
 
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="detail-card">
+    <h2><span>Supplement</span><button class="closebtn" onclick="closeDetail()">&times;</button></h2>
+    <div class="dfield"><label>Name</label><input id="dName"></div>
+    <div class="dgrid">
+      <div class="dfield"><label>Menge/Tag</label><input id="dAmount" type="number" step="0.01"></div>
+      <div class="dfield"><label>Einheit</label><input id="dUnit" placeholder="Kapseln, mg…"></div>
+    </div>
+    <div class="dfield"><label>Wann</label><input id="dTiming" placeholder="morgens…"></div>
+    <div class="dfield"><label>Hersteller</label><input id="dManufacturer"></div>
+    <div class="dgrid">
+      <div class="dfield"><label>Packung (Menge)</label><input id="dPackageAmount" type="number" step="1" placeholder="z.B. 90"></div>
+      <div class="dfield"><label>Preis/Packung €</label><input id="dPackagePrice" type="number" step="0.01"></div>
+    </div>
+    <div class="dfield"><label><input type="checkbox" id="dActive" style="width:auto;display:inline-block;margin-right:6px;"> Aktiv</label></div>
+    <div class="detail-actions">
+      <button class="del-btn" id="delBtn" onclick="deleteSup()">Löschen</button>
+      <button class="save-btn" onclick="saveDetail()">Speichern</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -215,46 +246,79 @@ function render() {
 
   if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">Keine Supplements in dieser Ansicht.</div>'; return; }
 
-  let html = `<table><thead><tr>
-    <th></th><th>Name</th><th>Menge/Tag</th><th>Einheit</th><th>Wann</th><th>Hersteller</th>
-    <th>Packung (Menge)</th><th>Preis/Packung €</th><th>€/Tag</th><th></th>
-  </tr></thead><tbody>`;
-  for (const s of list) html += supRow(s);
-  html += `</tbody></table>`;
-  document.getElementById('content').innerHTML = html;
+  document.getElementById('content').innerHTML = list.map(supRow).join('');
 }
 
 function supRow(s) {
   const cost = dailyCost(s);
+  const meta = [];
+  if (s.daily_amount) meta.push(`${s.daily_amount}${s.unit ? ' '+esc(s.unit) : 'x'}/Tag`);
+  if (s.timing) meta.push(esc(s.timing));
+  if (s.manufacturer) meta.push(esc(s.manufacturer));
   return `
-    <tr id="row-${s.id}" class="${s.active ? '' : 'inactive'}">
-      <td><input type="checkbox" class="chk" ${s.active?'checked':''} onchange="toggleActive(${s.id}, this.checked)" title="Aktiv"></td>
-      <td><input class="cell" value="${esc(s.name)}" onchange="fieldChange(${s.id},'name',this.value)"></td>
-      <td><input class="cell num" type="number" step="0.01" value="${s.daily_amount ?? ''}" onchange="fieldChange(${s.id},'daily_amount',this.value,true)"></td>
-      <td><input class="cell" value="${esc(s.unit||'')}" onchange="fieldChange(${s.id},'unit',this.value)" placeholder="Kapseln, mg…"></td>
-      <td><input class="cell" value="${esc(s.timing||'')}" onchange="fieldChange(${s.id},'timing',this.value)" placeholder="morgens…"></td>
-      <td><input class="cell" value="${esc(s.manufacturer||'')}" onchange="fieldChange(${s.id},'manufacturer',this.value)"></td>
-      <td><input class="cell num" type="number" step="1" value="${s.package_amount ?? ''}" onchange="fieldChange(${s.id},'package_amount',this.value,true)" placeholder="z.B. 90"></td>
-      <td><input class="cell num" type="number" step="0.01" value="${s.package_price ?? ''}" onchange="fieldChange(${s.id},'package_price',this.value,true)"></td>
-      <td class="daily-cost">${cost!=null ? cost.toFixed(2)+' €' : '–'}</td>
-      <td class="row-actions"><button class="icon-btn del" onclick="deleteSup(${s.id})" title="Löschen">🗑</button></td>
-    </tr>`;
+    <div class="supp-row ${s.active ? '' : 'inactive'}" data-id="${s.id}">
+      <input type="checkbox" class="chk" ${s.active?'checked':''} onchange="toggleActive(${s.id}, this.checked)" title="Aktiv" onclick="event.stopPropagation()">
+      <div class="supp-main" onclick="openDetail(${s.id})">
+        <div class="supp-title">${esc(s.name)}</div>
+        <div class="supp-meta">${meta.map(m=>`<span class="badge">${m}</span>`).join('')}</div>
+      </div>
+      <div class="supp-cost" onclick="openDetail(${s.id})">${cost!=null ? cost.toFixed(2)+'<span class="u"> €/Tag</span>' : '<span class="u">– €/Tag</span>'}</div>
+    </div>`;
 }
 
-async function fieldChange(id, field, value, isNum) {
-  const v = isNum ? (value === '' ? null : parseFloat(value)) : (value.trim() || null);
-  const { error } = await db.from('supplements').update({ [field]: v, updated_at: new Date().toISOString() }).eq('id', id);
-  if (error) { showToast('Fehler: ' + error.message); return; }
-  const s = allSupps.find(s => s.id === id);
-  if (s) s[field] = v;
-  renderTotal();
-  // nur die Kostenzelle/Zeile neu zeichnen statt ganze Tabelle (Fokus bleibt erhalten)
-  const row = document.getElementById(`row-${id}`);
-  if (row && s) {
-    const cell = row.querySelector('.daily-cost');
-    const c = dailyCost(s);
-    cell.textContent = c != null ? c.toFixed(2) + ' €' : '–';
+let detailId = undefined;
+
+function openDetail(id) {
+  detailId = id;
+  const isNew = id == null;
+  const s = isNew ? {} : allSupps.find(s => s.id === id);
+  if (!isNew && !s) return;
+  document.getElementById('dName').value = s.name || '';
+  document.getElementById('dAmount').value = s.daily_amount ?? '';
+  document.getElementById('dUnit').value = s.unit || '';
+  document.getElementById('dTiming').value = s.timing || '';
+  document.getElementById('dManufacturer').value = s.manufacturer || '';
+  document.getElementById('dPackageAmount').value = s.package_amount ?? '';
+  document.getElementById('dPackagePrice').value = s.package_price ?? '';
+  document.getElementById('dActive').checked = isNew ? true : !!s.active;
+  document.querySelector('.detail-card h2 span').textContent = isNew ? 'Neues Supplement' : 'Supplement bearbeiten';
+  document.getElementById('delBtn').style.display = isNew ? 'none' : '';
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('dName').focus();
+}
+
+function closeDetail() {
+  document.getElementById('overlay').classList.remove('show');
+  detailId = undefined;
+}
+
+async function saveDetail() {
+  const name = document.getElementById('dName').value.trim();
+  if (!name) { showToast('Bitte Name angeben'); return; }
+  const fields = {
+    name,
+    daily_amount: document.getElementById('dAmount').value === '' ? null : parseFloat(document.getElementById('dAmount').value),
+    unit: document.getElementById('dUnit').value.trim() || null,
+    timing: document.getElementById('dTiming').value.trim() || null,
+    manufacturer: document.getElementById('dManufacturer').value.trim() || null,
+    package_amount: document.getElementById('dPackageAmount').value === '' ? null : parseFloat(document.getElementById('dPackageAmount').value),
+    package_price: document.getElementById('dPackagePrice').value === '' ? null : parseFloat(document.getElementById('dPackagePrice').value),
+    active: document.getElementById('dActive').checked,
+    updated_at: new Date().toISOString(),
+  };
+  if (detailId == null) {
+    const { data, error } = await db.from('supplements').insert({ user_id: userId, ...fields }).select();
+    if (error) { showToast('Fehler: ' + error.message); return; }
+    allSupps.push(data[0]);
+  } else {
+    const { error } = await db.from('supplements').update(fields).eq('id', detailId);
+    if (error) { showToast('Fehler: ' + error.message); return; }
+    const s = allSupps.find(s => s.id === detailId);
+    Object.assign(s, fields);
   }
+  closeDetail();
+  renderTotal(); render();
+  showToast('Gespeichert ✓');
 }
 
 async function toggleActive(id, val) {
@@ -265,21 +329,14 @@ async function toggleActive(id, val) {
   renderTotal(); render();
 }
 
-async function deleteSup(id) {
+async function deleteSup() {
+  if (detailId == null) return;
   if (!confirm('Supplement wirklich löschen?')) return;
-  const { error } = await db.from('supplements').delete().eq('id', id);
+  const { error } = await db.from('supplements').delete().eq('id', detailId);
   if (error) { showToast('Fehler: ' + error.message); return; }
-  allSupps = allSupps.filter(s => s.id !== id);
+  allSupps = allSupps.filter(s => s.id !== detailId);
+  closeDetail();
   renderTotal(); render();
-}
-
-async function addNew() {
-  const { data, error } = await db.from('supplements')
-    .insert({ user_id: userId, name: 'Neues Supplement', active: true }).select();
-  if (error) { showToast('Fehler: ' + error.message); return; }
-  allSupps.push(data[0]);
-  setFilter('all');
-  showToast('Supplement angelegt – bitte Details ausfüllen');
 }
 </script>
 </body>
