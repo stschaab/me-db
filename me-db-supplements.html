@@ -156,8 +156,9 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <div class="dfield"><label>Hersteller</label><input id="dManufacturer"></div>
     <div class="dgrid">
       <div class="dfield"><label>Packung (Menge)</label><input id="dPackageAmount" type="number" step="1" placeholder="z.B. 90"></div>
-      <div class="dfield"><label>Preis/Packung €</label><input id="dPackagePrice" type="number" step="0.01"></div>
+      <div class="dfield"><label>Packungseinheit</label><input id="dPackageUnit" placeholder="g, ml, Stück…"></div>
     </div>
+    <div class="dfield"><label>Preis/Packung €</label><input id="dPackagePrice" type="number" step="0.01"></div>
     <div class="dfield"><label><input type="checkbox" id="dActive" style="width:auto;display:inline-block;margin-right:6px;"> Aktiv</label></div>
     <div class="detail-actions">
       <button class="del-btn" id="delBtn" onclick="deleteSup()">Löschen</button>
@@ -255,6 +256,7 @@ function supRow(s) {
   if (s.daily_amount) meta.push(`${s.daily_amount}${s.unit ? ' '+esc(s.unit) : 'x'}/Tag`);
   if (s.timing) meta.push(esc(s.timing));
   if (s.manufacturer) meta.push(esc(s.manufacturer));
+  if (s.package_amount) meta.push(`Packung: ${s.package_amount}${s.package_unit ? ' '+esc(s.package_unit) : ''}`);
   return `
     <div class="supp-row ${s.active ? '' : 'inactive'}" data-id="${s.id}">
       <input type="checkbox" class="chk" ${s.active?'checked':''} onchange="toggleActive(${s.id}, this.checked)" title="Aktiv" onclick="event.stopPropagation()">
@@ -279,6 +281,7 @@ function openDetail(id) {
   document.getElementById('dTiming').value = s.timing || '';
   document.getElementById('dManufacturer').value = s.manufacturer || '';
   document.getElementById('dPackageAmount').value = s.package_amount ?? '';
+  document.getElementById('dPackageUnit').value = s.package_unit || '';
   document.getElementById('dPackagePrice').value = s.package_price ?? '';
   document.getElementById('dActive').checked = isNew ? true : !!s.active;
   document.querySelector('.detail-card h2 span').textContent = isNew ? 'Neues Supplement' : 'Supplement bearbeiten';
@@ -302,6 +305,7 @@ async function saveDetail() {
     timing: document.getElementById('dTiming').value.trim() || null,
     manufacturer: document.getElementById('dManufacturer').value.trim() || null,
     package_amount: document.getElementById('dPackageAmount').value === '' ? null : parseFloat(document.getElementById('dPackageAmount').value),
+    package_unit: document.getElementById('dPackageUnit').value.trim() || null,
     package_price: document.getElementById('dPackagePrice').value === '' ? null : parseFloat(document.getElementById('dPackagePrice').value),
     active: document.getElementById('dActive').checked,
     updated_at: new Date().toISOString(),
