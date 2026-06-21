@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a1a2e">
+<title>MeDB &middot; Voice</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+  .brand { position: fixed; top: 16px; left: 20px; font-size: 0.9rem; font-weight: 700; opacity: 0.6; }
+  .brand a { color: white; text-decoration: none; }
+
+  .mic-wrap { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  .mic-btn { width: 140px; height: 140px; border-radius: 50%; border: none; background: #c62828; color: white; font-size: 3.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 30px rgba(198,40,40,0.4); }
+  .mic-btn:active { transform: scale(0.96); }
+  .mic-btn.listening { animation: pulse 1.1s infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(198,40,40,0.5)} 50%{box-shadow:0 0 0 22px rgba(198,40,40,0)} }
+  .hint { font-size: 0.9rem; color: #aaa; max-width: 320px; line-height: 1.5; }
+  .transcript { font-size: 1.1rem; font-weight: 600; max-width: 380px; min-height: 1.4em; }
+
+  .result { display: none; flex-direction: column; align-items: center; gap: 14px; max-width: 400px; width: 100%; }
+  .result.show { display: flex; }
+  .result-type { background: white; color: #1a1a2e; border-radius: 14px; padding: 18px 22px; width: 100%; }
+  .result-type .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 4px; }
+  .result-type .value { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .result-preview { font-size: 0.85rem; color: #555; margin-top: 8px; text-align: left; line-height: 1.5; }
+
+  .typechips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .typechip { border: 1px solid rgba(255,255,255,0.3); background: transparent; color: white; border-radius: 20px; padding: 6px 14px; font-size: 0.8rem; cursor: pointer; }
+  .typechip.active { background: white; color: #1a1a2e; font-weight: 700; }
+
+  .actions { display: flex; gap: 10px; width: 100%; }
+  .btn { flex: 1; border: none; border-radius: 10px; padding: 14px; font-size: 0.95rem; cursor: pointer; }
+  .btn-go { background: #2e7d32; color: white; font-weight: 700; }
+  .btn-cancel { background: rgba(255,255,255,0.15); color: white; }
+
+  .status { font-size: 0.85rem; color: #ffab91; min-height: 1.3em; }
+  .loading-spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="brand"><a href="me-db-dashboard.html">← MeDB</a></div>
+
+<div class="mic-wrap" id="micWrap">
+  <button class="mic-btn" id="micBtn" onclick="startListening()">🎤</button>
+  <div class="transcript" id="transcript"></div>
+  <div class="hint" id="hint">Antippen und sprechen — Claude entscheidet selbst, ob's ein Task, Einkauf, Supplement, Abo oder Vorsorge-Eintrag ist.</div>
+  <div class="status" id="status"></div>
+</div>
+
+<div class="result" id="result">
+  <div class="result-type">
+    <div class="label">Erkannt als</div>
+    <div class="value" id="typeValue">–</div>
+    <div class="result-preview" id="preview"></div>
+  </div>
+  <div class="typechips" id="typeChips"></div>
+  <div class="actions">
+    <button class="btn btn-cancel" onclick="resetVoice()">Neu</button>
+    <button class="btn btn-go" onclick="proceed()">Weiter →</button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+const TYPE_LABELS = { task: '✅ Task', shopping: '🛒 Einkauf', supplement: '💊 Supplement', subscription: '💳 Abo', vorsorge: '🗂️ Vorsorge' };
+const TYPE_TARGETS = { task: 'me-db-tasks.html', shopping: 'me-db-einkaufsliste.html', supplement: 'me-db-supplements.html', subscription: 'me-db-abos.html', vorsorge: 'me-db-vorsorge.html' };
+
+let currentResult = null;
+let currentType = null;
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) window.location.href = 'me-db-login.html';
+});
+
+function setupRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  const r = new SR();
+  r.lang = 'de-DE';
+  r.continuous = false;
+  r.interimResults = false;
+  return r;
+}
+
+function startListening() {
+  const recognition = setupRecognition();
+  if (!recognition) {
+    document.getElementById('status').textContent = 'Spracherkennung nicht verfügbar – bitte Chrome/Edge nutzen';
+    return;
+  }
+  document.getElementById('micBtn').classList.add('listening');
+  document.getElementById('hint').textContent = 'Höre zu…';
+  document.getElementById('status').textContent = '';
+  document.getElementById('transcript').textContent = '';
+
+  recognition.onresult = async (event) => {
+    const text = event.results[0][0].transcript;
+    document.getElementById('transcript').textContent = '„' + text + '"';
+    document.getElementById('hint').textContent = '';
+    document.getElementById('status').innerHTML = '<span class="loading-spin"></span> Wird interpretiert…';
+    await classify(text);
+  };
+  recognition.onerror = (e) => {
+    document.getElementById('status').textContent = 'Fehler: ' + e.error;
+    document.getElementById('micBtn').classList.remove('listening');
+  };
+  recognition.onend = () => { document.getElementById('micBtn').classList.remove('listening'); };
+  recognition.start();
+}
+
+async function classify(text) {
+  try {
+    // Produktkatalog fürs Einkaufslisten-Matching mitschicken
+    const { data: products } = await db.from('products').select('id,name');
+    const resp = await fetch(WORKER_URL + '/parse-universal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, products: products || [] }),
+    });
+    const data = await resp.json();
+    document.getElementById('status').textContent = '';
+    if (!data.success) { document.getElementById('status').textContent = 'Fehler: ' + data.error; return; }
+
+    currentResult = data.result;
+    currentType = data.result.type;
+    showResult();
+  } catch (e) {
+    document.getElementById('status').textContent = 'Fehler: ' + e.message;
+  }
+}
+
+function showResult() {
+  document.getElementById('micWrap').style.display = 'none';
+  document.getElementById('result').classList.add('show');
+  renderType();
+}
+
+function renderType() {
+  document.getElementById('typeValue').textContent = TYPE_LABELS[currentType] || currentType;
+  document.getElementById('preview').innerHTML = previewHtml();
+
+  const allTypes = Object.keys(TYPE_LABELS);
+  const suggested = [currentType, ...(currentResult.alternatives || [])].filter((v,i,a) => a.indexOf(v) === i);
+  const rest = allTypes.filter(t => !suggested.includes(t));
+  const order = [...suggested, ...rest];
+
+  document.getElementById('typeChips').innerHTML = order.map(t =>
+    `<button class="typechip ${t===currentType?'active':''}" onclick="switchType('${t}')">${TYPE_LABELS[t]}</button>`
+  ).join('');
+}
+
+function switchType(t) {
+  currentType = t;
+  renderType();
+}
+
+function previewHtml() {
+  const r = currentResult;
+  switch (currentType) {
+    case 'task': {
+      const t = r.task;
+      return `${esc(t.title)||'–'}${t.follow_up_date ? '<br>📅 '+t.follow_up_date : ''}${t.priority ? '<br>⚡ '+t.priority : ''}`;
+    }
+    case 'shopping':
+      return (r.shopping_items||[]).map(i => esc(i.name) + (i.quantity?' ('+esc(i.quantity)+')':'')).join('<br>') || '–';
+    case 'supplement': {
+      const s = r.supplement;
+      return `${esc(s.name)||'–'}${s.manufacturer?'<br>'+esc(s.manufacturer):''}${s.daily_amount?'<br>'+s.daily_amount+'x täglich':''}`;
+    }
+    case 'subscription': {
+      const a = r.subscription;
+      return `${esc(a.name)||'–'}${a.price?'<br>'+a.price+' €':''}`;
+    }
+    case 'vorsorge': {
+      const v = r.vorsorge;
+      return `${esc(v.name)||'–'}<br>${esc(v.category)}`;
+    }
+  }
+  return '';
+}
+
+function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+function resetVoice() {
+  currentResult = null; currentType = null;
+  document.getElementById('result').classList.remove('show');
+  document.getElementById('micWrap').style.display = 'flex';
+  document.getElementById('transcript').textContent = '';
+  document.getElementById('hint').textContent = 'Antippen und sprechen — Claude entscheidet selbst, ob\'s ein Task, Einkauf, Supplement, Abo oder Vorsorge-Eintrag ist.';
+}
+
+function proceed() {
+  if (!currentResult || !currentType) return;
+  const payload = { type: currentType, data: currentResult[currentType === 'subscription' ? 'subscription' : currentType] };
+  if (currentType === 'shopping') payload.data = currentResult.shopping_items;
+  sessionStorage.setItem('medb_voice_prefill', JSON.stringify(payload));
+  window.location.href = TYPE_TARGETS[currentType];
+}
+</script>
+</body>
+</html>
