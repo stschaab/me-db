@@ -115,6 +115,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-abos.html">Abos</a>
     <a href="me-db-supplements.html">Supplements</a>
     <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Abmelden</button>
   </nav>
@@ -198,8 +199,27 @@ const CATS = ['Bankkonto','Versicherung','Aktien/Depot','Sonstiges'];
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   userId = data.session.user.id;
-  loadItems();
+  loadItems().then(checkVoicePrefill);
 });
+
+function checkVoicePrefill() {
+  const raw = sessionStorage.getItem('medb_voice_prefill');
+  if (!raw) return;
+  sessionStorage.removeItem('medb_voice_prefill');
+  try {
+    const payload = JSON.parse(raw);
+    if (payload.type !== 'vorsorge') return;
+    const v = payload.data;
+    openNewItem();
+    document.getElementById('nName').value = v.name || '';
+    if (v.category && CATS.includes(v.category)) document.getElementById('nCategory').value = v.category;
+    document.getElementById('nReference').value = v.reference || '';
+    document.getElementById('nContact').value = v.contact_person || '';
+    document.getElementById('nContactInfo').value = v.contact_info || '';
+    document.getElementById('nDocLoc').value = v.document_location || '';
+    document.getElementById('nNotes').value = v.notes || '';
+  } catch {}
+}
 
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
