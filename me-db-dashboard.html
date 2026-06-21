@@ -75,6 +75,9 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
 /* === Hamburger-Navigation (immer aktiv) === */
 .hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+.global-voice-btn { width: 38px; height: 38px; border-radius: 50%; background: #c62828; color: white; border: none; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; text-decoration: none; flex-shrink: 0; }
+.global-voice-btn:hover { background: #a91e1e; }
+.header-right { display: flex; align-items: center; gap: 10px; }
 header { flex-wrap: wrap; }
 nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
 nav.open { display: flex; }
@@ -102,7 +105,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <h1><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a></h1>
     <span id="lastUpdate">&nbsp;</span>
   </div>
-  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <div class="header-right">
+    <a class="global-voice-btn" href="me-db-voice.html" title="Voice">🎤</a>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  </div>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
