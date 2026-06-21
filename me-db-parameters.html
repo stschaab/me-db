@@ -76,6 +76,12 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   .addbar { flex-direction: column; align-items: stretch; }
   .addbar input, .addbar select, .addbar button { width: 100%; }
 }
+
+.subnav { display: flex; gap: 8px; flex-wrap: wrap; max-width: 1000px; margin: 18px auto 0; padding: 0 24px; }
+.subnav a { background: #23233f; color: #bbb; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; text-decoration: none; border: 1px solid #2d2d4e; white-space: nowrap; }
+.subnav a:hover { background: #2d2d4e; color: #fff; }
+.subnav a.active { background: #fff; color: #1a1a2e; font-weight: 700; border-color: #fff; }
+@media (max-width: 768px) { .subnav { padding: 0 14px; margin-top: 12px; } }
 </style>
 </head>
 <body>
@@ -113,6 +119,14 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <button class="logout-btn" onclick="logout()">Abmelden</button>
   </nav>
 </header>
+
+<div class="subnav">
+  <a href="me-db-lab-dashboard.html">Lab-Dashboard</a>
+  <a href="me-db-measurements.html">Messungen</a>
+  <a href="me-db-trend.html">Trend</a>
+  <a href="me-db-parameters.html" class="active">Parameter</a>
+</div>
+
 
 <div class="container">
   <div class="toolbar">
