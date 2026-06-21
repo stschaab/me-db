@@ -352,7 +352,7 @@ function openDetail(id) {
   document.getElementById('dPriority').value = t?.priority || '';
   document.getElementById('dProject').value = t?.project || '';
   document.getElementById('dSource').value = t?.source || '';
-  document.getElementById('dFollowUp').value = t?.follow_up_date || '';
+  document.getElementById('dFollowUp').value = t?.follow_up_date || (isNew ? new Date().toISOString().substring(0,10) : '');
   document.querySelector('.detail-card h2 span').textContent = isNew ? 'Neue Aufgabe' : 'Aufgabe bearbeiten';
   document.getElementById('delFromDetailBtn').style.display = isNew ? 'none' : 'inline-block';
   document.getElementById('overlay').classList.add('show');
