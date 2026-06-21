@@ -25,6 +25,14 @@
   .clearbtn:hover { background: #f5f5f5; }
   .addbtn { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 7px 16px; font-size: 0.85rem; cursor: pointer; white-space: nowrap; margin-left: auto; }
   .addbtn:hover { background: #2d2d4e; }
+  .voicebtn { background: #c62828; color: white; border: none; border-radius: 8px; padding: 7px 12px; font-size: 0.95rem; cursor: pointer; white-space: nowrap; line-height: 1; }
+  .voicebtn:hover { background: #a91e1e; }
+  .voicebtn.listening { animation: voicepulse 1s infinite; }
+  @keyframes voicepulse { 0%,100%{box-shadow:0 0 0 0 rgba(198,40,40,0.5)} 50%{box-shadow:0 0 0 8px rgba(198,40,40,0)} }
+  .voice-status { position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.85rem; z-index: 998; display: none; align-items: center; gap: 8px; }
+  .voice-status.show { display: flex; }
+  .voice-dot { width: 8px; height: 8px; border-radius: 50%; background: #c62828; animation: voicepulse2 1s infinite; }
+  @keyframes voicepulse2 { 0%,100%{opacity:1} 50%{opacity:0.3} }
   .showdone-label { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: #888; white-space: nowrap; }
   .count { font-size: 0.78rem; color: #888; width: 100%; text-align: right; margin-top: 2px; }
 
@@ -141,6 +149,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <button class="chipbtn" id="dueBtn" onclick="toggleDueFilter()">🔴 Fällige Tasks</button>
     <label class="showdone-label"><input type="checkbox" id="fShowDone" onchange="filters.showDone=this.checked;render()"> Erledigte zeigen</label>
     <button class="clearbtn" onclick="clearFilters()">Filter zurücksetzen</button>
+    <button class="voicebtn" id="voiceBtn" onclick="toggleVoice()" title="Aufgabe per Sprache anlegen">🎤</button>
     <button class="addbtn" onclick="openDetail(null)">+ Hinzufügen</button>
     <div class="count" id="taskCount"></div>
   </div>
@@ -198,6 +207,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="voice-status" id="voiceStatus"><span class="voice-dot"></span><span id="voiceStatusText">Höre zu…</span></div>
 
 <script>
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
@@ -381,6 +391,80 @@ function taskRow(t) {
       </div>
       <input type="date" class="task-date ${overdue?'overdue':''}" value="${t.follow_up_date||''}" onclick="event.stopPropagation()" onchange="inlineDateChange(${t.id}, this)">
     </div>`;
+}
+
+/* ---------- Voice-to-Task ---------- */
+const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
+let recognition = null;
+let isListening = false;
+
+function setupRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  const r = new SR();
+  r.lang = 'de-DE';
+  r.continuous = false;
+  r.interimResults = false;
+  return r;
+}
+
+function toggleVoice() {
+  if (isListening) { recognition?.stop(); return; }
+
+  recognition = setupRecognition();
+  if (!recognition) {
+    showToast('Spracherkennung nicht verfügbar – bitte Chrome/Edge nutzen');
+    return;
+  }
+
+  isListening = true;
+  document.getElementById('voiceBtn').classList.add('listening');
+  document.getElementById('voiceStatus').classList.add('show');
+  document.getElementById('voiceStatusText').textContent = 'Höre zu…';
+
+  recognition.onresult = async (event) => {
+    const text = event.results[0][0].transcript;
+    document.getElementById('voiceStatusText').textContent = 'Verarbeite: „' + text + '"…';
+    await parseVoiceTask(text);
+  };
+  recognition.onerror = (event) => {
+    showToast('Fehler bei Spracherkennung: ' + event.error);
+    stopVoiceUI();
+  };
+  recognition.onend = () => { stopVoiceUI(); };
+
+  recognition.start();
+}
+
+function stopVoiceUI() {
+  isListening = false;
+  document.getElementById('voiceBtn').classList.remove('listening');
+  document.getElementById('voiceStatus').classList.remove('show');
+}
+
+async function parseVoiceTask(text) {
+  try {
+    const resp = await fetch(WORKER_URL + '/parse-task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    const data = await resp.json();
+    stopVoiceUI();
+    if (!data.success) { showToast('Konnte nichts erkennen: ' + (data.error||'')); return; }
+
+    const task = data.task;
+    openDetail(null);
+    document.getElementById('dTitle').value = task.title || '';
+    document.getElementById('dDescription').value = task.description || '';
+    document.getElementById('dPriority').value = task.priority || '';
+    document.getElementById('dProject').value = task.project || '';
+    if (task.follow_up_date) document.getElementById('dFollowUp').value = task.follow_up_date;
+    showToast('Per Sprache erkannt – bitte prüfen & speichern');
+  } catch (e) {
+    stopVoiceUI();
+    showToast('Fehler: ' + e.message);
+  }
 }
 </script>
 </body>
