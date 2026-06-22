@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -67,7 +67,7 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop:hover .navdrop-menu { display: block; }
 .navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
 .navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
-/* === Hamburger-Navigation (immer aktiv) === */
+/* === Hamburger navigation (always active) === */
 .hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
 header { flex-wrap: wrap; }
 nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
@@ -92,31 +92,31 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
@@ -124,29 +124,29 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
   <div class="panel">
     <div class="connect-row">
-      <button class="btn" id="connectBtn" onclick="connectAndMeasure()">⌚ Polar H10 verbinden &amp; messen</button>
-      <span class="status" id="status">Nicht verbunden</span>
+      <button class="btn" id="connectBtn" onclick="connectAndMeasure()">⌚ Connect Polar H10 &amp; measure</button>
+      <span class="status" id="status">Not connected</span>
     </div>
 
     <div class="live" id="live">
       <div class="hr"><span class="ring"></span><span id="liveHr">–</span><span class="u"> bpm</span></div>
       <div class="timer" id="liveTimer">60s</div>
-      <div class="count" id="liveCount">0 RR-Werte erfasst</div>
-      <button class="btn stop" style="margin-top:14px" onclick="stopMeasurement()">Stoppen &amp; auswerten</button>
+      <div class="count" id="liveCount">0 RR values recorded</div>
+      <button class="btn stop" style="margin-top:14px" onclick="stopMeasurement()">Stop &amp; evaluate</button>
     </div>
 
     <div class="result" id="result">
       <div class="rgrid" id="rgrid"></div>
     </div>
 
-    <div class="hint">Funktioniert nur in Chrome/Edge (Desktop &amp; Android) über Web Bluetooth – nicht in Safari/iOS. H10 muss in Reichweite und nicht mit einer anderen App verbunden sein (z.B. Polar Beat schließen). Brustgurt anlegen, befeuchten, 60 Sekunden ruhig sitzen/liegen für ein sauberes Ergebnis.</div>
+    <div class="hint">Only works in Chrome/Edge (desktop &amp; Android) via Web Bluetooth – not in Safari/iOS. The H10 must be in range and not connected to another app (e.g. close Polar Beat). Put on the chest strap, moisten it, and sit/lie still for 60 seconds for a clean result.</div>
   </div>
 
   <div class="section-title">RMSSD (HRV) - Trend</div>
   <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
 
-  <div class="section-title">Verlauf</div>
-  <div id="history"><div class="loading">Lade…</div></div>
+  <div class="section-title">History</div>
+  <div id="history"><div class="loading">Loading…</div></div>
 
 </div>
 
@@ -166,7 +166,7 @@ db.auth.getSession().then(({ data }) => {
 
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 
-/* ---------- Bluetooth / Messung ---------- */
+/* ---------- Bluetooth / Measurement ---------- */
 const MEASURE_SEC = 60;
 let bleDevice = null, bleChar = null;
 let rrBuffer = [];
@@ -181,26 +181,26 @@ function setStatus(text, cls) {
 
 async function connectAndMeasure() {
   if (!navigator.bluetooth) {
-    setStatus('Web Bluetooth nicht verfügbar – bitte Chrome/Edge benutzen', 'error');
+    setStatus('Web Bluetooth not available – please use Chrome/Edge', 'error');
     return;
   }
   try {
-    setStatus('Suche Gerät…');
+    setStatus('Searching for device…');
     bleDevice = await navigator.bluetooth.requestDevice({
       filters: [{ services: ['heart_rate'] }],
       optionalServices: ['heart_rate']
     });
-    bleDevice.addEventListener('gattserverdisconnected', () => setStatus('Verbindung getrennt', 'error'));
+    bleDevice.addEventListener('gattserverdisconnected', () => setStatus('Connection lost', 'error'));
 
-    setStatus('Verbinde…');
+    setStatus('Connecting…');
     const server = await bleDevice.gatt.connect();
     const service = await server.getPrimaryService('heart_rate');
     bleChar = await service.getCharacteristic('heart_rate_measurement');
 
-    setStatus('Verbunden: ' + (bleDevice.name || 'H10'), 'connected');
+    setStatus('Connected: ' + (bleDevice.name || 'H10'), 'connected');
     startMeasurement();
   } catch (e) {
-    setStatus('Fehler: ' + e.message, 'error');
+    setStatus('Error: ' + e.message, 'error');
   }
 }
 
@@ -211,7 +211,7 @@ function startMeasurement() {
   document.getElementById('result').classList.remove('show');
   document.getElementById('live').classList.add('show');
   document.getElementById('liveTimer').textContent = secondsLeft + 's';
-  document.getElementById('liveCount').textContent = '0 RR-Werte erfasst';
+  document.getElementById('liveCount').textContent = '0 RR values recorded';
 
   bleChar.addEventListener('characteristicvaluechanged', onHrData);
   bleChar.startNotifications();
@@ -243,7 +243,7 @@ function onHrData(event) {
       index += 2;
       rrBuffer.push(Math.round(rr1024 / 1024 * 1000)); // -> ms
     }
-    document.getElementById('liveCount').textContent = rrBuffer.length + ' RR-Werte erfasst';
+    document.getElementById('liveCount').textContent = rrBuffer.length + ' RR values recorded';
   }
 }
 
@@ -259,13 +259,13 @@ async function stopMeasurement() {
   document.getElementById('connectBtn').disabled = false;
 
   if (rrBuffer.length < 5) {
-    setStatus('Zu wenige RR-Werte erfasst (' + rrBuffer.length + ') – Gurt richtig sitzen?', 'error');
+    setStatus('Too few RR values recorded (' + rrBuffer.length + ') – is the strap positioned correctly?', 'error');
     return;
   }
   await computeAndSave(rrBuffer.slice());
 }
 
-/* ---------- HRV-Berechnung ---------- */
+/* ---------- HRV calculation ---------- */
 function computeHrv(rr) {
   const n = rr.length;
   const meanRR = rr.reduce((s,v)=>s+v,0) / n;
@@ -296,9 +296,9 @@ async function computeAndSave(rr) {
     source: 'Polar H10'
   }).select();
 
-  if (error) { setStatus('Fehler beim Speichern: ' + error.message, 'error'); return; }
+  if (error) { setStatus('Error saving: ' + error.message, 'error'); return; }
 
-  setStatus('Messung gespeichert ✓', 'connected');
+  setStatus('Measurement saved ✓', 'connected');
   showResult(m, rr.length);
   loadHistory();
 }
@@ -309,25 +309,25 @@ function showResult(m, count) {
     <div class="rcard"><div class="v">${m.rmssd!=null ? m.rmssd.toFixed(1) : '–'}</div><div class="l">RMSSD (HRV) ms</div></div>
     <div class="rcard"><div class="v">${m.sdnn.toFixed(1)}</div><div class="l">SDNN ms</div></div>
     <div class="rcard"><div class="v">${m.pnn50!=null ? m.pnn50.toFixed(0)+'%' : '–'}</div><div class="l">pNN50</div></div>
-    <div class="rcard"><div class="v">${count}</div><div class="l">RR-Werte</div></div>
+    <div class="rcard"><div class="v">${count}</div><div class="l">RR values</div></div>
   `;
   document.getElementById('result').classList.add('show');
 }
 
-/* ---------- History + Chart ---------- */
+/* ---------- History + chart ---------- */
 async function loadHistory() {
   const { data, error } = await db.from('hrv_measurements')
     .select('id,measured_at,mean_hr,rmssd,sdnn,pnn50,rr_count')
     .order('measured_at', { ascending: false })
     .limit(100);
-  if (error) { document.getElementById('history').innerHTML = '<div class="empty">Fehler: ' + error.message + '</div>'; return; }
+  if (error) { document.getElementById('history').innerHTML = '<div class="empty">Error: ' + error.message + '</div>'; return; }
 
   renderChart((data||[]).slice().reverse());
   renderHistory(data||[]);
 }
 
 function renderChart(rows) {
-  const labels = rows.map(r => new Date(r.measured_at).toLocaleDateString('de-DE',{day:'2-digit',month:'short'}));
+  const labels = rows.map(r => new Date(r.measured_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}));
   const values = rows.map(r => r.rmssd);
   const ctx = document.getElementById('trendChart').getContext('2d');
   if (chart) chart.destroy();
@@ -339,10 +339,10 @@ function renderChart(rows) {
 }
 
 function renderHistory(rows) {
-  if (!rows.length) { document.getElementById('history').innerHTML = '<div class="empty">Noch keine Messungen.</div>'; return; }
-  let html = `<table><thead><tr><th>Datum</th><th>Ø HR</th><th>RMSSD (HRV)</th><th>SDNN</th><th>pNN50</th><th>RR</th><th></th></tr></thead><tbody>`;
+  if (!rows.length) { document.getElementById('history').innerHTML = '<div class="empty">No measurements yet.</div>'; return; }
+  let html = `<table><thead><tr><th>Date</th><th>Avg HR</th><th>RMSSD (HRV)</th><th>SDNN</th><th>pNN50</th><th>RR</th><th></th></tr></thead><tbody>`;
   for (const r of rows) {
-    const date = new Date(r.measured_at).toLocaleString('de-DE', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    const date = new Date(r.measured_at).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
     html += `<tr>
       <td>${date}</td>
       <td>${r.mean_hr ?? '–'}</td>
@@ -358,9 +358,9 @@ function renderHistory(rows) {
 }
 
 async function deleteRow(id) {
-  if (!confirm('Messung löschen?')) return;
+  if (!confirm('Delete measurement?')) return;
   const { error } = await db.from('hrv_measurements').delete().eq('id', id);
-  if (error) { alert('Fehler: ' + error.message); return; }
+  if (error) { alert('Error: ' + error.message); return; }
   loadHistory();
 }
 </script>
