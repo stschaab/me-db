@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MeDB &middot; Werte</title>
+<title>MeDB &middot; Values</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -77,66 +77,66 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 </head>
 <body>
 <header>
-  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#8a8aa5">Import</span><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Werte</span></h1>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#8a8aa5">Import</span><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Values</span></h1>
   <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
 <div class="subnav">
-  <a href="me-db-import.html">Berichte</a>
+  <a href="me-db-import.html">Reports</a>
   <a href="me-db-bucket.html">Bucket</a>
-  <a href="me-db-werte-review.html" class="active">Werte</a>
+  <a href="me-db-werte-review.html" class="active">Values</a>
 </div>
 
 
 <div class="container">
 
-  <div class="section-title">1 · Werte aus Bericht extrahieren</div>
+  <div class="section-title">1 · Extract Values from Report</div>
   <div class="card">
-    <div class="sub">Claude liest einen verarbeiteten Bericht, erkennt die Messwerte und ordnet sie deinen Parametern zu. Die Werte landen im <b>Zwischenspeicher</b> — deine Live-Messungen bleiben unberührt.</div>
+    <div class="sub">Claude reads a processed report, identifies the measured values, and matches them to your parameters. The values land in the <b>staging area</b> — your live measurements remain untouched.</div>
     <div class="row">
       <select id="reportSelect"></select>
-      <button class="btn" id="extractBtn" onclick="extractValues()">Werte extrahieren</button>
+      <button class="btn" id="extractBtn" onclick="extractValues()">Extract Values</button>
       <span id="extractStatus" class="muted" style="font-size:0.82rem"></span>
     </div>
   </div>
 
-  <div class="section-title">2 · Geprüfte Werte übernehmen</div>
+  <div class="section-title">2 · Apply Reviewed Values</div>
   <div class="card" style="padding:0;overflow:hidden">
     <div class="row" style="padding:14px 18px;border-bottom:1px solid #f0f0f0">
-      <button class="btn" onclick="importSelected()">Ausgewählte übernehmen</button>
-      <button class="btn-danger" onclick="discardSelected()">Ausgewählte verwerfen</button>
+      <button class="btn" onclick="importSelected()">Apply Selected</button>
+      <button class="btn-danger" onclick="discardSelected()">Discard Selected</button>
       <span id="stagingCount" class="muted" style="font-size:0.82rem"></span>
     </div>
-    <div id="stagingList"><div class="empty">Lädt…</div></div>
+    <div id="stagingList"><div class="empty">Loading…</div></div>
   </div>
 
 </div>
@@ -165,11 +165,11 @@ async function loadParams() {
 }
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 
-// ── 1) Berichte zum Extrahieren ──
+// ── 1) Reports to extract ──
 async function loadReports() {
   const { data } = await db.from('lab_reports').select('id,file_name,storage_path,doc_date').order('created_at', { ascending: false });
   const sel = document.getElementById('reportSelect');
-  if (!data?.length) { sel.innerHTML = '<option value="">— keine verarbeiteten Berichte —</option>'; return; }
+  if (!data?.length) { sel.innerHTML = '<option value="">— no processed reports —</option>'; return; }
   sel.innerHTML = data.map(r =>
     `<option value="${r.id}" data-path="${r.storage_path}" data-name="${r.file_name}">${r.file_name}${r.doc_date ? ' · ' + r.doc_date : ''}</option>`
   ).join('');
@@ -178,18 +178,18 @@ async function loadReports() {
 async function extractValues() {
   const sel = document.getElementById('reportSelect');
   const opt = sel.options[sel.selectedIndex];
-  if (!opt?.value) { toast('Kein Bericht gewählt', true); return; }
+  if (!opt?.value) { toast('No report selected', true); return; }
   const storagePath = opt.dataset.path;
   const fileName = opt.dataset.name;
   const labReportId = opt.value;
 
   const btn = document.getElementById('extractBtn');
   btn.disabled = true;
-  setStatus('Lade PDF…');
+  setStatus('Loading PDF…');
   try {
     const { data: blob, error } = await db.storage.from(BUCKET).download(storagePath);
     if (error) throw new Error(error.message);
-    setStatus('Claude liest den Bericht… (kann etwas dauern)');
+    setStatus('Claude is reading the report… (may take a moment)');
     const fileBase64 = await blobToBase64(blob);
 
     const resp = await fetch(`${WORKER_URL}/extract-measurements`, {
@@ -197,37 +197,37 @@ async function extractValues() {
       body: JSON.stringify({ fileBase64, fileName, storagePath, labReportId }),
     });
     const r = await resp.json();
-    if (!r.success) throw new Error(r.error || 'Fehler');
-    setStatus(`${r.total} Werte erkannt · ${r.neu} neu · ${r.duplikate} Duplikate · ${r.unmatched} ohne Zuordnung`);
-    toast(`${r.total} Werte extrahiert`);
+    if (!r.success) throw new Error(r.error || 'Error');
+    setStatus(`${r.total} values detected · ${r.neu} new · ${r.duplikate} duplicates · ${r.unmatched} unmatched`);
+    toast(`${r.total} values extracted`);
     loadStaging();
   } catch (e) {
-    setStatus('Fehler: ' + e.message);
-    toast('Fehler: ' + e.message, true);
+    setStatus('Error: ' + e.message);
+    toast('Error: ' + e.message, true);
   }
   btn.disabled = false;
 }
 function setStatus(t){ document.getElementById('extractStatus').textContent = t; }
 
-// ── 2) Staging anzeigen ──
+// ── 2) Show staging area ──
 async function loadStaging() {
   const { data, error } = await db.from('staged_measurements')
     .select('*').eq('status', 'pending').order('measured_at', { ascending: false });
   const el = document.getElementById('stagingList');
-  if (error) { el.innerHTML = `<div class="empty out">Fehler: ${error.message}</div>`; return; }
-  if (!data?.length) { el.innerHTML = '<div class="empty">Keine geprüften Werte im Zwischenspeicher.</div>'; document.getElementById('stagingCount').textContent=''; return; }
+  if (error) { el.innerHTML = `<div class="empty out">Error: ${error.message}</div>`; return; }
+  if (!data?.length) { el.innerHTML = '<div class="empty">No reviewed values in the staging area.</div>'; document.getElementById('stagingCount').textContent=''; return; }
 
-  document.getElementById('stagingCount').textContent = `${data.length} Werte im Zwischenspeicher`;
+  document.getElementById('stagingCount').textContent = `${data.length} values in staging area`;
 
-  // nach Bericht + Datum gruppieren
+  // group by report + date
   const groups = {};
   for (const r of data) {
-    const k = `${r.source_file || '?'} · ${r.measured_at || 'ohne Datum'}`;
+    const k = `${r.source_file || '?'} · ${r.measured_at || 'no date'}`;
     (groups[k] = groups[k] || []).push(r);
   }
 
   let html = `<table><thead><tr>
-    <th style="width:34px"></th><th>Parameter</th><th>Wert</th><th>Einheit</th><th>Referenz</th><th>Status</th><th>Zuordnung</th></tr></thead><tbody>`;
+    <th style="width:34px"></th><th>Parameter</th><th>Value</th><th>Unit</th><th>Reference</th><th>Status</th><th>Assignment</th></tr></thead><tbody>`;
   for (const [k, rows] of Object.entries(groups)) {
     html += `<tr><td colspan="7" class="grp-head">${k} · ${rows[0].lab || ''}</td></tr>`;
     for (const r of rows) {
@@ -237,18 +237,18 @@ async function loadStaging() {
       const outHigh = (r.ref_high != null && r.value > r.ref_high);
       const valClass = (outLow || outHigh) ? 'out' : '';
       let badge = '';
-      if (!r.matched_parameter_id) badge = '<span class="badge b-unmatched">ohne Zuordnung</span>';
-      else if (r.is_duplicate) badge = '<span class="badge b-dup">schon vorhanden</span>';
-      else badge = '<span class="badge b-new">neu</span>';
+      if (!r.matched_parameter_id) badge = '<span class="badge b-unmatched">unmatched</span>';
+      else if (r.is_duplicate) badge = '<span class="badge b-dup">already exists</span>';
+      else badge = '<span class="badge b-new">new</span>';
       const ref = (r.ref_low != null || r.ref_high != null) ? `${r.ref_low ?? ''}–${r.ref_high ?? ''}` : '—';
       const pname = r.matched_name || `<span class="muted">${r.raw_name}</span>`;
       const rawEsc = (r.raw_name || '').replace(/'/g, "\\'");
       const assignCell = !r.matched_parameter_id ? `
         <select onchange="assignExisting('${r.id}', this.value)" style="font-size:0.76rem;max-width:140px;padding:3px 5px;border:1px solid #e0e0e0;border-radius:5px">
-          <option value="">— zuordnen —</option>
+          <option value="">— assign —</option>
           ${allParams.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
         </select>
-        <button onclick="createParam('${r.id}','${rawEsc}')" style="font-size:0.76rem;color:#2e7d32;background:none;border:none;cursor:pointer;font-weight:600;margin-left:4px">+ neu</button>` : '';
+        <button onclick="createParam('${r.id}','${rawEsc}')" style="font-size:0.76rem;color:#2e7d32;background:none;border:none;cursor:pointer;font-weight:600;margin-left:4px">+ new</button>` : '';
       html += `<tr>
         <td><input type="checkbox" class="chk" value="${r.id}" ${checked} ${importable?'':'disabled'}></td>
         <td>${pname}${r.matched_name && r.raw_name!==r.matched_name ? `<br><span class="muted" style="font-size:0.75rem">${r.raw_name}</span>` : ''}</td>
@@ -264,13 +264,13 @@ async function loadStaging() {
   el.innerHTML = html;
 }
 
-// ── Parameter zuordnen / neu anlegen ──
+// ── Assign / create parameter ──
 async function assignExisting(stagedId, paramId) {
   if (!paramId) return;
   await callAssign({ staged_id: stagedId, parameter_id: Number(paramId) });
 }
 async function createParam(stagedId, rawName) {
-  if (!confirm(`Neuen Parameter „${rawName}" anlegen und diesen Wert zuordnen?\n\n(Einheit/Referenz aus dem Bericht werden übernommen — Kategorie/SI später auf der Parameter-Seite anpassbar.)`)) return;
+  if (!confirm(`Create new parameter "${rawName}" and assign this value to it?\n\n(Unit/reference from the report will be applied — category/SI can be adjusted later on the Parameters page.)`)) return;
   await callAssign({ staged_id: stagedId, create: true });
 }
 async function callAssign(body) {
@@ -279,37 +279,37 @@ async function callAssign(body) {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
     const d = await r.json();
-    if (!d.success) throw new Error(d.error || 'Fehler');
-    toast(`${d.name}: zugeordnet${d.created ? ' (neu angelegt)' : ''}${d.is_duplicate ? ' · schon vorhanden' : ''}`);
-    await loadParams();   // neue Parameter in Dropdowns aufnehmen
+    if (!d.success) throw new Error(d.error || 'Error');
+    toast(`${d.name}: assigned${d.created ? ' (newly created)' : ''}${d.is_duplicate ? ' · already exists' : ''}`);
+    await loadParams();   // include new parameters in dropdowns
     loadStaging();
-  } catch (e) { toast('Fehler: ' + e.message, true); }
+  } catch (e) { toast('Error: ' + e.message, true); }
 }
 
 function selectedIds() { return [...document.querySelectorAll('.chk:checked')].map(c => c.value); }
 
 async function importSelected() {
   const ids = selectedIds();
-  if (!ids.length) { toast('Nichts ausgewählt', true); return; }
-  if (!confirm(`${ids.length} Werte in die Live-Messungen übernehmen?`)) return;
+  if (!ids.length) { toast('Nothing selected', true); return; }
+  if (!confirm(`Apply ${ids.length} values to the live measurements?`)) return;
   try {
     const resp = await fetch(`${WORKER_URL}/import-measurements`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids }),
     });
     const r = await resp.json();
-    if (!r.success) throw new Error(r.error || 'Fehler');
-    toast(`${r.importiert} Werte übernommen ✓`);
+    if (!r.success) throw new Error(r.error || 'Error');
+    toast(`${r.importiert} values applied ✓`);
     loadStaging();
-  } catch (e) { toast('Fehler: ' + e.message, true); }
+  } catch (e) { toast('Error: ' + e.message, true); }
 }
 
 async function discardSelected() {
   const ids = selectedIds();
-  if (!ids.length) { toast('Nichts ausgewählt', true); return; }
+  if (!ids.length) { toast('Nothing selected', true); return; }
   const { error } = await db.from('staged_measurements').update({ status: 'rejected' }).in('id', ids);
-  if (error) { toast('Fehler: ' + error.message, true); return; }
-  toast(`${ids.length} verworfen`);
+  if (error) { toast('Error: ' + error.message, true); return; }
+  toast(`${ids.length} discarded`);
   loadStaging();
 }
 
