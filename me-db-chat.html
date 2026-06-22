@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MeDB &middot; KI Chat</title>
+<title>MeDB &middot; AI Chat</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -129,39 +129,39 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <body>
 
 <header>
-  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">KI Chat</span></h1>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">AI Chat</span></h1>
   <div style="display:flex;align-items:center;">
-    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Gespräche">&#128172;</button>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Conversations">&#128172;</button>
     <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   </div>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
@@ -171,11 +171,11 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <button class="new-chat-btn" onclick="newChat()">
-        <span style="font-size:1.1rem">+</span> Neuer Chat
+        <span style="font-size:1.1rem">+</span> New Chat
       </button>
     </div>
     <div class="sidebar-list" id="sessionList">
-      <div style="padding:20px 14px;font-size:0.8rem;color:#6b7280">Lade Gespräche...</div>
+      <div style="padding:20px 14px;font-size:0.8rem;color:#6b7280">Loading conversations...</div>
     </div>
   </div>
 
@@ -183,26 +183,26 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="chat-area">
     <div class="context-bar">
       <div class="context-dot" id="ctxDot"></div>
-      <div class="context-text" id="ctxText">Lade Gesundheitsdaten...</div>
-      <button class="context-reload" onclick="loadContext()">Neu laden</button>
+      <div class="context-text" id="ctxText">Loading health data...</div>
+      <button class="context-reload" onclick="loadContext()">Reload</button>
     </div>
 
     <div class="messages" id="messages">
       <div class="welcome">
-        <h2>Dein persönlicher Gesundheitsberater</h2>
-        <p>Ich habe Zugriff auf deine Blutwerte und Aktivitäten.<br>Stell mir eine Frage oder wähle ein Gespräch links.</p>
+        <h2>Your Personal Health Advisor</h2>
+        <p>I have access to your blood values and activities.<br>Ask me a question or select a conversation on the left.</p>
       </div>
     </div>
 
     <div class="bottom-area">
       <div class="suggestions" id="suggestions">
-        <button class="suggest-btn" onclick="ask('Wie sind meine aktuellen Blutwerte insgesamt zu bewerten?')">Blutwerte bewerten</button>
-        <button class="suggest-btn" onclick="ask('Welche Werte liegen außerhalb des Referenzbereichs?')">Auffällige Werte</button>
-        <button class="suggest-btn" onclick="ask('Wie war mein Training in den letzten 30 Tagen?')">Training analysieren</button>
-        <button class="suggest-btn" onclick="ask('Was sollte ich bei meinen aktuellen Werten supplementieren?')">Supplement-Tipps</button>
+        <button class="suggest-btn" onclick="ask('Wie sind meine aktuellen Blutwerte insgesamt zu bewerten?')">Evaluate blood values</button>
+        <button class="suggest-btn" onclick="ask('Welche Werte liegen außerhalb des Referenzbereichs?')">Abnormal values</button>
+        <button class="suggest-btn" onclick="ask('Wie war mein Training in den letzten 30 Tagen?')">Analyze training</button>
+        <button class="suggest-btn" onclick="ask('Was sollte ich bei meinen aktuellen Werten supplementieren?')">Supplement tips</button>
       </div>
       <div class="input-row">
-        <textarea id="input" placeholder="Stelle eine Frage zu deiner Gesundheit..." rows="1"
+        <textarea id="input" placeholder="Ask a question about your health..." rows="1"
           onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendMessage()}"
           oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">↑</button>
@@ -273,7 +273,7 @@ async function loadSessions() {
   list.innerHTML = '';
 
   if (sessions.length === 0) {
-    list.innerHTML = '<div style="padding:14px;font-size:0.8rem;color:#6b7280">Noch keine Gespräche</div>';
+    list.innerHTML = '<div style="padding:14px;font-size:0.8rem;color:#6b7280">No conversations yet</div>';
     return;
   }
 
@@ -299,17 +299,17 @@ async function loadSessions() {
       item.dataset.sid = s.session_id;
       const autoTitle = s.content.length > 38 ? s.content.slice(0, 38) + '…' : s.content;
       const title = titlesMap[s.session_id] || autoTitle;
-      const dateStr = new Date(s.created_at).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
-      item.innerHTML = `<div class="session-title">${title}</div><div class="session-date">${dateStr}</div><span class="edit-hint">✏ Doppelklick</span>`;
+      const dateStr = new Date(s.created_at).toLocaleDateString('en-US', { day:'2-digit', month:'2-digit' });
+      item.innerHTML = `<div class="session-title">${title}</div><div class="session-date">${dateStr}</div><span class="edit-hint">✏ Double-click</span>`;
       item.onclick = () => loadSession(s.session_id, item);
       item.ondblclick = (e) => { e.stopPropagation(); startRenameSession(item, s.session_id, titlesMap); };
       list.appendChild(item);
     }
   }
 
-  renderGroup('Heute', groups.heute);
-  renderGroup('Diese Woche', groups.woche);
-  renderGroup('Früher', groups.frueher);
+  renderGroup('Today', groups.heute);
+  renderGroup('This Week', groups.woche);
+  renderGroup('Earlier', groups.frueher);
 }
 
 // ── Session umbenennen ───────────────────────────────────────────
@@ -359,7 +359,7 @@ async function loadSession(sid, itemEl) {
 
   document.getElementById('suggestions').style.display = 'none';
   const div = document.getElementById('messages');
-  div.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:0.85rem">Lade Gespräch...</div>';
+  div.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:0.85rem">Loading conversation...</div>';
 
   const { data } = await authDb
     .from('chat_messages')
@@ -385,8 +385,8 @@ function newChat() {
   if (window.innerWidth <= 768) toggleSidebar(false);
   const div = document.getElementById('messages');
   div.innerHTML = `<div class="welcome">
-    <h2>Neues Gespräch</h2>
-    <p>Stell mir eine Frage zu deiner Gesundheit.</p>
+    <h2>New Conversation</h2>
+    <p>Ask me a question about your health.</p>
   </div>`;
   document.getElementById('suggestions').style.display = 'flex';
   document.getElementById('input').focus();
@@ -395,7 +395,7 @@ function newChat() {
 // ── Kontext laden ────────────────────────────────────────────────
 async function loadContext() {
   document.getElementById('ctxDot').className = 'context-dot';
-  document.getElementById('ctxText').textContent = 'Lade Gesundheitsdaten...';
+  document.getElementById('ctxText').textContent = 'Loading health data...';
 
   const [measRes, actRes, hrvRes] = await Promise.all([
     authDb.from('measurements').select('measured_at,value,value_si,value_text,unit,parameters(name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)').order('measured_at', { ascending: false }).limit(2000),
@@ -445,7 +445,7 @@ async function loadContext() {
   contextData = `BLUTWERTE (alle Messwerte pro Parameter, neuester zuerst):\n${measLines.join('\n')}\n\nAKTIVITÄTEN (letzte 20):\n${actLines.join('\n')}\n\nHRV-MESSUNGEN (Polar H10, neueste zuerst):\n${hrvLines.join('\n')}`;
 
   document.getElementById('ctxDot').className = 'context-dot loaded';
-  document.getElementById('ctxText').textContent = `${Object.keys(byParam).length} Parameter + ${actRes.data?.length || 0} Aktivitäten + ${hrvRes.data?.length || 0} HRV-Messungen geladen`;
+  document.getElementById('ctxText').textContent = `${Object.keys(byParam).length} parameters + ${actRes.data?.length || 0} activities + ${hrvRes.data?.length || 0} HRV measurements loaded`;
 }
 
 // ── Nachricht senden ─────────────────────────────────────────────
@@ -464,7 +464,7 @@ function addMessage(role, content) {
 
   const avatar = document.createElement('div');
   avatar.className = 'avatar ' + role;
-  avatar.textContent = role === 'ai' ? 'AI' : 'Du';
+  avatar.textContent = role === 'ai' ? 'AI' : 'You';
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
@@ -520,7 +520,7 @@ async function sendMessage() {
     });
     const data = await resp.json();
     document.getElementById('typing')?.remove();
-    const reply = data.reply || data.content?.[0]?.text || data.error || 'Keine Antwort erhalten.';
+    const reply = data.reply || data.content?.[0]?.text || data.error || 'No response received.';
     addMessage('ai', reply);
     messages.push({ role: 'assistant', content: reply });
 
@@ -529,7 +529,7 @@ async function sendMessage() {
     if (isFirstMsg) setTimeout(loadSessions, 3000);
   } catch (err) {
     document.getElementById('typing')?.remove();
-    addMessage('ai', 'Fehler: ' + err.message);
+    addMessage('ai', 'Error: ' + err.message);
   }
 
   document.getElementById('sendBtn').disabled = false;
