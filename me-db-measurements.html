@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MeDB &middot; Messungen</title>
+<title>MeDB &middot; Measurements</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -84,55 +84,55 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
 <header>
   <div>
-    <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#8a8aa5">Daten</span><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Messungen</span></h1>
-    <span id="lastUpdate">Lädt...</span>
+    <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#8a8aa5">Data</span><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Measurements</span></h1>
+    <span id="lastUpdate">Loading...</span>
   </div>
   <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
 <div class="subnav">
-  <a href="me-db-lab-dashboard.html">Lab-Dashboard</a>
-  <a href="me-db-measurements.html" class="active">Messungen</a>
+  <a href="me-db-lab-dashboard.html">Lab Dashboard</a>
+  <a href="me-db-measurements.html" class="active">Measurements</a>
   <a href="me-db-trend.html">Trend</a>
-  <a href="me-db-parameters.html">Parameter</a>
+  <a href="me-db-parameters.html">Parameters</a>
 </div>
 
 
 <div class="container">
   <div class="toolbar">
-    <input id="tableFilter" type="text" placeholder="Filtern nach Parameter, Kategorie oder Labor…" oninput="applyFilter()">
+    <input id="tableFilter" type="text" placeholder="Filter by parameter, category or lab…" oninput="applyFilter()">
     <span id="filterCount"></span>
   </div>
-  <div id="content"><div class="loading">Daten werden geladen...</div></div>
+  <div id="content"><div class="loading">Loading data...</div></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -158,9 +158,9 @@ async function logout() {
 
 function statusLabel(val, low, high) {
   if (val === null || val === undefined) return ['na', '—'];
-  if (low !== null && low !== undefined && val < low) return ['low', 'Zu niedrig'];
-  if (high !== null && high !== undefined && val > high) return ['high', 'Zu hoch'];
-  return ['ok', 'Im Bereich'];
+  if (low !== null && low !== undefined && val < low) return ['low', 'Too low'];
+  if (high !== null && high !== undefined && val > high) return ['high', 'Too high'];
+  return ['ok', 'In range'];
 }
 
 async function loadData() {
@@ -173,9 +173,9 @@ async function loadData() {
     if (!Array.isArray(data)) throw new Error(JSON.stringify(data));
     allRows = data;
     renderTable();
-    document.getElementById('lastUpdate').textContent = `${data.length} Messungen · Stand: ${new Date().toLocaleDateString('de-DE')}`;
+    document.getElementById('lastUpdate').textContent = `${data.length} measurements · as of: ${new Date().toLocaleDateString('en-US')}`;
   } catch(e) {
-    document.getElementById('content').innerHTML = `<div class="error">Fehler beim Laden: ${e.message}</div>`;
+    document.getElementById('content').innerHTML = `<div class="error">Error loading: ${e.message}</div>`;
   }
 }
 
@@ -207,13 +207,13 @@ function renderTable() {
   let html = `<table>
     <thead><tr>
       <th class="${sortCol==='param'?'sorted':''}" onclick="setSort('param')">Parameter <span class="sort-icon">${icons.param}</span></th>
-      <th class="${sortCol==='category'?'sorted':''}" onclick="setSort('category')">Kategorie <span class="sort-icon">${icons.category}</span></th>
-      <th class="${sortCol==='date'?'sorted':''}" onclick="setSort('date')">Datum <span class="sort-icon">${icons.date}</span></th>
-      <th class="${sortCol==='value'?'sorted':''}" onclick="setSort('value')">Wert <span class="sort-icon">${icons.value}</span></th>
-      <th>Einheit</th>
-      <th class="${sortCol==='value_si'?'sorted':''}" onclick="setSort('value_si')">Wert SI <span class="sort-icon">${icons.value_si}</span></th>
-      <th>Einheit SI</th>
-      <th class="${sortCol==='lab'?'sorted':''}" onclick="setSort('lab')">Labor <span class="sort-icon">${icons.lab}</span></th>
+      <th class="${sortCol==='category'?'sorted':''}" onclick="setSort('category')">Category <span class="sort-icon">${icons.category}</span></th>
+      <th class="${sortCol==='date'?'sorted':''}" onclick="setSort('date')">Date <span class="sort-icon">${icons.date}</span></th>
+      <th class="${sortCol==='value'?'sorted':''}" onclick="setSort('value')">Value <span class="sort-icon">${icons.value}</span></th>
+      <th>Unit</th>
+      <th class="${sortCol==='value_si'?'sorted':''}" onclick="setSort('value_si')">Value SI <span class="sort-icon">${icons.value_si}</span></th>
+      <th>Unit SI</th>
+      <th class="${sortCol==='lab'?'sorted':''}" onclick="setSort('lab')">Lab <span class="sort-icon">${icons.lab}</span></th>
       <th>Status</th>
       <th></th>
     </tr></thead><tbody>`;
@@ -227,7 +227,7 @@ function renderTable() {
     const unitOrig = row.unit || p.unit || '—';
     const unitSi = p.unit_si || '—';
     const [cls, label] = statusLabel(valSi ?? val, p.ref_range_low_si ?? p.ref_range_low, p.ref_range_high_si ?? p.ref_range_high);
-    const date = new Date(row.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
+    const date = new Date(row.measured_at).toLocaleDateString('en-US', { day:'2-digit', month:'short', year:'numeric' });
     html += `<tr id="mrow-${row.id}" data-id="${row.id}">
       <td><strong>${p.name}</strong></td>
       <td>${p.category || '—'}</td>
@@ -239,8 +239,8 @@ function renderTable() {
       <td><input type="text" class="mfield" data-field="lab" value="${esc(row.lab || '')}" placeholder="—" style="width:95px"></td>
       <td><span class="${cls}">${label}</span></td>
       <td style="white-space:nowrap">
-        <button class="msave-btn" onclick="saveMeas('${row.id}')" style="display:none">Speichern</button>
-        <button class="mdel-btn" onclick="deleteMeas('${row.id}')">Löschen</button>
+        <button class="msave-btn" onclick="saveMeas('${row.id}')" style="display:none">Save</button>
+        <button class="mdel-btn" onclick="deleteMeas('${row.id}')">Delete</button>
       </td>
     </tr>`;
   }
@@ -248,9 +248,9 @@ function renderTable() {
 
   document.getElementById('content').innerHTML = html;
   document.getElementById('filterCount').textContent =
-    rows.length === allRows.length ? `${allRows.length} Einträge` : `${rows.length} von ${allRows.length}`;
+    rows.length === allRows.length ? `${allRows.length} entries` : `${rows.length} of ${allRows.length}`;
 
-  // Änderungen je Zeile markieren → Speichern-Button zeigen
+  // Mark changes per row → show Save button
   document.querySelectorAll('.mfield').forEach(inp => {
     const original = inp.value;
     inp.addEventListener('input', () => {
@@ -279,7 +279,7 @@ async function saveMeas(id) {
     if (f === 'value' || f === 'value_si') update[f] = v === '' ? null : parseFloat(v);
     else update[f] = v === '' ? null : v;
   }
-  if (!update.measured_at) { showToast('Datum darf nicht leer sein', true); return; }
+  if (!update.measured_at) { showToast('Date must not be empty', true); return; }
 
   const resp = await fetch(`${SUPABASE_URL}/rest/v1/measurements?id=eq.${id}`, {
     method: 'PATCH',
@@ -289,27 +289,27 @@ async function saveMeas(id) {
   if (resp.ok || resp.status === 204) {
     const r = allRows.find(x => String(x.id) === String(id));
     if (r) Object.assign(r, update);
-    showToast('Gespeichert');
+    showToast('Saved');
     renderTable();
   } else {
-    showToast('Fehler: ' + (await resp.text()), true);
+    showToast('Error: ' + (await resp.text()), true);
   }
 }
 
 async function deleteMeas(id) {
   const row = allRows.find(x => String(x.id) === String(id));
-  const name = row ? row.parameters.name : 'Messung';
-  if (!confirm(`Messung „${name}" wirklich löschen?`)) return;
+  const name = row ? row.parameters.name : 'measurement';
+  if (!confirm(`Really delete measurement "${name}"?`)) return;
   const resp = await fetch(`${SUPABASE_URL}/rest/v1/measurements?id=eq.${id}`, {
     method: 'DELETE',
     headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Prefer': 'return=minimal' },
   });
   if (resp.ok || resp.status === 204) {
     allRows = allRows.filter(x => String(x.id) !== String(id));
-    showToast('Messung gelöscht');
+    showToast('Measurement deleted');
     renderTable();
   } else {
-    showToast('Fehler: ' + (await resp.text()), true);
+    showToast('Error: ' + (await resp.text()), true);
   }
 }
 
