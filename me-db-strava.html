@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -83,70 +83,70 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <body>
 
 <header>
-  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><a href="me-db-sports.html" style="color:#7ec8e3;text-decoration:none">Sport</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Strava</span></h1>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><a href="me-db-sports.html" style="color:#7ec8e3;text-decoration:none">Sports</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Strava</span></h1>
   <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
 <div class="subnav">
-  <a href="me-db-sports.html">Sport-Dashboard</a>
+  <a href="me-db-sports.html">Sports Dashboard</a>
   <a href="me-db-strava.html" class="active">Strava</a>
-  <a href="me-db-activities.html">Aktivitäten</a>
+  <a href="me-db-activities.html">Activities</a>
 </div>
 
 
 <div class="container">
 
   <div class="card" id="dbStatsCard">
-    <h2>Supabase Datenbank</h2>
+    <h2>Supabase Database</h2>
     <div class="stats" id="dbStats" style="display:flex">
-      <div class="stat"><div class="n" id="dbCount">…</div><div class="l">Aktivitäten</div></div>
-      <div class="stat"><div class="n" id="dbLatest">…</div><div class="l">Neueste</div></div>
-      <div class="stat"><div class="n" id="dbOldest">…</div><div class="l">Älteste</div></div>
+      <div class="stat"><div class="n" id="dbCount">…</div><div class="l">Activities</div></div>
+      <div class="stat"><div class="n" id="dbLatest">…</div><div class="l">Newest</div></div>
+      <div class="stat"><div class="n" id="dbOldest">…</div><div class="l">Oldest</div></div>
     </div>
   </div>
 
   <div class="card">
-    <h2><span class="strava-logo">STRAVA</span> &nbsp;Verbindung</h2>
+    <h2><span class="strava-logo">STRAVA</span> &nbsp;Connection</h2>
     <div id="statusRow" class="status-row disconnected">
       <div class="dot"></div>
-      <span id="statusText">Nicht verbunden</span>
+      <span id="statusText">Not connected</span>
     </div>
     <div id="btnConnect">
-      <button class="btn btn-strava" onclick="authorize()">Mit Strava verbinden</button>
+      <button class="btn btn-strava" onclick="authorize()">Connect with Strava</button>
     </div>
     <div id="btnImport" style="display:none">
-      <button class="btn btn-sync" id="syncBtn" onclick="startImport(false)">Neue Aktivitäten holen</button>
-      <button class="btn btn-import" id="fullBtn" onclick="startImport(true)">Alles neu importieren</button>
-      <button class="btn btn-secondary" onclick="authorize()">Neu autorisieren</button>
+      <button class="btn btn-sync" id="syncBtn" onclick="startImport(false)">Fetch new activities</button>
+      <button class="btn btn-import" id="fullBtn" onclick="startImport(true)">Re-import everything</button>
+      <button class="btn btn-secondary" onclick="authorize()">Re-authorize</button>
       <div class="last-import" id="lastImport"></div>
     </div>
   </div>
@@ -155,9 +155,9 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <h2>Import Status</h2>
     <div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
     <div class="stats" id="stats">
-      <div class="stat"><div class="n" id="statTotal">0</div><div class="l">Gesamt</div></div>
-      <div class="stat"><div class="n" id="statNew">0</div><div class="l">Neu / Aktualisiert</div></div>
-      <div class="stat"><div class="n" id="statPages">0</div><div class="l">Seiten geladen</div></div>
+      <div class="stat"><div class="n" id="statTotal">0</div><div class="l">Total</div></div>
+      <div class="stat"><div class="n" id="statNew">0</div><div class="l">New / Updated</div></div>
+      <div class="stat"><div class="n" id="statPages">0</div><div class="l">Pages loaded</div></div>
     </div>
     <div class="log" id="log"></div>
   </div>
@@ -187,9 +187,9 @@ async function loadDbStats() {
   ]);
   document.getElementById('dbCount').textContent = countRes.count ?? '—';
   document.getElementById('dbLatest').textContent = latestRes.data?.[0]?.date
-    ? new Date(latestRes.data[0].date).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+    ? new Date(latestRes.data[0].date).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—';
   document.getElementById('dbOldest').textContent = oldestRes.data?.[0]?.date
-    ? new Date(oldestRes.data[0].date).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+    ? new Date(oldestRes.data[0].date).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—';
 }
 
 async function logout() {
@@ -207,11 +207,11 @@ function addLog(msg, cls = 'info') {
 function setConnected(name) {
   const row = document.getElementById('statusRow');
   row.className = 'status-row connected';
-  document.getElementById('statusText').textContent = `Verbunden als ${name}`;
+  document.getElementById('statusText').textContent = `Connected as ${name}`;
   document.getElementById('btnConnect').style.display = 'none';
   document.getElementById('btnImport').style.display = 'block';
   const last = localStorage.getItem('strava_last_import');
-  if (last) document.getElementById('lastImport').textContent = 'Letzter Import: ' + new Date(last).toLocaleString('de-DE');
+  if (last) document.getElementById('lastImport').textContent = 'Last import: ' + new Date(last).toLocaleString('en-GB');
 }
 
 function authorize() {
@@ -220,7 +220,7 @@ function authorize() {
 }
 
 async function exchangeCode(code) {
-  addLog('Autorisiere mit Strava...');
+  addLog('Authorizing with Strava...');
   const r = await fetch('https://www.strava.com/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -232,10 +232,10 @@ async function exchangeCode(code) {
     localStorage.setItem('strava_access_token', accessToken);
     localStorage.setItem('strava_refresh_token', data.refresh_token);
     localStorage.setItem('strava_athlete', `${data.athlete?.firstname} ${data.athlete?.lastname}`);
-    addLog(`Verbunden als ${data.athlete?.firstname} ${data.athlete?.lastname}`, 'ok');
+    addLog(`Connected as ${data.athlete?.firstname} ${data.athlete?.lastname}`, 'ok');
     setConnected(`${data.athlete?.firstname} ${data.athlete?.lastname}`);
   } else {
-    addLog('Fehler: ' + JSON.stringify(data), 'err');
+    addLog('Error: ' + JSON.stringify(data), 'err');
   }
 }
 
@@ -262,7 +262,7 @@ async function fetchPage(page, after = null) {
   if (after) url += `&after=${after}`;
   const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + accessToken } });
   if (r.status === 401) {
-    addLog('Token erneuern...', 'info');
+    addLog('Refreshing token...', 'info');
     await ensureFreshToken();
     return fetchPage(page, after);
   }
@@ -279,17 +279,17 @@ async function startImport(fullImport) {
   const logDiv = document.getElementById('log');
   logDiv.innerHTML = '';
 
-  // Für "Nur Neue": after = Timestamp der letzten Aktivität in DB
+  // For "New only": after = timestamp of latest activity in DB
   let after = null;
   if (!fullImport) {
     const { data } = await db.from('activities').select('date').order('date', { ascending: false }).limit(1);
     if (data?.[0]?.date) {
       after = Math.floor(new Date(data[0].date).getTime() / 1000);
-      addLog(`Sync ab: ${data[0].date}`, 'info');
+      addLog(`Sync from: ${data[0].date}`, 'info');
     }
   }
 
-  addLog(fullImport ? 'Vollständiger Import gestartet...' : 'Sync neuer Aktivitäten...');
+  addLog(fullImport ? 'Full import started...' : 'Syncing new activities...');
 
   let page = 1, allActivities = [], pages = 0;
   while (true) {
@@ -298,19 +298,19 @@ async function startImport(fullImport) {
     allActivities = allActivities.concat(acts);
     pages++;
     document.getElementById('statPages').textContent = pages;
-    addLog(`Seite ${page}: ${acts.length} Aktivitäten (gesamt: ${allActivities.length})`);
+    addLog(`Page ${page}: ${acts.length} activities (total: ${allActivities.length})`);
     if (acts.length < 100) break;
     page++;
   }
 
   if (allActivities.length === 0) {
-    addLog('Keine neuen Aktivitäten gefunden.', 'ok');
+    addLog('No new activities found.', 'ok');
     document.getElementById('syncBtn').disabled = false;
     document.getElementById('fullBtn').disabled = false;
     return;
   }
 
-  addLog(`${allActivities.length} Aktivitäten geholt — schreibe in Supabase...`, 'ok');
+  addLog(`${allActivities.length} activities fetched — writing to Supabase...`, 'ok');
 
   const rows = allActivities.map(a => ({
     strava_id: a.id,
@@ -331,10 +331,10 @@ async function startImport(fullImport) {
     const batch = rows.slice(i, i + batchSize);
     const { error } = await db.from('activities').upsert(batch, { onConflict: 'strava_id' });
     if (error) {
-      addLog(`Fehler Batch ${Math.floor(i/batchSize)+1}: ${error.message}`, 'err');
+      addLog(`Error batch ${Math.floor(i/batchSize)+1}: ${error.message}`, 'err');
     } else {
       total += batch.length;
-      addLog(`Batch ${Math.floor(i/batchSize)+1}: ${batch.length} Zeilen ✓`, 'ok');
+      addLog(`Batch ${Math.floor(i/batchSize)+1}: ${batch.length} rows ✓`, 'ok');
     }
     document.getElementById('statTotal').textContent = total;
     document.getElementById('statNew').textContent = total;
@@ -343,8 +343,8 @@ async function startImport(fullImport) {
 
   const now = new Date().toISOString();
   localStorage.setItem('strava_last_import', now);
-  document.getElementById('lastImport').textContent = 'Letzter Import: ' + new Date(now).toLocaleString('de-DE');
-  addLog(`Fertig! ${total} Aktivitäten in Supabase gespeichert.`, 'ok');
+  document.getElementById('lastImport').textContent = 'Last import: ' + new Date(now).toLocaleString('en-GB');
+  addLog(`Done! ${total} activities saved to Supabase.`, 'ok');
   document.getElementById('syncBtn').disabled = false;
   document.getElementById('fullBtn').disabled = false;
 }
