@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -73,7 +73,7 @@ nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop:hover .navdrop-menu { display: block; }
 .navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
 .navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
-/* === Hamburger-Navigation (immer aktiv) === */
+/* === Hamburger navigation (always active) === */
 .hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
 .global-voice-btn { width: 38px; height: 38px; border-radius: 50%; background: #c62828; color: white; border: none; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; text-decoration: none; flex-shrink: 0; }
 .global-voice-btn:hover { background: #a91e1e; }
@@ -112,31 +112,31 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
@@ -145,64 +145,64 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
     <a class="tile" href="me-db-lab-dashboard.html">
       <div class="icon">🧪</div>
-      <div class="title">Lab-Dashboard</div>
-      <div class="desc">Laborwerte, Vitamine, Hormone &amp; Blutbild im Überblick</div>
+      <div class="title">Lab Dashboard</div>
+      <div class="desc">Lab values, vitamins, hormones &amp; blood count at a glance</div>
       <div id="labStat">…</div>
     </a>
 
     <a class="tile" href="me-db-supplements.html">
       <div class="icon">💊</div>
-      <div class="title">Supplementplan</div>
-      <div class="desc">Mengen, Zeiten &amp; Kosten im Blick</div>
+      <div class="title">Supplement Plan</div>
+      <div class="desc">Amounts, timing &amp; costs at a glance</div>
       <div id="suppStat">…</div>
     </a>
 
     <a class="tile" href="me-db-hrv.html">
       <div class="icon">💓</div>
       <div class="title">HRV</div>
-      <div class="desc">Herzratenvariabilität via Polar H10</div>
+      <div class="desc">Heart rate variability via Polar H10</div>
       <div id="hrvStat">…</div>
     </a>
 
     <a class="tile" href="me-db-sports.html">
       <div class="icon">🏃</div>
-      <div class="title">Sport-Dashboard</div>
-      <div class="desc">Aktivität der letzten 4 Wochen</div>
+      <div class="title">Sports Dashboard</div>
+      <div class="desc">Activity over the last 4 weeks</div>
       <div id="sportStat"><div class="stat"><span class="n">…</span></div></div>
     </a>
 
     <a class="tile" href="me-db-tasks.html">
       <div class="icon">✅</div>
-      <div class="title">Task-Dashboard</div>
-      <div class="desc">Aufgaben &amp; To-dos, von Claude verwaltet</div>
+      <div class="title">Task Dashboard</div>
+      <div class="desc">Tasks &amp; to-dos, managed by Claude</div>
       <div id="taskStat">…</div>
     </a>
 
     <a class="tile" href="me-db-einkaufsliste.html">
       <div class="icon">🛒</div>
-      <div class="title">Einkaufsliste</div>
-      <div class="desc">Produkte &amp; Läden, nach Shop sortiert</div>
+      <div class="title">Shopping List</div>
+      <div class="desc">Products &amp; stores, sorted by shop</div>
       <div id="shopStat">…</div>
     </a>
 
     <a class="tile" href="me-db-abos.html">
       <div class="icon">💳</div>
-      <div class="title">Abos</div>
-      <div class="desc">Alle Abonnements im Überblick</div>
+      <div class="title">Subscriptions</div>
+      <div class="desc">All subscriptions at a glance</div>
       <div id="abosStat">…</div>
     </a>
 
     <a class="tile" href="me-db-vorsorge.html">
       <div class="icon">🗂️</div>
-      <div class="title">Vorsorgeordner</div>
-      <div class="desc">Notfall-Übersicht für die Kinder</div>
+      <div class="title">Emergency Folder</div>
+      <div class="desc">Emergency overview for the kids</div>
       <div id="vorsorgeStat">…</div>
     </a>
 
     <a class="tile" href="me-db-chat.html">
       <div class="icon">🤖</div>
-      <div class="title">KI Chat</div>
-      <div class="desc">Direkt mit Claude über deine MeDB-Daten sprechen</div>
+      <div class="title">AI Chat</div>
+      <div class="desc">Talk directly to Claude about your MeDB data</div>
     </a>
 
   </div>
@@ -232,7 +232,7 @@ async function loadSportStat() {
     const { data, error } = await db.from('activities')
       .select('date,duration_sec')
       .gte('date', sinceStr);
-    if (error || !data) throw error || new Error('keine Daten');
+    if (error || !data) throw error || new Error('no data');
 
     const cut4w = new Date(today); cut4w.setDate(cut4w.getDate() - 28);
     const cut4wStr = cut4w.toISOString().substring(0,10);
@@ -256,11 +256,11 @@ async function loadSportStat() {
     }
 
     document.getElementById('sportStat').innerHTML = `
-      <div class="stat"><span class="n">${last4wWeeklyAvgH.toFixed(1)}</span><span class="u">Std./Woche</span> ${trendHtml}</div>
-      <div class="trend-label">letzte 4 Wochen · vs. Ø der vorherigen 12 Wochen</div>
+      <div class="stat"><span class="n">${last4wWeeklyAvgH.toFixed(1)}</span><span class="u">hrs/week</span> ${trendHtml}</div>
+      <div class="trend-label">last 4 weeks · vs. avg of previous 12 weeks</div>
     `;
   } catch (e) {
-    document.getElementById('sportStat').innerHTML = `<div class="stat"><span class="n" style="font-size:0.9rem;color:#bbb">keine Daten</span></div>`;
+    document.getElementById('sportStat').innerHTML = `<div class="stat"><span class="n" style="font-size:0.9rem;color:#bbb">no data</span></div>`;
   }
 }
 
@@ -271,9 +271,9 @@ async function loadLabStat() {
       { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
     );
     const data = await resp.json();
-    if (!Array.isArray(data)) throw new Error('keine Daten');
+    if (!Array.isArray(data)) throw new Error('no data');
 
-    // neuester Wert je Parameter
+    // latest value per parameter
     const latest = {};
     for (const row of data) {
       const id = row.parameters?.id;
@@ -305,7 +305,7 @@ async function loadLabStat() {
       const p = worst.parameters;
       const val = worst.value_si ?? worst.value;
       const unit = p.unit_si || worst.unit || '';
-      const label = worstDir === 'high' ? '⚠ Zu hoch' : '⚠ Zu niedrig';
+      const label = worstDir === 'high' ? '⚠ Too high' : '⚠ Too low';
       const labLine = worst.lab ? ` · ${worst.lab}` : '';
       document.getElementById('labStat').innerHTML = `
         <div class="alert-box ${worstDir}">
@@ -314,7 +314,7 @@ async function loadLabStat() {
           <div class="a-val">${val} ${unit}${labLine}</div>
         </div>`;
     } else {
-      document.getElementById('labStat').innerHTML = `<div class="all-ok">✓ Alle Werte im Bereich</div>`;
+      document.getElementById('labStat').innerHTML = `<div class="all-ok">✓ All values in range</div>`;
     }
   } catch (e) {
     document.getElementById('labStat').innerHTML = '';
@@ -335,14 +335,14 @@ async function loadTaskStat() {
 
     if (due > 0) {
       document.getElementById('taskStat').innerHTML = `
-        <div class="task-stat"><span class="n due">${due}</span><span class="u">${due === 1 ? 'Task fällig' : 'Tasks fällig'}</span></div>
-        <div class="task-sub">${total} offen insgesamt</div>`;
+        <div class="task-stat"><span class="n due">${due}</span><span class="u">${due === 1 ? 'task due' : 'tasks due'}</span></div>
+        <div class="task-sub">${total} open in total</div>`;
     } else if (total > 0) {
       document.getElementById('taskStat').innerHTML = `
-        <div class="task-stat"><span class="n">${total}</span><span class="u">${total === 1 ? 'Task offen' : 'Tasks offen'}</span></div>
-        <div class="task-sub">nichts fällig</div>`;
+        <div class="task-stat"><span class="n">${total}</span><span class="u">${total === 1 ? 'task open' : 'tasks open'}</span></div>
+        <div class="task-sub">nothing due</div>`;
     } else {
-      document.getElementById('taskStat').innerHTML = `<div class="task-none">✓ Keine offenen Tasks</div>`;
+      document.getElementById('taskStat').innerHTML = `<div class="task-none">✓ No open tasks</div>`;
     }
   } catch (e) {
     document.getElementById('taskStat').innerHTML = '';
@@ -359,10 +359,10 @@ async function loadShopStat() {
     if (total > 0) {
       const shopCount = new Set(open.map(i => i.shop_id).filter(Boolean)).size;
       document.getElementById('shopStat').innerHTML = `
-        <div class="shop-stat"><span class="n">${total}</span><span class="u">${total === 1 ? 'Artikel offen' : 'Artikel offen'}</span></div>
-        <div class="shop-sub">${shopCount} ${shopCount === 1 ? 'Shop' : 'Shops'}</div>`;
+        <div class="shop-stat"><span class="n">${total}</span><span class="u">${total === 1 ? 'item open' : 'items open'}</span></div>
+        <div class="shop-sub">${shopCount} ${shopCount === 1 ? 'shop' : 'shops'}</div>`;
     } else {
-      document.getElementById('shopStat').innerHTML = `<div class="shop-none">✓ Liste leer</div>`;
+      document.getElementById('shopStat').innerHTML = `<div class="shop-none">✓ List empty</div>`;
     }
   } catch (e) {
     document.getElementById('shopStat').innerHTML = '';
@@ -376,12 +376,12 @@ async function loadHrvStat() {
     if (error) throw error;
     if (data && data.length) {
       const r = data[0];
-      const date = new Date(r.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short' });
+      const date = new Date(r.measured_at).toLocaleDateString('en-US', { day:'2-digit', month:'short' });
       document.getElementById('hrvStat').innerHTML = `
         <div class="hrv-stat"><span class="n">${r.rmssd ?? '–'}</span><span class="u">ms RMSSD (HRV)</span></div>
-        <div class="hrv-sub">letzte Messung ${date}</div>`;
+        <div class="hrv-sub">last measurement ${date}</div>`;
     } else {
-      document.getElementById('hrvStat').innerHTML = `<div class="hrv-none">Noch keine Messung</div>`;
+      document.getElementById('hrvStat').innerHTML = `<div class="hrv-none">No measurement yet</div>`;
     }
   } catch (e) {
     document.getElementById('hrvStat').innerHTML = '';
@@ -402,8 +402,8 @@ async function loadAbosStat() {
       return sum;
     }, 0);
     document.getElementById('abosStat').innerHTML = `
-      <div class="abos-stat"><span class="n">${monthly.toFixed(0)}</span><span class="u">€/Monat</span></div>
-      <div class="abos-sub">${active.length} aktiv${checkCount ? ' · ' + checkCount + ' zu prüfen' : ''}</div>`;
+      <div class="abos-stat"><span class="n">${monthly.toFixed(0)}</span><span class="u">€/month</span></div>
+      <div class="abos-sub">${active.length} active${checkCount ? ' · ' + checkCount + ' to review' : ''}</div>`;
   } catch (e) {
     document.getElementById('abosStat').innerHTML = '';
   }
@@ -420,8 +420,8 @@ async function loadSuppStat() {
       if (pp && pa && da) total += (pp/pa)*da;
     }
     document.getElementById('suppStat').innerHTML = `
-      <div class="supp-stat"><span class="n">${total.toFixed(2)}</span><span class="u">€/Tag</span></div>
-      <div class="supp-sub">${active.length} aktiv</div>`;
+      <div class="supp-stat"><span class="n">${total.toFixed(2)}</span><span class="u">€/day</span></div>
+      <div class="supp-sub">${active.length} active</div>`;
   } catch (e) {
     document.getElementById('suppStat').innerHTML = '';
   }
@@ -432,8 +432,8 @@ async function loadVorsorgeStat() {
     const { count, error } = await db.from('vorsorge_items').select('id', { count: 'exact', head: true });
     if (error) throw error;
     document.getElementById('vorsorgeStat').innerHTML = count
-      ? `<div class="vor-stat">${count} Einträge</div>`
-      : `<div class="vor-stat">Noch leer</div>`;
+      ? `<div class="vor-stat">${count} entries</div>`
+      : `<div class="vor-stat">Still empty</div>`;
   } catch (e) {
     document.getElementById('vorsorgeStat').innerHTML = '';
   }
