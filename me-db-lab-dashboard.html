@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -72,50 +72,50 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <header>
   <div>
     <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Lab</span></h1>
-    <span id="lastUpdate">Lädt...</span>
+    <span id="lastUpdate">Loading...</span>
   </div>
   <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
 <div class="subnav">
-  <a href="me-db-lab-dashboard.html" class="active">Lab-Dashboard</a>
-  <a href="me-db-measurements.html">Messungen</a>
+  <a href="me-db-lab-dashboard.html" class="active">Lab Dashboard</a>
+  <a href="me-db-measurements.html">Measurements</a>
   <a href="me-db-trend.html">Trend</a>
-  <a href="me-db-parameters.html">Parameter</a>
+  <a href="me-db-parameters.html">Parameters</a>
 </div>
 
 
 <div class="container">
-  <div id="content"><div class="loading">Daten werden geladen...</div></div>
+  <div id="content"><div class="loading">Loading data...</div></div>
 </div>
 
 <script>
@@ -143,15 +143,15 @@ async function loadData() {
     if (!Array.isArray(data)) throw new Error(JSON.stringify(data));
     render(data);
   } catch(e) {
-    document.getElementById('content').innerHTML = `<div class="error">Fehler beim Laden: ${e.message}</div>`;
+    document.getElementById('content').innerHTML = `<div class="error">Error loading: ${e.message}</div>`;
   }
 }
 
 function statusLabel(val, low, high) {
   if (val === null || val === undefined) return ['na', '—'];
-  if (low !== null && low !== undefined && val < low) return ['low', 'Zu niedrig'];
-  if (high !== null && high !== undefined && val > high) return ['high', 'Zu hoch'];
-  return ['ok', 'Im Bereich'];
+  if (low !== null && low !== undefined && val < low) return ['low', 'Too low'];
+  if (high !== null && high !== undefined && val > high) return ['high', 'Too high'];
+  return ['ok', 'In range'];
 }
 
 function render(data) {
@@ -163,7 +163,7 @@ function render(data) {
 
   const byCategory = {};
   for (const [name, row] of Object.entries(latest)) {
-    const cat = row.parameters.category || 'Sonstige';
+    const cat = row.parameters.category || 'Other';
     if (!byCategory[cat]) byCategory[cat] = [];
     byCategory[cat].push({ name, row });
   }
@@ -171,7 +171,7 @@ function render(data) {
   const mainCats = ['Vitamin', 'Mineralstoff', 'Hämoglobin', 'Aminosäurenprofil', 'Stoffwechsel'];
   let html = '';
 
-  // Collect all categories not in mainCats into "Weitere"
+  // Collect all categories not in mainCats into "Other"
   const weitereItems = [];
   for (const [cat, items] of Object.entries(byCategory)) {
     if (!mainCats.includes(cat)) weitereItems.push(...items);
@@ -182,7 +182,7 @@ function render(data) {
   for (const cat of catsToRender) {
     const items = cat === '__weitere__' ? weitereItems : byCategory[cat];
     if (!items || items.length === 0) continue;
-    const label = cat === '__weitere__' ? 'Weitere' : cat;
+    const label = cat === '__weitere__' ? 'Other' : cat;
     html += `<div class="section-title">${label}</div><div class="grid">`;
     for (const { name, row } of items) {
       const p = row.parameters;
@@ -193,10 +193,10 @@ function render(data) {
       const unitOrig = row.unit || p.unit || '';
       const unitSi = p.unit_si || '';
       const [cls, label] = statusLabel(valSi ?? val, p.ref_range_low_si ?? p.ref_range_low, p.ref_range_high_si ?? p.ref_range_high);
-      const date = new Date(row.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
+      const date = new Date(row.measured_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
       const lab = row.lab ? ` · ${row.lab}` : '';
       html += `
-        <div class="card" onclick="window.location='me-db-trend.html?param=${p.id}'" style="cursor:pointer" title="Trend anzeigen">
+        <div class="card" onclick="window.location='me-db-trend.html?param=${p.id}'" style="cursor:pointer" title="View trend">
           <div class="param">${name}</div>
           <div><span class="value">${displaySi ?? display}</span><span class="unit">${unitSi || unitOrig}</span></div>
           ${unitSi && unitSi !== unitOrig ? `<div style="font-size:0.75rem;color:#bbb">${display} ${unitOrig}</div>` : ''}
@@ -208,7 +208,7 @@ function render(data) {
   }
 
   document.getElementById('content').innerHTML = html;
-  document.getElementById('lastUpdate').textContent = `${Object.keys(latest).length} Parameter · Stand: ${new Date().toLocaleDateString('de-DE')}`;
+  document.getElementById('lastUpdate').textContent = `${Object.keys(latest).length} Parameters · As of: ${new Date().toLocaleDateString('en-GB')}`;
 }
 </script>
 </body>
