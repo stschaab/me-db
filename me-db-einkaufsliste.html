@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MeDB &middot; Einkaufsliste</title>
+<title>MeDB &middot; Shopping List</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -61,7 +61,7 @@
   .empty { text-align: center; padding: 50px; color: #aaa; }
   .loading { text-align: center; padding: 60px; color: #aaa; }
 
-  /* Verwalten-Panel */
+  /* Manage panel */
   .panel { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-top: 18px; }
   .panel h3 { font-size: 0.95rem; margin-bottom: 10px; }
   .panel.hidden { display: none; }
@@ -104,36 +104,36 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <body>
 
 <header>
-  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Einkauf</span></h1>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Shopping</span></h1>
   <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
@@ -141,12 +141,12 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
   <div class="addbar">
     <div class="addrow">
-      <input type="text" id="prodInput" placeholder="Produkt tippen…" autocomplete="off"
+      <input type="text" id="prodInput" placeholder="Type a product…" autocomplete="off"
         oninput="onType()" onkeydown="onKey(event)">
-      <input type="text" id="qtyInput" placeholder="Menge" style="max-width:90px">
+      <input type="text" id="qtyInput" placeholder="Quantity" style="max-width:90px">
       <select id="shopSelect"><option value="">Shop…</option></select>
-      <button class="voicebtn" id="voiceBtn" onclick="toggleVoice()" title="Per Sprache hinzufügen">🎤</button>
-      <button class="add" onclick="addItem()">+ Auf Liste</button>
+      <button class="voicebtn" id="voiceBtn" onclick="toggleVoice()" title="Add by voice">🎤</button>
+      <button class="add" onclick="addItem()">+ Add to list</button>
     </div>
     <div class="ac" id="ac"></div>
   </div>
@@ -155,30 +155,30 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <div id="shopChips"></div>
     <div class="right">
       <button class="linkbtn" onclick="togglePanel('shopPanel')">Shops</button>
-      <button class="linkbtn" onclick="togglePanel('prodPanel')">Produkte</button>
-      <button class="linkbtn" onclick="clearChecked()">Erledigte entfernen</button>
+      <button class="linkbtn" onclick="togglePanel('prodPanel')">Products</button>
+      <button class="linkbtn" onclick="clearChecked()">Remove checked</button>
     </div>
   </div>
 
-  <div id="content"><div class="loading">Lade Einkaufsliste…</div></div>
+  <div id="content"><div class="loading">Loading shopping list…</div></div>
 
-  <!-- Shop-Verwaltung -->
+  <!-- Shop management -->
   <div class="panel hidden" id="shopPanel">
-    <h3>Shops verwalten</h3>
+    <h3>Manage shops</h3>
     <div class="mini-add">
-      <input type="text" id="newShop" placeholder="Neuer Shop (z.B. Rewe)" onkeydown="if(event.key==='Enter')addShop()">
+      <input type="text" id="newShop" placeholder="New shop (e.g. Rewe)" onkeydown="if(event.key==='Enter')addShop()">
       <button onclick="addShop()">+ Shop</button>
     </div>
     <div id="shopList"></div>
   </div>
 
-  <!-- Produkt-Verwaltung -->
+  <!-- Product management -->
   <div class="panel hidden" id="prodPanel">
-    <h3>Produkte verwalten</h3>
+    <h3>Manage products</h3>
     <div class="mini-add">
-      <input type="text" id="newProd" placeholder="Neues Produkt (z.B. Brot)">
-      <select id="newProdShop"><option value="">Default-Shop…</option></select>
-      <button onclick="addProductFromPanel()">+ Produkt</button>
+      <input type="text" id="newProd" placeholder="New product (e.g. Bread)">
+      <select id="newProdShop"><option value="">Default shop…</option></select>
+      <button onclick="addProductFromPanel()">+ Product</button>
     </div>
     <div id="prodList"></div>
   </div>
@@ -186,7 +186,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 </div>
 
 <div class="toast" id="toast"></div>
-<div class="voice-status" id="voiceStatus"><span class="voice-dot"></span><span id="voiceStatusText">Höre zu…</span></div>
+<div class="voice-status" id="voiceStatus"><span class="voice-dot"></span><span id="voiceStatusText">Listening…</span></div>
 
 <script>
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
@@ -228,7 +228,7 @@ async function checkVoicePrefill() {
       added.push(prod.name);
     }
     renderChips(); render();
-    showToast(added.length ? added.join(', ') + ' hinzugefügt' : 'Nichts hinzugefügt');
+    showToast(added.length ? added.join(', ') + ' added' : 'Nothing added');
   } catch {}
 }
 
@@ -272,7 +272,7 @@ function onType() {
        <span>${esc(p.name)}</span><span class="sh">${esc(shopName(p.default_shop_id))}</span>
      </div>`).join('');
   const exact = products.some(p => p.name.toLowerCase() === q);
-  if (!exact) html += `<div class="ac-item ac-new" onclick="addItem()">+ „${esc(document.getElementById('prodInput').value.trim())}" neu anlegen &amp; aufnehmen</div>`;
+  if (!exact) html += `<div class="ac-item ac-new" onclick="addItem()">+ Create &amp; add "${esc(document.getElementById('prodInput').value.trim())}"</div>`;
   ac.innerHTML = html;
   ac.classList.add('open');
 }
@@ -305,7 +305,7 @@ async function ensureProduct(name, shopId) {
   if (existing) return existing;
   const { data, error } = await db.from('products')
     .insert({ user_id: userId, name, default_shop_id: shopId || null }).select();
-  if (error) { showToast('Fehler: ' + error.message); return null; }
+  if (error) { showToast('Error: ' + error.message); return null; }
   products.push(data[0]); products.sort((a,b)=>a.name.localeCompare(b.name));
   renderProdPanel();
   return data[0];
@@ -324,7 +324,7 @@ async function addItem() {
   const { data, error } = await db.from('shopping_items')
     .insert({ user_id: userId, product_id: prod.id, shop_id: shopId, qty, checked: false })
     .select('*, products(id,name,default_shop_id)');
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   items.push(data[0]);
 
   document.getElementById('prodInput').value = '';
@@ -333,7 +333,7 @@ async function addItem() {
   document.getElementById('ac').classList.remove('open');
   document.getElementById('prodInput').focus();
   renderChips(); render();
-  showToast(prod.name + ' aufgenommen');
+  showToast(prod.name + ' added');
 }
 
 async function addProductToList(pid) {
@@ -341,49 +341,49 @@ async function addProductToList(pid) {
   const { data, error } = await db.from('shopping_items')
     .insert({ user_id: userId, product_id: p.id, shop_id: p.default_shop_id || null, checked: false })
     .select('*, products(id,name,default_shop_id)');
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   items.push(data[0]);
   renderChips(); render();
-  showToast(p.name + ' aufgenommen');
+  showToast(p.name + ' added');
 }
 
 async function toggleChecked(id, cur) {
   const { error } = await db.from('shopping_items').update({ checked: !cur }).eq('id', id);
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   const it = items.find(i=>i.id===id); if (it) it.checked = !cur;
   render();
 }
 
 async function deleteItem(id) {
   const { error } = await db.from('shopping_items').delete().eq('id', id);
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   items = items.filter(i=>i.id!==id);
   renderChips(); render();
 }
 
 async function changeItemShop(id, shopId) {
   const { error } = await db.from('shopping_items').update({ shop_id: shopId || null }).eq('id', id);
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   const it = items.find(i=>i.id===id); if (it) it.shop_id = shopId ? +shopId : null;
   renderChips(); render();
 }
 
 async function clearChecked() {
   const ids = items.filter(i=>i.checked).map(i=>i.id);
-  if (!ids.length) { showToast('Nichts erledigt'); return; }
+  if (!ids.length) { showToast('Nothing checked off'); return; }
   const { error } = await db.from('shopping_items').delete().in('id', ids);
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   items = items.filter(i=>!i.checked);
   renderChips(); render();
-  showToast(ids.length + ' entfernt');
+  showToast(ids.length + ' removed');
 }
 
-/* ---------- Filter-Chips ---------- */
+/* ---------- Filter chips ---------- */
 function renderChips() {
   const counts = {};
   for (const it of items) { if (it.checked) continue; const k = it.shop_id||'_'; counts[k]=(counts[k]||0)+1; }
   const openTotal = items.filter(i=>!i.checked).length;
-  let html = `<button class="chip ${activeShop===''?'active':''}" onclick="setShop('')">Alle (${openTotal})</button>`;
+  let html = `<button class="chip ${activeShop===''?'active':''}" onclick="setShop('')">All (${openTotal})</button>`;
   for (const s of shops) {
     const c = counts[s.id]||0;
     html += `<button class="chip ${activeShop==String(s.id)?'active':''}" onclick="setShop('${s.id}')">${esc(s.name)} (${c})</button>`;
@@ -392,17 +392,17 @@ function renderChips() {
 }
 function setShop(id){ activeShop = id; renderChips(); render(); }
 
-/* ---------- Liste rendern ---------- */
+/* ---------- Render list ---------- */
 function render() {
   const open = items.filter(i => !i.checked && (activeShop==='' || String(i.shop_id)===activeShop));
   const done = items.filter(i => i.checked && (activeShop==='' || String(i.shop_id)===activeShop));
 
   if (open.length === 0 && done.length === 0) {
-    document.getElementById('content').innerHTML = '<div class="empty">Liste ist leer. Tippe oben ein Produkt ein.</div>';
+    document.getElementById('content').innerHTML = '<div class="empty">List is empty. Type a product above.</div>';
     return;
   }
 
-  // gruppieren nach shop (sortiert)
+  // group by shop (sorted)
   const order = shops.map(s=>s.id);
   const groups = {};
   for (const it of open) { const k = it.shop_id||'_'; (groups[k]=groups[k]||[]).push(it); }
@@ -413,13 +413,13 @@ function render() {
 
   let html = '';
   for (const k of keys) {
-    const label = k==='_' ? 'Ohne Shop' : shopName(+k);
+    const label = k==='_' ? 'No shop' : shopName(+k);
     html += `<div class="shopgroup"><div class="shop-h"><span class="shop-dot"></span>${esc(label)}</div>`;
     for (const it of groups[k]) html += itemRow(it);
     html += `</div>`;
   }
   if (done.length) {
-    html += `<div class="shopgroup"><div class="shop-h" style="color:#bbb"><span class="shop-dot" style="background:#ccc"></span>Erledigt (${done.length})</div>`;
+    html += `<div class="shopgroup"><div class="shop-h" style="color:#bbb"><span class="shop-dot" style="background:#ccc"></span>Done (${done.length})</div>`;
     for (const it of done) html += itemRow(it);
     html += `</div>`;
   }
@@ -427,7 +427,7 @@ function render() {
 }
 
 function itemRow(it) {
-  const name = it.products ? it.products.name : '(gelöscht)';
+  const name = it.products ? it.products.name : '(deleted)';
   const shopOpts = '<option value="">– Shop –</option>' + shops.map(s=>`<option value="${s.id}" ${it.shop_id===s.id?'selected':''}>${esc(s.name)}</option>`).join('');
   return `
     <div class="item ${it.checked?'checked':''}">
@@ -437,7 +437,7 @@ function itemRow(it) {
         ${it.qty?`<div class="i-qty">${esc(it.qty)}</div>`:''}
       </div>
       <select class="i-shop" onchange="changeItemShop(${it.id}, this.value)">${shopOpts}</select>
-      <button class="icon-btn" onclick="deleteItem(${it.id})" title="Entfernen">🗑</button>
+      <button class="icon-btn" onclick="deleteItem(${it.id})" title="Remove">🗑</button>
     </div>`;
 }
 
@@ -447,38 +447,38 @@ function togglePanel(id){ document.getElementById(id).classList.toggle('hidden')
 function renderShopPanel() {
   document.getElementById('shopList').innerHTML = shops.map(s=>`
     <div class="mrow"><span class="grow">${esc(s.name)}</span>
-      <button class="tabbtn" onclick="deleteShop(${s.id})" title="Löschen">🗑</button>
-    </div>`).join('') || '<div style="color:#aaa;font-size:0.85rem">Noch keine Shops</div>';
+      <button class="tabbtn" onclick="deleteShop(${s.id})" title="Delete">🗑</button>
+    </div>`).join('') || '<div style="color:#aaa;font-size:0.85rem">No shops yet</div>';
 }
 async function addShop() {
   const name = document.getElementById('newShop').value.trim();
   if (!name) return;
   const maxOrder = shops.reduce((m,s)=>Math.max(m, s.sort_order||0), 0);
   const { data, error } = await db.from('shops').insert({ user_id:userId, name, sort_order:maxOrder+1 }).select();
-  if (error) { showToast('Fehler: '+error.message); return; }
+  if (error) { showToast('Error: '+error.message); return; }
   shops.push(data[0]);
   document.getElementById('newShop').value='';
   fillShopSelects(); renderChips(); renderShopPanel(); renderProdPanel();
-  showToast('Shop angelegt');
+  showToast('Shop created');
 }
 async function deleteShop(id) {
-  if (!confirm('Shop löschen? Produkte/Einträge behalten den Eintrag, verlieren nur die Zuordnung.')) return;
+  if (!confirm('Delete shop? Products/entries keep their entry, they just lose the assignment.')) return;
   const { error } = await db.from('shops').delete().eq('id', id);
-  if (error) { showToast('Fehler: '+error.message); return; }
+  if (error) { showToast('Error: '+error.message); return; }
   shops = shops.filter(s=>s.id!==id);
   fillShopSelects(); await loadAll();
-  showToast('Shop gelöscht');
+  showToast('Shop deleted');
 }
 
 function renderProdPanel() {
-  if (!products.length) { document.getElementById('prodList').innerHTML = '<div style="color:#aaa;font-size:0.85rem">Noch keine Produkte</div>'; return; }
+  if (!products.length) { document.getElementById('prodList').innerHTML = '<div style="color:#aaa;font-size:0.85rem">No products yet</div>'; return; }
   document.getElementById('prodList').innerHTML = products.map(p=>{
-    const opts = '<option value="">– Default-Shop –</option>' + shops.map(s=>`<option value="${s.id}" ${p.default_shop_id===s.id?'selected':''}>${esc(s.name)}</option>`).join('');
+    const opts = '<option value="">– Default shop –</option>' + shops.map(s=>`<option value="${s.id}" ${p.default_shop_id===s.id?'selected':''}>${esc(s.name)}</option>`).join('');
     return `<div class="mrow">
       <span class="grow">${esc(p.name)}</span>
       <select onchange="setProdShop(${p.id}, this.value)">${opts}</select>
-      <button class="tabbtn" onclick="addProductToList(${p.id})" title="Auf Liste">🛒</button>
-      <button class="tabbtn" onclick="deleteProduct(${p.id})" title="Löschen">🗑</button>
+      <button class="tabbtn" onclick="addProductToList(${p.id})" title="Add to list">🛒</button>
+      <button class="tabbtn" onclick="deleteProduct(${p.id})" title="Delete">🗑</button>
     </div>`;
   }).join('');
 }
@@ -487,25 +487,25 @@ async function addProductFromPanel() {
   if (!name) return;
   const shopId = document.getElementById('newProdShop').value || null;
   const p = await ensureProduct(name, shopId);
-  if (p) { document.getElementById('newProd').value=''; document.getElementById('newProdShop').value=''; showToast('Produkt angelegt'); }
+  if (p) { document.getElementById('newProd').value=''; document.getElementById('newProdShop').value=''; showToast('Product created'); }
 }
 async function setProdShop(id, shopId) {
   const { error } = await db.from('products').update({ default_shop_id: shopId||null }).eq('id', id);
-  if (error) { showToast('Fehler: '+error.message); return; }
+  if (error) { showToast('Error: '+error.message); return; }
   const p = products.find(p=>p.id===id); if (p) p.default_shop_id = shopId? +shopId : null;
-  showToast('Default-Shop gesetzt');
+  showToast('Default shop set');
 }
 async function deleteProduct(id) {
-  if (!confirm('Produkt aus dem Katalog löschen? (offene Listen-Einträge werden mit entfernt)')) return;
+  if (!confirm('Delete product from catalog? (open list entries will be removed too)')) return;
   const { error } = await db.from('products').delete().eq('id', id);
-  if (error) { showToast('Fehler: '+error.message); return; }
+  if (error) { showToast('Error: '+error.message); return; }
   products = products.filter(p=>p.id!==id);
   items = items.filter(i=>i.product_id!==id);
   renderProdPanel(); renderChips(); render();
-  showToast('Produkt gelöscht');
+  showToast('Product deleted');
 }
 
-// Klick außerhalb schließt Autocomplete
+// Click outside closes autocomplete
 document.addEventListener('click', e => {
   if (!e.target.closest('.addbar')) document.getElementById('ac').classList.remove('open');
 });
@@ -530,22 +530,22 @@ function toggleVoice() {
 
   recognition = setupRecognition();
   if (!recognition) {
-    showToast('Spracherkennung nicht verfügbar – bitte Chrome/Edge nutzen');
+    showToast('Speech recognition unavailable – please use Chrome/Edge');
     return;
   }
 
   isListening = true;
   document.getElementById('voiceBtn').classList.add('listening');
   document.getElementById('voiceStatus').classList.add('show');
-  document.getElementById('voiceStatusText').textContent = 'Höre zu…';
+  document.getElementById('voiceStatusText').textContent = 'Listening…';
 
   recognition.onresult = async (event) => {
     const text = event.results[0][0].transcript;
-    document.getElementById('voiceStatusText').textContent = 'Verarbeite: „' + text + '"…';
+    document.getElementById('voiceStatusText').textContent = 'Processing: "' + text + '"…';
     await parseVoiceShopping(text);
   };
   recognition.onerror = (event) => {
-    showToast('Fehler bei Spracherkennung: ' + event.error);
+    showToast('Speech recognition error: ' + event.error);
     stopVoiceUI();
   };
   recognition.onend = () => { stopVoiceUI(); };
@@ -568,7 +568,7 @@ async function parseVoiceShopping(text) {
     });
     const data = await resp.json();
     stopVoiceUI();
-    if (!data.success) { showToast('Konnte nichts erkennen: ' + (data.error||'')); return; }
+    if (!data.success) { showToast('Could not recognize anything: ' + (data.error||'')); return; }
 
     let added = [];
     for (const item of data.items) {
@@ -577,7 +577,7 @@ async function parseVoiceShopping(text) {
         prod = products.find(p => p.id === item.matched_product_id);
       }
       if (!prod) {
-        // Wirklich neu: Default-Shop bleibt bewusst leer
+        // Genuinely new: default shop intentionally left empty
         prod = await ensureProduct(item.name, null);
       }
       if (!prod) continue;
@@ -586,16 +586,16 @@ async function parseVoiceShopping(text) {
       const { data: insData, error } = await db.from('shopping_items')
         .insert({ user_id: userId, product_id: prod.id, shop_id: shopId, qty: item.quantity || null, checked: false })
         .select('*, products(id,name,default_shop_id)');
-      if (error) { showToast('Fehler bei ' + prod.name + ': ' + error.message); continue; }
+      if (error) { showToast('Error with ' + prod.name + ': ' + error.message); continue; }
       items.push(insData[0]);
       added.push(prod.name);
     }
 
     renderChips(); render();
-    showToast(added.length ? added.join(', ') + ' hinzugefügt' : 'Nichts hinzugefügt');
+    showToast(added.length ? added.join(', ') + ' added' : 'Nothing added');
   } catch (e) {
     stopVoiceUI();
-    showToast('Fehler: ' + e.message);
+    showToast('Error: ' + e.message);
   }
 }
 </script>
