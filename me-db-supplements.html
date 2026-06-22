@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MeDB &middot; Supplementplan</title>
+<title>MeDB &middot; Supplement Plan</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -86,36 +86,36 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <body>
 
 <header>
-  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Supplementplan</span></h1>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Supplement Plan</span></h1>
   <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
@@ -123,24 +123,24 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
   <div class="hero">
     <div>
-      <div class="big" id="totalDaily">…<span class="u">€/Tag</span></div>
-      <div class="label">Aktive Supplements</div>
+      <div class="big" id="totalDaily">…<span class="u">€/day</span></div>
+      <div class="label">Active Supplements</div>
       <div class="sub" id="totalSub"></div>
     </div>
     <div>
-      <div class="big" id="totalMonthly">…<span class="u">€/Monat</span></div>
-      <div class="label">Hochgerechnet</div>
+      <div class="big" id="totalMonthly">…<span class="u">€/month</span></div>
+      <div class="label">Projected</div>
     </div>
   </div>
 
   <div class="filters">
-    <button class="chip active" data-f="all" onclick="setFilter('all')">Alle</button>
-    <button class="chip" data-f="active" onclick="setFilter('active')">Aktiv</button>
-    <button class="chip" data-f="inactive" onclick="setFilter('inactive')">Pausiert</button>
+    <button class="chip active" data-f="all" onclick="setFilter('all')">All</button>
+    <button class="chip" data-f="active" onclick="setFilter('active')">Active</button>
+    <button class="chip" data-f="inactive" onclick="setFilter('inactive')">Paused</button>
     <div class="right"><button class="btn-add" onclick="openDetail(null)">+ Supplement</button></div>
   </div>
 
-  <div id="content"><div class="loading">Lade Supplementplan…</div></div>
+  <div id="content"><div class="loading">Loading supplement plan…</div></div>
 
 </div>
 
@@ -149,20 +149,20 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <h2><span>Supplement</span><button class="closebtn" onclick="closeDetail()">&times;</button></h2>
     <div class="dfield"><label>Name</label><input id="dName"></div>
     <div class="dgrid">
-      <div class="dfield"><label>Menge/Tag</label><input id="dAmount" type="number" step="0.01"></div>
-      <div class="dfield"><label>Einheit</label><input id="dUnit" placeholder="Kapseln, mg…"></div>
+      <div class="dfield"><label>Amount/Day</label><input id="dAmount" type="number" step="0.01"></div>
+      <div class="dfield"><label>Unit</label><input id="dUnit" placeholder="capsules, mg…"></div>
     </div>
-    <div class="dfield"><label>Wann</label><input id="dTiming" placeholder="morgens…"></div>
-    <div class="dfield"><label>Hersteller</label><input id="dManufacturer"></div>
+    <div class="dfield"><label>When</label><input id="dTiming" placeholder="morning…"></div>
+    <div class="dfield"><label>Manufacturer</label><input id="dManufacturer"></div>
     <div class="dgrid">
-      <div class="dfield"><label>Packung (Menge)</label><input id="dPackageAmount" type="number" step="1" placeholder="z.B. 90"></div>
-      <div class="dfield"><label>Packungseinheit</label><input id="dPackageUnit" placeholder="g, ml, Stück…"></div>
+      <div class="dfield"><label>Package (Amount)</label><input id="dPackageAmount" type="number" step="1" placeholder="e.g. 90"></div>
+      <div class="dfield"><label>Package Unit</label><input id="dPackageUnit" placeholder="g, ml, pieces…"></div>
     </div>
-    <div class="dfield"><label>Preis/Packung €</label><input id="dPackagePrice" type="number" step="0.01"></div>
-    <div class="dfield"><label><input type="checkbox" id="dActive" style="width:auto;display:inline-block;margin-right:6px;"> Aktiv</label></div>
+    <div class="dfield"><label>Price/Package €</label><input id="dPackagePrice" type="number" step="0.01"></div>
+    <div class="dfield"><label><input type="checkbox" id="dActive" style="width:auto;display:inline-block;margin-right:6px;"> Active</label></div>
     <div class="detail-actions">
-      <button class="del-btn" id="delBtn" onclick="deleteSup()">Löschen</button>
-      <button class="save-btn" onclick="saveDetail()">Speichern</button>
+      <button class="del-btn" id="delBtn" onclick="deleteSup()">Delete</button>
+      <button class="save-btn" onclick="saveDetail()">Save</button>
     </div>
   </div>
 </div>
@@ -194,13 +194,13 @@ async function checkVoicePrefill() {
     if (payload.type !== 'supplement') return;
     const s = payload.data;
     const { data, error } = await db.from('supplements').insert({
-      user_id: userId, name: s.name || 'Neues Supplement', manufacturer: s.manufacturer || null,
+      user_id: userId, name: s.name || 'New Supplement', manufacturer: s.manufacturer || null,
       unit: s.unit || null, daily_amount: s.daily_amount || null, timing: s.timing || null, active: true
     }).select();
-    if (error) { showToast('Fehler: ' + error.message); return; }
+    if (error) { showToast('Error: ' + error.message); return; }
     allSupps.push(data[0]);
     renderTotal(); render();
-    showToast(data[0].name + ' angelegt – bitte Preis ergänzen');
+    showToast(data[0].name + ' created – please add price');
   } catch {}
 }
 
@@ -216,7 +216,7 @@ function dailyCost(s) {
 
 async function loadSupps() {
   const { data, error } = await db.from('supplements').select('*').order('name');
-  if (error) { document.getElementById('content').innerHTML = `<div class="empty">Fehler: ${error.message}</div>`; return; }
+  if (error) { document.getElementById('content').innerHTML = `<div class="empty">Error: ${error.message}</div>`; return; }
   allSupps = data || [];
   renderTotal();
   render();
@@ -229,9 +229,9 @@ function renderTotal() {
     const c = dailyCost(s);
     if (c == null) missing++; else total += c;
   }
-  document.getElementById('totalDaily').innerHTML = `${total.toFixed(2)}<span class="u">€/Tag</span>`;
-  document.getElementById('totalMonthly').innerHTML = `${(total*30).toFixed(0)}<span class="u">€/Monat</span>`;
-  document.getElementById('totalSub').textContent = `${active.length} aktiv` + (missing ? ` · ${missing} ohne vollständige Preisangabe` : '');
+  document.getElementById('totalDaily').innerHTML = `${total.toFixed(2)}<span class="u">€/day</span>`;
+  document.getElementById('totalMonthly').innerHTML = `${(total*30).toFixed(0)}<span class="u">€/month</span>`;
+  document.getElementById('totalSub').textContent = `${active.length} active` + (missing ? ` · ${missing} with incomplete price info` : '');
 }
 
 function setFilter(f) {
@@ -245,7 +245,7 @@ function render() {
   if (filter === 'active') list = list.filter(s => s.active);
   if (filter === 'inactive') list = list.filter(s => !s.active);
 
-  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">Keine Supplements in dieser Ansicht.</div>'; return; }
+  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">No supplements in this view.</div>'; return; }
 
   document.getElementById('content').innerHTML = list.map(supRow).join('');
 }
@@ -253,18 +253,18 @@ function render() {
 function supRow(s) {
   const cost = dailyCost(s);
   const meta = [];
-  if (s.daily_amount) meta.push(`${s.daily_amount}${s.unit ? ' '+esc(s.unit) : 'x'}/Tag`);
+  if (s.daily_amount) meta.push(`${s.daily_amount}${s.unit ? ' '+esc(s.unit) : 'x'}/day`);
   if (s.timing) meta.push(esc(s.timing));
   if (s.manufacturer) meta.push(esc(s.manufacturer));
-  if (s.package_amount) meta.push(`Packung: ${s.package_amount}${s.package_unit ? ' '+esc(s.package_unit) : ''}`);
+  if (s.package_amount) meta.push(`Package: ${s.package_amount}${s.package_unit ? ' '+esc(s.package_unit) : ''}`);
   return `
     <div class="supp-row ${s.active ? '' : 'inactive'}" data-id="${s.id}">
-      <input type="checkbox" class="chk" ${s.active?'checked':''} onchange="toggleActive(${s.id}, this.checked)" title="Aktiv" onclick="event.stopPropagation()">
+      <input type="checkbox" class="chk" ${s.active?'checked':''} onchange="toggleActive(${s.id}, this.checked)" title="Active" onclick="event.stopPropagation()">
       <div class="supp-main" onclick="openDetail(${s.id})">
         <div class="supp-title">${esc(s.name)}</div>
         <div class="supp-meta">${meta.map(m=>`<span class="badge">${m}</span>`).join('')}</div>
       </div>
-      <div class="supp-cost" onclick="openDetail(${s.id})">${cost!=null ? cost.toFixed(2)+'<span class="u"> €/Tag</span>' : '<span class="u">– €/Tag</span>'}</div>
+      <div class="supp-cost" onclick="openDetail(${s.id})">${cost!=null ? cost.toFixed(2)+'<span class="u"> €/day</span>' : '<span class="u">– €/day</span>'}</div>
     </div>`;
 }
 
@@ -284,7 +284,7 @@ function openDetail(id) {
   document.getElementById('dPackageUnit').value = s.package_unit || '';
   document.getElementById('dPackagePrice').value = s.package_price ?? '';
   document.getElementById('dActive').checked = isNew ? true : !!s.active;
-  document.querySelector('.detail-card h2 span').textContent = isNew ? 'Neues Supplement' : 'Supplement bearbeiten';
+  document.querySelector('.detail-card h2 span').textContent = isNew ? 'New Supplement' : 'Edit Supplement';
   document.getElementById('delBtn').style.display = isNew ? 'none' : '';
   document.getElementById('overlay').classList.add('show');
   document.getElementById('dName').focus();
@@ -297,7 +297,7 @@ function closeDetail() {
 
 async function saveDetail() {
   const name = document.getElementById('dName').value.trim();
-  if (!name) { showToast('Bitte Name angeben'); return; }
+  if (!name) { showToast('Please enter a name'); return; }
   const fields = {
     name,
     daily_amount: document.getElementById('dAmount').value === '' ? null : parseFloat(document.getElementById('dAmount').value),
@@ -312,22 +312,22 @@ async function saveDetail() {
   };
   if (detailId == null) {
     const { data, error } = await db.from('supplements').insert({ user_id: userId, ...fields }).select();
-    if (error) { showToast('Fehler: ' + error.message); return; }
+    if (error) { showToast('Error: ' + error.message); return; }
     allSupps.push(data[0]);
   } else {
     const { error } = await db.from('supplements').update(fields).eq('id', detailId);
-    if (error) { showToast('Fehler: ' + error.message); return; }
+    if (error) { showToast('Error: ' + error.message); return; }
     const s = allSupps.find(s => s.id === detailId);
     Object.assign(s, fields);
   }
   closeDetail();
   renderTotal(); render();
-  showToast('Gespeichert ✓');
+  showToast('Saved ✓');
 }
 
 async function toggleActive(id, val) {
   const { error } = await db.from('supplements').update({ active: val, updated_at: new Date().toISOString() }).eq('id', id);
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   const s = allSupps.find(s => s.id === id);
   if (s) s.active = val;
   renderTotal(); render();
@@ -335,9 +335,9 @@ async function toggleActive(id, val) {
 
 async function deleteSup() {
   if (detailId == null) return;
-  if (!confirm('Supplement wirklich löschen?')) return;
+  if (!confirm('Really delete this supplement?')) return;
   const { error } = await db.from('supplements').delete().eq('id', detailId);
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   allSupps = allSupps.filter(s => s.id !== detailId);
   closeDetail();
   renderTotal(); render();
