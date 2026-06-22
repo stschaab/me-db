@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; AG-Me Mix</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 1000px; margin: 28px auto; padding: 0 24px 60px; }
+
+  .hero { background: white; border-radius: 14px; padding: 26px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; gap: 28px; flex-wrap: wrap; margin-bottom: 20px; }
+  .hero .big { font-size: 2.6rem; font-weight: 800; }
+  .hero .big .u { font-size: 1rem; color: #aaa; font-weight: 500; margin-left: 4px; }
+  .hero .label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+  .hero .sub { font-size: 0.8rem; color: #aaa; margin-top: 6px; }
+  .hero .savings { font-size: 0.85rem; color: #2e7d32; font-weight: 700; margin-top: 4px; }
+  .hero .settings-btn { background: none; border: 1px solid #e0e0e0; border-radius: 7px; padding: 6px 12px; font-size: 0.78rem; cursor: pointer; color: #666; align-self: flex-start; margin-left: auto; }
+  .hero .settings-btn:hover { background: #f5f5f5; }
+
+  .filters { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .chip { border: 1px solid #d8d8d8; background: white; border-radius: 20px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; }
+  .chip.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+  .filters .right { margin-left: auto; }
+  .btn-add { background: #1a1a2e; color: white; border: none; border-radius: 7px; padding: 8px 16px; font-size: 0.85rem; cursor: pointer; }
+  .btn-add:hover { background: #2d2d4e; }
+
+  .ing-row { background: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .ing-row.inactive { opacity: 0.5; }
+  .ing-row.inactive .ing-title { text-decoration: line-through; }
+  .chk { width: 17px; height: 17px; cursor: pointer; accent-color: #2e7d32; flex-shrink: 0; }
+  .ing-main { flex: 1; min-width: 0; cursor: pointer; }
+  .ing-title { font-size: 0.95rem; font-weight: 600; word-break: break-word; display: flex; align-items: center; gap: 7px; }
+  .type-badge { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 20px; font-weight: 700; }
+  .type-badge.concentrate { background: #ede7f6; color: #5e35b1; }
+  .type-badge.natural { background: #e8f5e9; color: #2e7d32; }
+  .ing-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; font-size: 0.78rem; color: #888; }
+  .ing-meta .badge { background: #f0f0f0; padding: 2px 8px; border-radius: 20px; }
+  .ing-scoop { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .scoop-val { font-weight: 700; font-size: 1.05rem; text-align: right; white-space: nowrap; }
+  .scoop-val .u { font-size: 0.68rem; color: #aaa; font-weight: 500; display: block; }
+  .scoop-select { border: 1px solid #e0e0e0; border-radius: 6px; padding: 4px 6px; font-size: 0.78rem; background: #fafafa; }
+
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 500; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .detail-card { background: white; border-radius: 14px; padding: 26px; max-width: 480px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.25); }
+  .detail-card h2 { font-size: 1.05rem; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
+  .detail-card .closebtn { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #aaa; }
+  .dfield { margin-bottom: 14px; }
+  .dfield label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: #888; display: block; margin-bottom: 4px; }
+  .dfield input, .dfield select, .dfield textarea { width: 100%; border: 1px solid #e0e0e0; border-radius: 7px; padding: 9px 10px; font-size: 0.9rem; font-family: inherit; }
+  .dfield .hint { font-size: 0.7rem; color: #aaa; margin-top: 3px; }
+  .dgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .detail-actions { display: flex; justify-content: space-between; margin-top: 18px; }
+  .detail-actions .save-btn { background: #2e7d32; color: white; border: none; border-radius: 8px; padding: 10px 20px; font-size: 0.9rem; cursor: pointer; }
+  .detail-actions .del-btn { background: none; border: 1px solid #ffcdd2; color: #c62828; border-radius: 8px; padding: 10px 16px; font-size: 0.85rem; cursor: pointer; }
+  .type-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+  .type-toggle button { flex: 1; border: 1px solid #e0e0e0; background: white; border-radius: 7px; padding: 9px; font-size: 0.85rem; cursor: pointer; }
+  .type-toggle button.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+  .concentrate-fields, .natural-fields { display: none; }
+
+  .empty { text-align: center; padding: 50px; color: #aaa; }
+  .loading { text-align: center; padding: 60px; color: #aaa; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; padding: 11px 20px; border-radius: 8px; font-size: 0.88rem; opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+/* === Hamburger navigation (always active) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 0.95rem; flex-wrap: wrap; }
+  .container { padding: 0 14px 60px; margin: 18px auto; }
+  .dgrid { grid-template-columns: 1fr; }
+  .ing-row { flex-wrap: wrap; }
+  .ing-scoop { margin-left: 31px; width: 100%; justify-content: space-between; }
+  .hero .settings-btn { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">AG-Me Mix</span></h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Activities</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Reports</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Values</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-abos.html">Subscriptions</a>
+    <a href="me-db-supplements.html">Supplements</a>
+    <a href="me-db-ag-me.html">AG-Me Mix</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <div class="hero">
+    <div>
+      <div class="big" id="totalDaily">…<span class="u">€/day</span></div>
+      <div class="label">Daily mix cost</div>
+      <div class="sub" id="totalSub"></div>
+    </div>
+    <div>
+      <div class="big" id="totalBatch">…<span class="u">€/batch</span></div>
+      <div class="label" id="batchLabel">Per batch</div>
+    </div>
+    <div id="comparisonBox" style="display:none">
+      <div class="big" id="totalSavingsPct">…<span class="u">%</span></div>
+      <div class="label">Cheaper than AG1</div>
+      <div class="savings" id="savingsAbs"></div>
+    </div>
+    <button class="settings-btn" onclick="openSettings()">⚙ Batch / AG1 settings</button>
+  </div>
+
+  <div class="filters">
+    <button class="chip active" data-f="all" onclick="setFilter('all')">All</button>
+    <button class="chip" data-f="active" onclick="setFilter('active')">Active</button>
+    <button class="chip" data-f="concentrate" onclick="setFilter('concentrate')">Concentrate</button>
+    <button class="chip" data-f="natural" onclick="setFilter('natural')">Natural</button>
+    <div class="right"><button class="btn-add" onclick="openDetail(null)">+ Ingredient</button></div>
+  </div>
+
+  <div id="content"><div class="loading">Loading AG-Me mix…</div></div>
+
+</div>
+
+<!-- Ingredient detail -->
+<div class="overlay" id="overlay">
+  <div class="detail-card">
+    <h2><span>Ingredient</span><button class="closebtn" onclick="closeDetail()">&times;</button></h2>
+
+    <div class="dfield"><label>Name</label><input id="dName" placeholder="e.g. Magnesium bisglycinate"></div>
+
+    <div class="type-toggle">
+      <button id="typeBtnConcentrate" onclick="setType('concentrate')">Concentrate / compound</button>
+      <button id="typeBtnNatural" onclick="setType('natural')">Natural powder</button>
+    </div>
+
+    <div class="concentrate-fields">
+      <div class="dfield"><label>Target dose (active ingredient, mg/day)</label><input id="dTargetMg" type="number" step="1" placeholder="e.g. 600"></div>
+      <div class="dfield"><label>Yield (mg active per gram of powder)</label><input id="dYield" type="number" step="0.01" placeholder="e.g. 145"></div>
+      <div class="dfield hint" style="margin-top:-8px">Get this from the label: e.g. "2 capsules = 400mg Mg, capsule = 1.38g compound" → yield = 400 / (2×1.38) = 145 mg/g</div>
+    </div>
+
+    <div class="natural-fields">
+      <div class="dfield"><label>Target amount (g/day)</label><input id="dTargetG" type="number" step="0.1" placeholder="e.g. 8"></div>
+    </div>
+
+    <div class="dgrid">
+      <div class="dfield"><label>Bulk density (g/ml)</label><input id="dDensity" type="number" step="0.01" placeholder="e.g. 0.55"></div>
+      <div class="dfield"><label>Scoop size</label>
+        <select id="dScoop">
+          <option value="1">1 ml</option>
+          <option value="2.5">2.5 ml</option>
+          <option value="5">5 ml</option>
+          <option value="10">10 ml</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="dgrid">
+      <div class="dfield"><label>Package size (g)</label><input id="dPkgSize" type="number" step="1" placeholder="e.g. 250"></div>
+      <div class="dfield"><label>Package price (€)</label><input id="dPkgPrice" type="number" step="0.01" placeholder="e.g. 19.90"></div>
+    </div>
+
+    <div class="dfield"><label>Notes</label><textarea id="dNotes" rows="2" placeholder="brand, source, calibration notes…"></textarea></div>
+    <div class="dfield"><label><input type="checkbox" id="dActive" style="width:auto;display:inline-block;margin-right:6px;"> Active (included in mix)</label></div>
+
+    <div class="detail-actions">
+      <button class="del-btn" id="delBtn" onclick="deleteIngredient()">Delete</button>
+      <button class="save-btn" onclick="saveDetail()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="overlay" id="settingsOverlay">
+  <div class="detail-card">
+    <h2><span>Batch &amp; AG1 settings</span><button class="closebtn" onclick="closeSettings()">&times;</button></h2>
+    <div class="dfield"><label>Batch size (days)</label><input id="sBatchDays" type="number" step="1" placeholder="e.g. 30"></div>
+    <div class="dfield"><label>AG1 price for comparison (€/month)</label><input id="sAg1Price" type="number" step="0.01" placeholder="e.g. 89"></div>
+    <div class="detail-actions" style="justify-content:flex-end">
+      <button class="save-btn" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+let userId = null;
+let allIngredients = [];
+let settings = { batch_days: 30, ag1_price_per_month: null };
+let filter = 'all';
+let currentType = 'concentrate';
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  userId = data.session.user.id;
+  Promise.all([loadIngredients(), loadSettings()]).then(renderAll);
+});
+
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1500); }
+
+// ── Calculations ─────────────────────────────────────────────────
+function dailyGrams(i) {
+  if (i.type === 'concentrate') {
+    if (!i.target_dose_mg || !i.yield_mg_per_g) return null;
+    return i.target_dose_mg / i.yield_mg_per_g;
+  }
+  return i.target_amount_g ?? null;
+}
+function dailyMl(i) {
+  const g = dailyGrams(i);
+  if (g == null || !i.density_g_per_ml) return null;
+  return g / i.density_g_per_ml;
+}
+function dailyScoops(i) {
+  const ml = dailyMl(i);
+  if (ml == null || !i.scoop_ml) return null;
+  return ml / i.scoop_ml;
+}
+function dailyCost(i) {
+  const g = dailyGrams(i);
+  if (g == null || !i.package_size_g || !i.package_price) return null;
+  return (g / i.package_size_g) * i.package_price;
+}
+
+// ── Load ──────────────────────────────────────────────────────────
+async function loadIngredients() {
+  const { data, error } = await db.from('ag_me_ingredients').select('*').order('sort_order').order('name');
+  if (error) { document.getElementById('content').innerHTML = `<div class="empty">Error: ${error.message}</div>`; return; }
+  allIngredients = data || [];
+}
+
+async function loadSettings() {
+  const { data } = await db.from('ag_me_settings').select('*').eq('user_id', userId).maybeSingle();
+  if (data) settings = data;
+}
+
+function renderAll() {
+  renderHero();
+  render();
+}
+
+function renderHero() {
+  const active = allIngredients.filter(i => i.active);
+  let totalDaily = 0, missing = 0;
+  for (const i of active) {
+    const c = dailyCost(i);
+    if (c == null) missing++; else totalDaily += c;
+  }
+  const batchDays = settings.batch_days || 30;
+  const totalBatch = totalDaily * batchDays;
+  document.getElementById('totalDaily').innerHTML = `${totalDaily.toFixed(2)}<span class="u">€/day</span>`;
+  document.getElementById('totalSub').textContent = `${active.length} active` + (missing ? ` · ${missing} missing cost data` : '');
+  document.getElementById('totalBatch').innerHTML = `${totalBatch.toFixed(0)}<span class="u">€/batch</span>`;
+  document.getElementById('batchLabel').textContent = `Per batch (${batchDays} days)`;
+
+  const ag1Monthly = settings.ag1_price_per_month;
+  const box = document.getElementById('comparisonBox');
+  if (ag1Monthly) {
+    const monthlyOwn = totalDaily * 30;
+    const pct = ag1Monthly > 0 ? ((1 - monthlyOwn / ag1Monthly) * 100) : 0;
+    box.style.display = '';
+    document.getElementById('totalSavingsPct').innerHTML = `${pct.toFixed(0)}<span class="u">%</span>`;
+    document.getElementById('savingsAbs').textContent = `${monthlyOwn.toFixed(0)}€ vs ${ag1Monthly.toFixed(0)}€/month`;
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+function setFilter(f) {
+  filter = f;
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.f === f));
+  render();
+}
+
+function render() {
+  let list = allIngredients;
+  if (filter === 'active') list = list.filter(i => i.active);
+  if (filter === 'concentrate') list = list.filter(i => i.type === 'concentrate');
+  if (filter === 'natural') list = list.filter(i => i.type === 'natural');
+
+  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">No ingredients in this view.</div>'; return; }
+  document.getElementById('content').innerHTML = list.map(ingRow).join('');
+}
+
+function ingRow(i) {
+  const meta = [];
+  if (i.type === 'concentrate' && i.target_dose_mg) meta.push(`Target: ${i.target_dose_mg}mg/day`);
+  if (i.type === 'natural' && i.target_amount_g) meta.push(`Target: ${i.target_amount_g}g/day`);
+  if (i.density_g_per_ml) meta.push(`${i.density_g_per_ml} g/ml`);
+  const cost = dailyCost(i);
+  if (cost != null) meta.push(`${cost.toFixed(2)} €/day`);
+
+  const scoops = dailyScoops(i);
+  const scoopDisplay = scoops != null ? scoops.toFixed(1) : '–';
+
+  return `
+    <div class="ing-row ${i.active ? '' : 'inactive'}" data-id="${i.id}">
+      <input type="checkbox" class="chk" ${i.active?'checked':''} onchange="toggleActive(${i.id}, this.checked)" title="Active" onclick="event.stopPropagation()">
+      <div class="ing-main" onclick="openDetail(${i.id})">
+        <div class="ing-title">${esc(i.name)} <span class="type-badge ${i.type}">${i.type === 'concentrate' ? 'Concentrate' : 'Natural'}</span></div>
+        <div class="ing-meta">${meta.map(m=>`<span class="badge">${esc(m)}</span>`).join('')}</div>
+      </div>
+      <div class="ing-scoop">
+        <select class="scoop-select" onclick="event.stopPropagation()" onchange="changeScoop(${i.id}, this.value)">
+          ${[1,2.5,5,10].map(v => `<option value="${v}" ${Number(i.scoop_ml)===v?'selected':''}>${v} ml</option>`).join('')}
+        </select>
+        <div class="scoop-val">${scoopDisplay}<span class="u">scoops/day</span></div>
+      </div>
+    </div>`;
+}
+
+async function changeScoop(id, val) {
+  const v = parseFloat(val);
+  const { error } = await db.from('ag_me_ingredients').update({ scoop_ml: v, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { showToast('Error: ' + error.message); return; }
+  const i = allIngredients.find(i => i.id === id);
+  if (i) i.scoop_ml = v;
+  render();
+}
+
+async function toggleActive(id, val) {
+  const { error } = await db.from('ag_me_ingredients').update({ active: val, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { showToast('Error: ' + error.message); return; }
+  const i = allIngredients.find(i => i.id === id);
+  if (i) i.active = val;
+  renderAll();
+}
+
+// ── Detail popup ────────────────────────────────────────────────
+let detailId = undefined;
+
+function setType(t) {
+  currentType = t;
+  document.getElementById('typeBtnConcentrate').classList.toggle('active', t === 'concentrate');
+  document.getElementById('typeBtnNatural').classList.toggle('active', t === 'natural');
+  document.querySelector('.concentrate-fields').style.display = t === 'concentrate' ? 'block' : 'none';
+  document.querySelector('.natural-fields').style.display = t === 'natural' ? 'block' : 'none';
+}
+
+function openDetail(id) {
+  detailId = id;
+  const isNew = id == null;
+  const i = isNew ? {} : allIngredients.find(i => i.id === id);
+  if (!isNew && !i) return;
+
+  document.getElementById('dName').value = i.name || '';
+  setType(i.type || 'concentrate');
+  document.getElementById('dTargetMg').value = i.target_dose_mg ?? '';
+  document.getElementById('dYield').value = i.yield_mg_per_g ?? '';
+  document.getElementById('dTargetG').value = i.target_amount_g ?? '';
+  document.getElementById('dDensity').value = i.density_g_per_ml ?? '';
+  document.getElementById('dScoop').value = i.scoop_ml ?? '5';
+  document.getElementById('dPkgSize').value = i.package_size_g ?? '';
+  document.getElementById('dPkgPrice').value = i.package_price ?? '';
+  document.getElementById('dNotes').value = i.notes || '';
+  document.getElementById('dActive').checked = isNew ? true : !!i.active;
+
+  document.querySelector('.detail-card h2 span').textContent = isNew ? 'New ingredient' : 'Edit ingredient';
+  document.getElementById('delBtn').style.display = isNew ? 'none' : '';
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('dName').focus();
+}
+
+function closeDetail() {
+  document.getElementById('overlay').classList.remove('show');
+  detailId = undefined;
+}
+
+async function saveDetail() {
+  const name = document.getElementById('dName').value.trim();
+  if (!name) { showToast('Please enter a name'); return; }
+  const fields = {
+    name,
+    type: currentType,
+    target_dose_mg: currentType === 'concentrate' ? (parseFloat(document.getElementById('dTargetMg').value) || null) : null,
+    yield_mg_per_g: currentType === 'concentrate' ? (parseFloat(document.getElementById('dYield').value) || null) : null,
+    target_amount_g: currentType === 'natural' ? (parseFloat(document.getElementById('dTargetG').value) || null) : null,
+    density_g_per_ml: parseFloat(document.getElementById('dDensity').value) || null,
+    scoop_ml: parseFloat(document.getElementById('dScoop').value) || 5,
+    package_size_g: parseFloat(document.getElementById('dPkgSize').value) || null,
+    package_price: parseFloat(document.getElementById('dPkgPrice').value) || null,
+    notes: document.getElementById('dNotes').value.trim() || null,
+    active: document.getElementById('dActive').checked,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (detailId == null) {
+    const { data, error } = await db.from('ag_me_ingredients').insert({ user_id: userId, ...fields }).select();
+    if (error) { showToast('Error: ' + error.message); return; }
+    allIngredients.push(data[0]);
+  } else {
+    const { error } = await db.from('ag_me_ingredients').update(fields).eq('id', detailId);
+    if (error) { showToast('Error: ' + error.message); return; }
+    Object.assign(allIngredients.find(i => i.id === detailId), fields);
+  }
+  closeDetail();
+  renderAll();
+  showToast('Saved ✓');
+}
+
+async function deleteIngredient() {
+  if (detailId == null) return;
+  if (!confirm('Delete this ingredient?')) return;
+  const { error } = await db.from('ag_me_ingredients').delete().eq('id', detailId);
+  if (error) { showToast('Error: ' + error.message); return; }
+  allIngredients = allIngredients.filter(i => i.id !== detailId);
+  closeDetail();
+  renderAll();
+}
+
+// ── Settings popup ──────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('sBatchDays').value = settings.batch_days ?? 30;
+  document.getElementById('sAg1Price').value = settings.ag1_price_per_month ?? '';
+  document.getElementById('settingsOverlay').classList.add('show');
+}
+function closeSettings() { document.getElementById('settingsOverlay').classList.remove('show'); }
+
+async function saveSettings() {
+  const fields = {
+    user_id: userId,
+    batch_days: parseInt(document.getElementById('sBatchDays').value) || 30,
+    ag1_price_per_month: parseFloat(document.getElementById('sAg1Price').value) || null,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await db.from('ag_me_settings').upsert(fields, { onConflict: 'user_id' });
+  if (error) { showToast('Error: ' + error.message); return; }
+  settings = fields;
+  closeSettings();
+  renderHero();
+  showToast('Settings saved ✓');
+}
+</script>
+</body>
+</html>
