@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -51,20 +51,20 @@
 <div class="mic-wrap" id="micWrap">
   <button class="mic-btn" id="micBtn" onclick="startListening()">🎤</button>
   <div class="transcript" id="transcript"></div>
-  <div class="hint" id="hint">Antippen und sprechen — Claude entscheidet selbst, ob's ein Task, Einkauf, Supplement, Abo oder Vorsorge-Eintrag ist.</div>
+  <div class="hint" id="hint">Tap and speak — Claude decides whether it's a Task, Shopping item, Supplement, Subscription, or Emergency Folder entry.</div>
   <div class="status" id="status"></div>
 </div>
 
 <div class="result" id="result">
   <div class="result-type">
-    <div class="label">Erkannt als</div>
+    <div class="label">Recognized as</div>
     <div class="value" id="typeValue">–</div>
     <div class="result-preview" id="preview"></div>
   </div>
   <div class="typechips" id="typeChips"></div>
   <div class="actions">
-    <button class="btn btn-cancel" onclick="resetVoice()">Neu</button>
-    <button class="btn btn-go" onclick="proceed()">Weiter →</button>
+    <button class="btn btn-cancel" onclick="resetVoice()">New</button>
+    <button class="btn btn-go" onclick="proceed()">Continue →</button>
   </div>
 </div>
 
@@ -74,7 +74,7 @@ const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
-const TYPE_LABELS = { task: '✅ Task', shopping: '🛒 Einkauf', supplement: '💊 Supplement', subscription: '💳 Abo', vorsorge: '🗂️ Vorsorge' };
+const TYPE_LABELS = { task: '✅ Task', shopping: '🛒 Shopping', supplement: '💊 Supplement', subscription: '💳 Subscription', vorsorge: '🗂️ Emergency Folder' };
 const TYPE_TARGETS = { task: 'me-db-tasks.html', shopping: 'me-db-einkaufsliste.html', supplement: 'me-db-supplements.html', subscription: 'me-db-abos.html', vorsorge: 'me-db-vorsorge.html' };
 
 let currentResult = null;
@@ -97,11 +97,11 @@ function setupRecognition() {
 function startListening() {
   const recognition = setupRecognition();
   if (!recognition) {
-    document.getElementById('status').textContent = 'Spracherkennung nicht verfügbar – bitte Chrome/Edge nutzen';
+    document.getElementById('status').textContent = 'Speech recognition not available – please use Chrome/Edge';
     return;
   }
   document.getElementById('micBtn').classList.add('listening');
-  document.getElementById('hint').textContent = 'Höre zu…';
+  document.getElementById('hint').textContent = 'Listening…';
   document.getElementById('status').textContent = '';
   document.getElementById('transcript').textContent = '';
 
@@ -109,11 +109,11 @@ function startListening() {
     const text = event.results[0][0].transcript;
     document.getElementById('transcript').textContent = '„' + text + '"';
     document.getElementById('hint').textContent = '';
-    document.getElementById('status').innerHTML = '<span class="loading-spin"></span> Wird interpretiert…';
+    document.getElementById('status').innerHTML = '<span class="loading-spin"></span> Interpreting…';
     await classify(text);
   };
   recognition.onerror = (e) => {
-    document.getElementById('status').textContent = 'Fehler: ' + e.error;
+    document.getElementById('status').textContent = 'Error: ' + e.error;
     document.getElementById('micBtn').classList.remove('listening');
   };
   recognition.onend = () => { document.getElementById('micBtn').classList.remove('listening'); };
@@ -122,7 +122,7 @@ function startListening() {
 
 async function classify(text) {
   try {
-    // Produktkatalog fürs Einkaufslisten-Matching mitschicken
+    // Send product catalog along for shopping-list matching
     const { data: products } = await db.from('products').select('id,name');
     const resp = await fetch(WORKER_URL + '/parse-universal', {
       method: 'POST',
@@ -131,13 +131,13 @@ async function classify(text) {
     });
     const data = await resp.json();
     document.getElementById('status').textContent = '';
-    if (!data.success) { document.getElementById('status').textContent = 'Fehler: ' + data.error; return; }
+    if (!data.success) { document.getElementById('status').textContent = 'Error: ' + data.error; return; }
 
     currentResult = data.result;
     currentType = data.result.type;
     showResult();
   } catch (e) {
-    document.getElementById('status').textContent = 'Fehler: ' + e.message;
+    document.getElementById('status').textContent = 'Error: ' + e.message;
   }
 }
 
@@ -177,7 +177,7 @@ function previewHtml() {
       return (r.shopping_items||[]).map(i => esc(i.name) + (i.quantity?' ('+esc(i.quantity)+')':'')).join('<br>') || '–';
     case 'supplement': {
       const s = r.supplement;
-      return `${esc(s.name)||'–'}${s.manufacturer?'<br>'+esc(s.manufacturer):''}${s.daily_amount?'<br>'+s.daily_amount+'x täglich':''}`;
+      return `${esc(s.name)||'–'}${s.manufacturer?'<br>'+esc(s.manufacturer):''}${s.daily_amount?'<br>'+s.daily_amount+'x daily':''}`;
     }
     case 'subscription': {
       const a = r.subscription;
@@ -198,7 +198,7 @@ function resetVoice() {
   document.getElementById('result').classList.remove('show');
   document.getElementById('micWrap').style.display = 'flex';
   document.getElementById('transcript').textContent = '';
-  document.getElementById('hint').textContent = 'Antippen und sprechen — Claude entscheidet selbst, ob\'s ein Task, Einkauf, Supplement, Abo oder Vorsorge-Eintrag ist.';
+  document.getElementById('hint').textContent = 'Tap and speak — Claude decides whether it\'s a Task, Shopping item, Supplement, Subscription, or Emergency Folder entry.';
 }
 
 function proceed() {
