@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Architecture</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; display: flex; flex-direction: column; overflow: hidden; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+
+  .canvas-wrap { flex: 1; position: relative; overflow: hidden; background: #eef0f3; background-image: radial-gradient(circle, #d8dce2 1px, transparent 1px); background-size: 22px 22px; touch-action: none; cursor: grab; }
+  .canvas-wrap.dragging { cursor: grabbing; }
+  .canvas-inner { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; }
+
+  .zoom-controls { position: fixed; bottom: 22px; right: 22px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
+  .zoom-btn { width: 42px; height: 42px; border-radius: 50%; border: none; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.18); font-size: 1.2rem; cursor: pointer; color: #1a1a2e; font-weight: 700; }
+  .zoom-btn:hover { background: #f0f0f0; }
+  .zoom-reset { font-size: 0.7rem; }
+
+  .legend { position: fixed; bottom: 22px; left: 22px; background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.12); font-size: 0.72rem; z-index: 50; max-width: 220px; }
+  .legend .row { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+  .legend .row:last-child { margin-bottom: 0; }
+  .legend .sw { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+  .legend .title { font-weight: 700; margin-bottom: 7px; font-size: 0.75rem; }
+  .legend .hint { margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; color: #999; font-size: 0.65rem; line-height: 1.4; }
+
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+/* === Hamburger navigation (always active) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 0.95rem; flex-wrap: wrap; }
+  .legend { max-width: 150px; padding: 9px 11px; font-size: 0.65rem; }
+  .legend .title { font-size: 0.68rem; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Architecture</span></h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Activities</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Reports</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Values</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-abos.html">Subscriptions</a>
+    <a href="me-db-supplements.html">Supplements</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="canvas-wrap" id="canvasWrap">
+  <div class="canvas-inner" id="canvasInner">
+    <svg id="diagram" width="1760" height="1180" viewBox="0 0 1760 1180" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#8a8fa3"/>
+        </marker>
+        <marker id="arrowCron" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#f38020"/>
+        </marker>
+      </defs>
+
+      <!-- ===================== EDGES (drawn first, behind nodes) ===================== -->
+      <g stroke="#8a8fa3" stroke-width="2" fill="none" marker-end="url(#arrow)">
+        <!-- GitHub repo -> GitHub Pages -->
+        <path d="M260,150 L260,210"/>
+        <!-- GitHub Pages -> Browser (serves static HTML/JS) -->
+        <path d="M260,290 C 260,400 460,470 600,540"/>
+        <!-- Browser -> Google OAuth -->
+        <path d="M780,520 C 900,440 980,360 980,290"/>
+        <!-- Google OAuth -> Supabase Auth -->
+        <path d="M1060,250 C 1180,250 1230,300 1230,360"/>
+        <!-- Browser <-> Supabase REST (CRUD, JWT) -->
+        <path d="M820,610 C 950,650 1100,650 1230,610" marker-start="url(#arrow)"/>
+        <!-- Browser -> Cloudflare Worker (chat / voice / parse) -->
+        <path d="M820,690 C 1000,760 1250,800 1430,690"/>
+        <!-- Worker -> Claude API -->
+        <path d="M1560,640 C 1640,560 1640,460 1560,400"/>
+        <!-- Worker <-> Supabase (read context, save chat/strava) -->
+        <path d="M1430,650 C 1330,600 1280,600 1260,610" marker-start="url(#arrow)"/>
+        <!-- Worker -> Strava API (cron sync) -->
+        <path d="M1500,770 C 1500,860 1350,910 1200,910" stroke="#f38020" marker-end="url(#arrowCron)"/>
+        <!-- Strava API -> Supabase (write activities) -->
+        <path d="M1080,910 C 950,910 900,800 950,690" stroke="#f38020" marker-end="url(#arrowCron)"/>
+        <!-- Cloudflare cron trigger -> Worker -->
+        <path d="M1500,1000 C 1500,860 1500,800 1500,775" stroke="#f38020" marker-end="url(#arrowCron)"/>
+        <!-- Local PC scheduler -> Supabase (service_role REST) -->
+        <path d="M280,1000 C 500,950 800,750 1130,650" stroke="#999" marker-end="url(#arrow)"/>
+        <!-- Local PC scheduler -> Google Drive backup -->
+        <path d="M260,1080 C 260,1110 320,1110 380,1110"/>
+        <!-- Voice/Web Speech API -> Browser -->
+        <path d="M560,690 C 500,720 460,720 440,700" marker-end="url(#arrow)"/>
+      </g>
+
+      <!-- ===================== LABELS ON EDGES ===================== -->
+      <g font-size="12" fill="#6b7280" font-family="-apple-system,Segoe UI,sans-serif">
+        <text x="320" y="185">deploy on push</text>
+        <text x="330" y="430">loads static HTML/CSS/JS</text>
+        <text x="845" y="450">Sign in with Google</text>
+        <text x="1040" y="320">issues JWT</text>
+        <text x="845" y="640">REST API, RLS by JWT</text>
+        <text x="940" y="760">fetch() chat / voice / parse</text>
+        <text x="1565" y="500">Claude Sonnet API</text>
+        <text x="1300" y="585">read context, save history</text>
+        <text x="1330" y="850" fill="#f38020">/sync-strava</text>
+        <text x="970" y="800" fill="#f38020">upsert activities</text>
+        <text x="1505" y="940" fill="#f38020">daily 05:00 UTC cron</text>
+        <text x="500" y="800" fill="#777">service_role key, daily 03:00</text>
+        <text x="280" y="1100" fill="#777">zip backup</text>
+        <text x="395" y="715">SpeechRecognition</text>
+      </g>
+
+      <!-- ===================== NODES ===================== -->
+
+      <!-- GitHub repo -->
+      <g>
+        <rect x="120" y="60" width="280" height="90" rx="12" fill="#1f2328" stroke="#1f2328"/>
+        <text x="260" y="92" text-anchor="middle" fill="white" font-size="15" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">🐙 GitHub Repo</text>
+        <text x="260" y="113" text-anchor="middle" fill="#9aa3ad" font-size="11.5" font-family="monospace">stschaab/me-db</text>
+        <text x="260" y="132" text-anchor="middle" fill="#9aa3ad" font-size="10.5" font-family="-apple-system,Segoe UI,sans-serif">source of truth, static HTML/JS</text>
+      </g>
+
+      <!-- GitHub Pages -->
+      <g>
+        <rect x="120" y="210" width="280" height="80" rx="12" fill="#2d333b" stroke="#2d333b"/>
+        <text x="260" y="240" text-anchor="middle" fill="white" font-size="15" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">📄 GitHub Pages</text>
+        <text x="260" y="261" text-anchor="middle" fill="#9aa3ad" font-size="10.5" font-family="-apple-system,Segoe UI,sans-serif">stschaab.github.io/me-db</text>
+        <text x="260" y="277" text-anchor="middle" fill="#9aa3ad" font-size="10.5" font-family="-apple-system,Segoe UI,sans-serif">free static hosting, no build step</text>
+      </g>
+
+      <!-- Browser / User -->
+      <g>
+        <rect x="600" y="540" width="240" height="160" rx="14" fill="#1a1a2e" stroke="#1a1a2e"/>
+        <text x="720" y="572" text-anchor="middle" fill="white" font-size="16" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">📱 Browser</text>
+        <text x="720" y="594" text-anchor="middle" fill="#aab1c9" font-size="11" font-family="-apple-system,Segoe UI,sans-serif">Chrome Desktop / Android</text>
+        <line x1="618" y1="608" x2="822" y2="608" stroke="#33345c"/>
+        <text x="720" y="630" text-anchor="middle" fill="#cdd2e6" font-size="10.5" font-family="-apple-system,Segoe UI,sans-serif">Vanilla JS, no framework</text>
+        <text x="720" y="649" text-anchor="middle" fill="#cdd2e6" font-size="10.5" font-family="-apple-system,Segoe UI,sans-serif">22 modules (Tasks, Lab, HRV…)</text>
+        <text x="720" y="668" text-anchor="middle" fill="#cdd2e6" font-size="10.5" font-family="-apple-system,Segoe UI,sans-serif">Web Speech API (voice input)</text>
+        <text x="720" y="687" text-anchor="middle" fill="#cdd2e6" font-size="10.5" font-family="-apple-system,Segoe UI,sans-serif">PWA-installable</text>
+      </g>
+
+      <!-- Google OAuth -->
+      <g>
+        <rect x="900" y="170" width="220" height="80" rx="12" fill="white" stroke="#dadce0" stroke-width="1.5"/>
+        <text x="1010" y="200" text-anchor="middle" fill="#1a1a2e" font-size="15" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">🔐 Google OAuth</text>
+        <text x="1010" y="221" text-anchor="middle" fill="#888" font-size="10.5" font-family="-apple-system,Segoe UI,sans-serif">Sign-In, 2 allowed accounts</text>
+        <text x="1010" y="238" text-anchor="middle" fill="#888" font-size="10.5" font-family="-apple-system,Segoe UI,sans-serif">st.schaab / ir.schaab</text>
+      </g>
+
+      <!-- Supabase -->
+      <g>
+        <rect x="1130" y="360" width="280" height="330" rx="14" fill="#0f3d2e" stroke="#0f3d2e"/>
+        <text x="1270" y="392" text-anchor="middle" fill="#3ecf8e" font-size="16" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">⚡ Supabase</text>
+        <text x="1270" y="412" text-anchor="middle" fill="#9fe6c8" font-size="10.5" font-family="-apple-system,Segoe UI,sans-serif">Postgres + Auth + REST (PostgREST)</text>
+        <line x1="1150" y1="426" x2="1390" y2="426" stroke="#1a5a44"/>
+        <text x="1270" y="448" text-anchor="middle" fill="#cdeede" font-size="10.5" font-weight="600" font-family="-apple-system,Segoe UI,sans-serif">Row Level Security per table</text>
+        <text x="1270" y="468" text-anchor="middle" fill="#9fe6c8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">shared: tasks, shopping_items</text>
+        <text x="1270" y="484" text-anchor="middle" fill="#9fe6c8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">private: measurements, hrv, chat</text>
+        <text x="1270" y="500" text-anchor="middle" fill="#9fe6c8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">server-only: strava_tokens</text>
+        <line x1="1150" y1="514" x2="1390" y2="514" stroke="#1a5a44"/>
+        <text x="1270" y="535" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">17 tables · tasks, supplements,</text>
+        <text x="1270" y="551" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">vorsorge_items, subscriptions,</text>
+        <text x="1270" y="567" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">activities, measurements, …</text>
+        <line x1="1150" y1="580" x2="1390" y2="580" stroke="#1a5a44"/>
+        <text x="1270" y="601" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">anon key (RLS-bound, in page src)</text>
+        <text x="1270" y="617" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">service_role key (server-only)</text>
+        <line x1="1150" y1="630" x2="1390" y2="630" stroke="#1a5a44"/>
+        <text x="1270" y="652" text-anchor="middle" fill="#9fe6c8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">MCP-managed via Claude Code</text>
+        <text x="1270" y="668" text-anchor="middle" fill="#9fe6c8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">(schema, RLS, migrations)</text>
+      </g>
+
+      <!-- Cloudflare Worker -->
+      <g>
+        <rect x="1430" y="360" width="260" height="290" rx="14" fill="#3a1f00" stroke="#3a1f00"/>
+        <text x="1560" y="392" text-anchor="middle" fill="#f38020" font-size="16" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">☁️ Cloudflare Worker</text>
+        <text x="1560" y="412" text-anchor="middle" fill="#ffcd9e" font-size="10.5" font-family="monospace">me-db-ai.st-schaab.workers.dev</text>
+        <line x1="1450" y1="426" x2="1670" y2="426" stroke="#5a3000"/>
+        <text x="1560" y="447" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">POST /  (AI chat)</text>
+        <text x="1560" y="464" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">/parse-task</text>
+        <text x="1560" y="481" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">/parse-universal</text>
+        <text x="1560" y="498" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">/sync-strava</text>
+        <line x1="1450" y1="512" x2="1670" y2="512" stroke="#5a3000"/>
+        <text x="1560" y="533" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">scheduled() cron handler</text>
+        <text x="1560" y="549" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">05:00 UTC daily</text>
+        <line x1="1450" y1="563" x2="1670" y2="563" stroke="#5a3000"/>
+        <text x="1560" y="585" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">holds ANTHROPIC_API_KEY,</text>
+        <text x="1560" y="601" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Supabase service key,</text>
+        <text x="1560" y="617" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Strava client secret (env vars)</text>
+        <text x="1560" y="638" text-anchor="middle" fill="#ffcd9e" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">deployed via raw API (no wrangler)</text>
+      </g>
+
+      <!-- Claude API -->
+      <g>
+        <rect x="1460" y="200" width="220" height="100" rx="14" fill="#2a1810" stroke="#2a1810"/>
+        <text x="1570" y="232" text-anchor="middle" fill="#d97757" font-size="15" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">✦ Claude API</text>
+        <text x="1570" y="253" text-anchor="middle" fill="#e8b8a4" font-size="10" font-family="-apple-system,Segoe UI,sans-serif">Anthropic, claude-sonnet-4-6</text>
+        <text x="1570" y="270" text-anchor="middle" fill="#e8b8a4" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">chat answers, voice → JSON,</text>
+        <text x="1570" y="286" text-anchor="middle" fill="#e8b8a4" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">universal type classification</text>
+      </g>
+
+      <!-- Strava API -->
+      <g>
+        <rect x="1080" y="870" width="180" height="80" rx="12" fill="#fc4c02" stroke="#fc4c02"/>
+        <text x="1170" y="900" text-anchor="middle" fill="white" font-size="14" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">🏃 Strava API</text>
+        <text x="1170" y="920" text-anchor="middle" fill="#ffe0d0" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">OAuth, auto-refresh</text>
+        <text x="1170" y="936" text-anchor="middle" fill="#ffe0d0" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">activities, paginated</text>
+      </g>
+
+      <!-- Local PC -->
+      <g>
+        <rect x="80" y="950" width="200" height="130" rx="14" fill="#37404d" stroke="#37404d"/>
+        <text x="180" y="982" text-anchor="middle" fill="white" font-size="14" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">💻 Local PC</text>
+        <text x="180" y="1003" text-anchor="middle" fill="#c4cdd9" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Windows Task Scheduler</text>
+        <text x="180" y="1020" text-anchor="middle" fill="#c4cdd9" font-size="9.5" font-family="monospace">backup-medb.ps1</text>
+        <text x="180" y="1040" text-anchor="middle" fill="#c4cdd9" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">daily 03:00, exports 17 tables</text>
+        <text x="180" y="1057" text-anchor="middle" fill="#c4cdd9" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">key in protected env var</text>
+        <text x="180" y="1074" text-anchor="middle" fill="#c4cdd9" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">(not in script text)</text>
+      </g>
+
+      <!-- Google Drive -->
+      <g>
+        <rect x="380" y="1060" width="200" height="90" rx="12" fill="white" stroke="#dadce0" stroke-width="1.5"/>
+        <text x="480" y="1090" text-anchor="middle" fill="#1a1a2e" font-size="14" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">📁 Google Drive</text>
+        <text x="480" y="1109" text-anchor="middle" fill="#888" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">G:\Meine Ablage\Backups\MeDB</text>
+        <text x="480" y="1126" text-anchor="middle" fill="#888" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">.zip per day, 30-day rotation</text>
+        <text x="480" y="1142" text-anchor="middle" fill="#888" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">excl. activities &amp; secrets</text>
+      </g>
+
+      <!-- Cloudflare Cron trigger -->
+      <g>
+        <rect x="1420" y="1010" width="160" height="60" rx="10" fill="white" stroke="#f38020" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <text x="1500" y="1035" text-anchor="middle" fill="#f38020" font-size="11.5" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">⏱ CF Cron Trigger</text>
+        <text x="1500" y="1052" text-anchor="middle" fill="#c87a3a" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">scheduled event</text>
+      </g>
+
+    </svg>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="title">MeDB Architecture</div>
+  <div class="row"><div class="sw" style="background:#1f2328"></div>GitHub (code + hosting)</div>
+  <div class="row"><div class="sw" style="background:#1a1a2e"></div>Client / Browser</div>
+  <div class="row"><div class="sw" style="background:#0f3d2e"></div>Supabase (DB · Auth)</div>
+  <div class="row"><div class="sw" style="background:#3a1f00"></div>Cloudflare Worker</div>
+  <div class="row"><div class="sw" style="background:#2a1810"></div>Claude API (Anthropic)</div>
+  <div class="row"><div class="sw" style="background:#fc4c02"></div>Strava API</div>
+  <div class="row"><div class="sw" style="background:#37404d"></div>Local PC / scheduled tasks</div>
+  <div class="hint">Scroll/pinch to zoom · drag to pan · buttons bottom-right</div>
+</div>
+
+<div class="zoom-controls">
+  <button class="zoom-btn" onclick="zoomBy(1.25)">+</button>
+  <button class="zoom-btn" onclick="zoomBy(0.8)">&minus;</button>
+  <button class="zoom-btn zoom-reset" onclick="resetView()">⤾</button>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) window.location.href = 'me-db-login.html';
+});
+
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+// ── Pan & zoom ──────────────────────────────────────────────────
+const wrap = document.getElementById('canvasWrap');
+const inner = document.getElementById('canvasInner');
+let scale = 1, tx = 0, ty = 0;
+let dragging = false, lastX = 0, lastY = 0;
+
+function applyTransform() {
+  inner.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+}
+
+function fitToScreen() {
+  const ww = wrap.clientWidth, wh = wrap.clientHeight;
+  const sw = 1760, sh = 1180;
+  scale = Math.min(ww / sw, wh / sh) * 0.92;
+  tx = (ww - sw * scale) / 2;
+  ty = (wh - sh * scale) / 2;
+  applyTransform();
+}
+
+function zoomBy(factor, cx, cy) {
+  const rect = wrap.getBoundingClientRect();
+  const px = cx ?? rect.width / 2;
+  const py = cy ?? rect.height / 2;
+  const newScale = Math.min(Math.max(scale * factor, 0.2), 4);
+  tx = px - (px - tx) * (newScale / scale);
+  ty = py - (py - ty) * (newScale / scale);
+  scale = newScale;
+  applyTransform();
+}
+
+function resetView() { fitToScreen(); }
+
+wrap.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const rect = wrap.getBoundingClientRect();
+  zoomBy(e.deltaY < 0 ? 1.12 : 0.89, e.clientX - rect.left, e.clientY - rect.top);
+}, { passive: false });
+
+wrap.addEventListener('mousedown', (e) => {
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  wrap.classList.add('dragging');
+});
+window.addEventListener('mousemove', (e) => {
+  if (!dragging) return;
+  tx += e.clientX - lastX; ty += e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  applyTransform();
+});
+window.addEventListener('mouseup', () => { dragging = false; wrap.classList.remove('dragging'); });
+
+// Touch: pan + pinch zoom
+let touchState = null;
+wrap.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    touchState = { mode: 'pan', x: e.touches[0].clientX, y: e.touches[0].clientY };
+  } else if (e.touches.length === 2) {
+    const [a, b] = e.touches;
+    touchState = { mode: 'pinch', dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), scaleStart: scale };
+  }
+}, { passive: true });
+
+wrap.addEventListener('touchmove', (e) => {
+  if (!touchState) return;
+  if (touchState.mode === 'pan' && e.touches.length === 1) {
+    const dx = e.touches[0].clientX - touchState.x, dy = e.touches[0].clientY - touchState.y;
+    tx += dx; ty += dy;
+    touchState.x = e.touches[0].clientX; touchState.y = e.touches[0].clientY;
+    applyTransform();
+  } else if (touchState.mode === 'pinch' && e.touches.length === 2) {
+    const [a, b] = e.touches;
+    const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const rect = wrap.getBoundingClientRect();
+    const cx = (a.clientX + b.clientX) / 2 - rect.left, cy = (a.clientY + b.clientY) / 2 - rect.top;
+    zoomBy(dist / touchState.dist, cx, cy);
+    touchState.dist = dist;
+  }
+  e.preventDefault();
+}, { passive: false });
+
+wrap.addEventListener('touchend', () => { touchState = null; });
+
+window.addEventListener('resize', fitToScreen);
+fitToScreen();
+</script>
+</body>
+</html>
