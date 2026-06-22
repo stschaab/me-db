@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -82,50 +82,50 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
     <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
 <div class="subnav">
-  <a href="me-db-import.html">Berichte</a>
+  <a href="me-db-import.html">Reports</a>
   <a href="me-db-bucket.html" class="active">Bucket</a>
-  <a href="me-db-werte-review.html">Werte</a>
+  <a href="me-db-werte-review.html">Values</a>
 </div>
 
 
 <div class="container">
   <div class="section-title">Storage Bucket · medical-reports</div>
-  <div class="sub">Rohdateien im Supabase Storage — unabhängig davon, ob sie schon von der KI verarbeitet wurden.</div>
+  <div class="sub">Raw files in Supabase Storage — regardless of whether they have already been processed by the AI.</div>
 
   <div class="card">
     <div class="toolbar">
-      <button class="btn-secondary" onclick="loadBucket()">Aktualisieren</button>
+      <button class="btn-secondary" onclick="loadBucket()">Refresh</button>
       <span class="count" id="count"></span>
     </div>
-    <div id="list"><div class="empty">Lädt…</div></div>
+    <div id="list"><div class="empty">Loading…</div></div>
   </div>
 </div>
 
@@ -149,33 +149,33 @@ async function logout() { await db.auth.signOut(); window.location.href = 'me-db
 
 async function loadBucket() {
   const el = document.getElementById('list');
-  el.innerHTML = '<div class="empty">Lädt…</div>';
+  el.innerHTML = '<div class="empty">Loading…</div>';
   const { data: files, error } = await db.storage.from(BUCKET).list(userId, {
     limit: 500, sortBy: { column: 'created_at', order: 'desc' }
   });
-  if (error) { el.innerHTML = `<div class="empty" style="color:#e65100">Fehler: ${error.message}</div>`; return; }
+  if (error) { el.innerHTML = `<div class="empty" style="color:#e65100">Error: ${error.message}</div>`; return; }
 
   const real = (files || []).filter(f => f.name !== '.emptyFolderPlaceholder');
-  document.getElementById('count').textContent = `${real.length} Datei${real.length !== 1 ? 'en' : ''}`;
+  document.getElementById('count').textContent = `${real.length} file${real.length !== 1 ? 's' : ''}`;
 
-  if (!real.length) { el.innerHTML = '<div class="empty">Keine Dateien im Bucket.</div>'; return; }
+  if (!real.length) { el.innerHTML = '<div class="empty">No files in bucket.</div>'; return; }
 
   let html = `<table><thead><tr>
-    <th>Datei</th><th>Größe</th><th>Hochgeladen</th><th></th>
+    <th>File</th><th>Size</th><th>Uploaded</th><th></th>
   </tr></thead><tbody>`;
   for (const f of real) {
     const display = f.name.replace(/^\d+_/, '');
     const size = f.metadata?.size ? fmtSize(f.metadata.size) : '—';
-    const dt = f.created_at ? new Date(f.created_at).toLocaleString('de-DE') : '—';
+    const dt = f.created_at ? new Date(f.created_at).toLocaleString('en-US') : '—';
     const path = `${userId}/${f.name}`;
     html += `<tr>
       <td class="fname">${display}</td>
       <td class="muted">${size}</td>
       <td class="muted">${dt}</td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="act" onclick="openFile('${encodeURIComponent(path)}')">Öffnen</button>
+        <button class="act" onclick="openFile('${encodeURIComponent(path)}')">Open</button>
         &nbsp;
-        <button class="act del" onclick="delFile('${encodeURIComponent(path)}','${display.replace(/'/g,"\\'")}')">Löschen</button>
+        <button class="act del" onclick="delFile('${encodeURIComponent(path)}','${display.replace(/'/g,"\\'")}')">Delete</button>
       </td>
     </tr>`;
   }
@@ -186,16 +186,16 @@ async function loadBucket() {
 async function openFile(encPath) {
   const path = decodeURIComponent(encPath);
   const { data, error } = await db.storage.from(BUCKET).createSignedUrl(path, 60);
-  if (error) { toast('Fehler: ' + error.message, true); return; }
+  if (error) { toast('Error: ' + error.message, true); return; }
   window.open(data.signedUrl, '_blank');
 }
 
 async function delFile(encPath, display) {
   const path = decodeURIComponent(encPath);
-  if (!confirm(`"${display}" wirklich aus dem Bucket löschen?`)) return;
+  if (!confirm(`Really delete "${display}" from the bucket?`)) return;
   const { error } = await db.storage.from(BUCKET).remove([path]);
-  if (error) { toast('Fehler: ' + error.message, true); return; }
-  toast('Gelöscht');
+  if (error) { toast('Error: ' + error.message, true); return; }
+  toast('Deleted');
   loadBucket();
 }
 
