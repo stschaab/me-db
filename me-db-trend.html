@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -74,44 +74,44 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <body>
 
 <header>
-  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#8a8aa5">Daten</span><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Trend</span></h1>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#8a8aa5">Data</span><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Trend</span></h1>
   <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
 <div class="subnav">
-  <a href="me-db-lab-dashboard.html">Lab-Dashboard</a>
-  <a href="me-db-measurements.html">Messungen</a>
+  <a href="me-db-lab-dashboard.html">Lab Dashboard</a>
+  <a href="me-db-measurements.html">Measurements</a>
   <a href="me-db-trend.html" class="active">Trend</a>
-  <a href="me-db-parameters.html">Parameter</a>
+  <a href="me-db-parameters.html">Parameters</a>
 </div>
 
 
@@ -119,7 +119,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="selector">
     <label>Parameter</label>
     <select id="paramSelect" onchange="loadTrend()">
-      <option value="">— bitte wählen —</option>
+      <option value="">— please select —</option>
     </select>
   </div>
 
@@ -128,7 +128,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="chart-card">
     <div class="chart-wrap">
       <canvas id="chart"></canvas>
-      <div class="empty" id="empty">Parameter auswählen um den Verlauf zu sehen</div>
+      <div class="empty" id="empty">Select a parameter to see the trend</div>
     </div>
     <div class="ref-info" id="refInfo"></div>
   </div>
@@ -160,7 +160,7 @@ async function init() {
   const sel = document.getElementById('paramSelect');
   let lastCat = '';
   for (const p of allParams) {
-    const cat = p.category || 'Sonstige';
+    const cat = p.category || 'Other';
     if (cat !== lastCat) {
       const grp = document.createElement('optgroup');
       grp.label = cat;
@@ -216,14 +216,14 @@ function statusClass(val, low, high) {
   return 'ok';
 }
 function statusLabel(cls) {
-  return { ok: 'Im Bereich', high: 'Zu hoch', low: 'Zu niedrig', na: '—' }[cls];
+  return { ok: 'In range', high: 'Too high', low: 'Too low', na: '—' }[cls];
 }
 
 function renderInfo(param, rows, unitDisplay, refLow, refHigh) {
   const latest = rows[rows.length - 1];
   const val = latest.value_si ?? latest.value;
   const cls = statusClass(val, refLow, refHigh);
-  const date = new Date(latest.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'long', year:'numeric' });
+  const date = new Date(latest.measured_at).toLocaleDateString('en-US', { day:'2-digit', month:'long', year:'numeric' });
 
   const trend = rows.length >= 2
     ? (() => {
@@ -237,7 +237,7 @@ function renderInfo(param, rows, unitDisplay, refLow, refHigh) {
 
   const rangeText = refLow !== null && refLow !== undefined || refHigh !== null && refHigh !== undefined
     ? `${refLow ?? '?'} – ${refHigh ?? '?'} ${unitDisplay}`
-    : 'kein Bereich';
+    : 'no range';
 
   // Show original value in subtitle if unit differs
   const origUnit = latest.unit || param.unit || '';
@@ -247,7 +247,7 @@ function renderInfo(param, rows, unitDisplay, refLow, refHigh) {
   document.getElementById('infoRow').style.display = 'flex';
   document.getElementById('infoRow').innerHTML = `
     <div class="info-card">
-      <div class="label">Letzter Wert</div>
+      <div class="label">Latest Value</div>
       <div class="val">${val ?? latest.value_text ?? '—'} <small style="font-size:0.9rem;color:#aaa">${unitDisplay}</small></div>
       <div class="sub">${date}${latest.lab ? ' · ' + latest.lab : ''}${origNote}</div>
     </div>
@@ -259,21 +259,21 @@ function renderInfo(param, rows, unitDisplay, refLow, refHigh) {
     <div class="info-card">
       <div class="label">Trend</div>
       <div class="val" style="font-size:1.1rem;padding-top:4px">${trend}</div>
-      <div class="sub">${rows.length} Messung${rows.length !== 1 ? 'en' : ''} gesamt</div>
+      <div class="sub">${rows.length} measurement${rows.length !== 1 ? 's' : ''} total</div>
     </div>
   `;
 
-  const note = param.ref_note ? `Hinweis: ${param.ref_note}` : '';
+  const note = param.ref_note ? `Note: ${param.ref_note}` : '';
   document.getElementById('refInfo').textContent = note;
 }
 
 function renderChart(param, rows, unitDisplay, refLow, refHigh) {
-  const labels = rows.map(r => new Date(r.measured_at).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'2-digit' }));
+  const labels = rows.map(r => new Date(r.measured_at).toLocaleDateString('en-US', { day:'2-digit', month:'short', year:'2-digit' }));
   const values = rows.map(r => r.value_si ?? r.value);
   const low = refLow;
   const high = refHigh;
 
-  // Berechne Y-Achsen-Grenzen mit etwas Puffer
+  // Calculate Y-axis bounds with some padding
   const allVals = values.filter(v => v !== null);
   const minVal = Math.min(...allVals, low ?? Infinity);
   const maxVal = Math.max(...allVals, high ?? -Infinity);
@@ -289,9 +289,9 @@ function renderChart(param, rows, unitDisplay, refLow, refHigh) {
     data: {
       labels,
       datasets: [
-        // Referenzbereich oben (Fläche zwischen high und Chart-Max)
+        // Reference range above (area between high and chart max)
         ...(high !== null ? [{
-          label: 'Über Bereich',
+          label: 'Above range',
           data: labels.map(() => high),
           fill: { target: { value: yMax }, above: 'rgba(255,152,0,0.08)', below: 'transparent' },
           borderColor: 'rgba(255,152,0,0.5)',
@@ -300,9 +300,9 @@ function renderChart(param, rows, unitDisplay, refLow, refHigh) {
           pointRadius: 0,
           tension: 0,
         }] : []),
-        // Referenzbereich unten
+        // Reference range below
         ...(low !== null ? [{
-          label: 'Unter Bereich',
+          label: 'Below range',
           data: labels.map(() => low),
           fill: { target: { value: yMin }, below: 'rgba(33,150,243,0.08)', above: 'transparent' },
           borderColor: 'rgba(33,150,243,0.5)',
@@ -311,7 +311,7 @@ function renderChart(param, rows, unitDisplay, refLow, refHigh) {
           pointRadius: 0,
           tension: 0,
         }] : []),
-        // Messwerte
+        // Measured values
         {
           label: param.name,
           data: values,
@@ -350,8 +350,8 @@ function renderChart(param, rows, unitDisplay, refLow, refHigh) {
                 `${val} ${unitDisplay}`,
                 `Status: ${status}`,
                 ...origLine,
-                ...(row.lab ? [`Labor: ${row.lab}`] : []),
-                ...(row.notes ? [`Hinweis: ${row.notes}`] : []),
+                ...(row.lab ? [`Lab: ${row.lab}`] : []),
+                ...(row.notes ? [`Note: ${row.notes}`] : []),
               ];
             },
             title: ctx => ctx[0].label
