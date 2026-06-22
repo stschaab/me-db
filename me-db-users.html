@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -73,44 +73,44 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
     <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
 <div class="container">
   <div class="add-card">
-    <h2>Neuen Nutzer hinzufügen</h2>
+    <h2>Add new user</h2>
     <div class="add-row">
-      <input type="email" id="newEmail" placeholder="gmail-adresse@gmail.com" onkeydown="if(event.key==='Enter') addUser()">
+      <input type="email" id="newEmail" placeholder="gmail-address@gmail.com" onkeydown="if(event.key==='Enter') addUser()">
       <input type="text" id="newName" placeholder="Name (optional)" style="max-width:160px" onkeydown="if(event.key==='Enter') addUser()">
-      <button class="btn" onclick="addUser()">Hinzufügen</button>
+      <button class="btn" onclick="addUser()">Add</button>
     </div>
   </div>
 
-  <div id="content"><div class="loading">Lädt...</div></div>
+  <div id="content"><div class="loading">Loading...</div></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -133,16 +133,16 @@ async function logout() {
 
 async function loadUsers() {
   const { data, error } = await db.from('allowed_users').select('*').order('name');
-  if (error) { showToast('Fehler: ' + error.message, true); return; }
+  if (error) { showToast('Error: ' + error.message, true); return; }
 
-  let html = `<table><thead><tr><th>E-Mail</th><th>Name</th><th></th></tr></thead><tbody>`;
+  let html = `<table><thead><tr><th>Email</th><th>Name</th><th></th></tr></thead><tbody>`;
   for (const u of data) {
     const isYou = u.email === currentEmail;
     html += `<tr>
-      <td>${u.email}${isYou ? '<span class="you">(du)</span>' : ''}</td>
+      <td>${u.email}${isYou ? '<span class="you">(you)</span>' : ''}</td>
       <td>${u.name || '—'}</td>
       <td style="text-align:right">
-        ${isYou ? '' : `<button class="btn-del" onclick="deleteUser(${u.id}, '${u.email}')">Entfernen</button>`}
+        ${isYou ? '' : `<button class="btn-del" onclick="deleteUser(${u.id}, '${u.email}')">Remove</button>`}
       </td>
     </tr>`;
   }
@@ -156,19 +156,19 @@ async function addUser() {
   if (!email) return;
 
   const { error } = await db.from('allowed_users').insert({ email, name });
-  if (error) { showToast('Fehler: ' + error.message, true); return; }
+  if (error) { showToast('Error: ' + error.message, true); return; }
 
   document.getElementById('newEmail').value = '';
   document.getElementById('newName').value = '';
-  showToast(`${email} hinzugefügt`);
+  showToast(`${email} added`);
   loadUsers();
 }
 
 async function deleteUser(id, email) {
-  if (!confirm(`${email} wirklich entfernen?`)) return;
+  if (!confirm(`Really remove ${email}?`)) return;
   const { error } = await db.from('allowed_users').delete().eq('id', id);
-  if (error) { showToast('Fehler: ' + error.message, true); return; }
-  showToast(`${email} entfernt`);
+  if (error) { showToast('Error: ' + error.message, true); return; }
+  showToast(`${email} removed`);
   loadUsers();
 }
 
