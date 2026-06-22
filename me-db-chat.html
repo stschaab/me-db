@@ -397,9 +397,10 @@ async function loadContext() {
   document.getElementById('ctxDot').className = 'context-dot';
   document.getElementById('ctxText').textContent = 'Lade Gesundheitsdaten...';
 
-  const [measRes, actRes] = await Promise.all([
+  const [measRes, actRes, hrvRes] = await Promise.all([
     authDb.from('measurements').select('measured_at,value,value_si,value_text,unit,parameters(name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)').order('measured_at', { ascending: false }).limit(2000),
     authDb.from('activities').select('date,type,duration_sec,distance_m,avg_heartrate,calories').order('date', { ascending: false }).limit(50),
+    authDb.from('hrv_measurements').select('measured_at,duration_sec,mean_hr,sdnn,rmssd,pnn50,source,notes').order('measured_at', { ascending: false }).limit(60),
   ]);
 
   const byParam = {};
@@ -436,10 +437,15 @@ async function loadContext() {
     return `${a.date} ${a.type} ${km} ${min} ${hr}`.trim();
   });
 
-  contextData = `BLUTWERTE (alle Messwerte pro Parameter, neuester zuerst):\n${measLines.join('\n')}\n\nAKTIVITÄTEN (letzte 20):\n${actLines.join('\n')}`;
+  const hrvLines = (hrvRes.data || []).map(h => {
+    const note = h.notes ? ` (${h.notes})` : '';
+    return `${h.measured_at} HR:${h.mean_hr}bpm SDNN:${h.sdnn}ms RMSSD:${h.rmssd}ms pNN50:${h.pnn50}% [${h.duration_sec}s, ${h.source}]${note}`;
+  });
+
+  contextData = `BLUTWERTE (alle Messwerte pro Parameter, neuester zuerst):\n${measLines.join('\n')}\n\nAKTIVITÄTEN (letzte 20):\n${actLines.join('\n')}\n\nHRV-MESSUNGEN (Polar H10, neueste zuerst):\n${hrvLines.join('\n')}`;
 
   document.getElementById('ctxDot').className = 'context-dot loaded';
-  document.getElementById('ctxText').textContent = `${Object.keys(byParam).length} Parameter + ${actRes.data?.length || 0} Aktivitäten geladen`;
+  document.getElementById('ctxText').textContent = `${Object.keys(byParam).length} Parameter + ${actRes.data?.length || 0} Aktivitäten + ${hrvRes.data?.length || 0} HRV-Messungen geladen`;
 }
 
 // ── Nachricht senden ─────────────────────────────────────────────
