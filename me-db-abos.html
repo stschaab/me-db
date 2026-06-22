@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MeDB &middot; Abos</title>
+<title>MeDB &middot; Subscriptions</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -79,36 +79,36 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <body>
 
 <header>
-  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Abos</span></h1>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Subscriptions</span></h1>
   <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
@@ -116,21 +116,21 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
   <div class="hero">
     <div>
-      <div class="big" id="totalMonthly">…<span class="u">€/Monat</span></div>
-      <div class="label">Aktive Abos</div>
+      <div class="big" id="totalMonthly">…<span class="u">€/month</span></div>
+      <div class="label">Active subscriptions</div>
       <div class="sub" id="totalSub"></div>
     </div>
   </div>
 
   <div class="filters">
-    <button class="chip active" data-f="all" onclick="setFilter('all')">Alle</button>
-    <button class="chip" data-f="active" onclick="setFilter('active')">Aktiv</button>
-    <button class="chip" data-f="check" onclick="setFilter('check')">Zu prüfen</button>
-    <button class="chip" data-f="cancelled" onclick="setFilter('cancelled')">Gekündigt</button>
-    <div class="right"><button class="btn-add" onclick="addNew()">+ Neues Abo</button></div>
+    <button class="chip active" data-f="all" onclick="setFilter('all')">All</button>
+    <button class="chip" data-f="active" onclick="setFilter('active')">Active</button>
+    <button class="chip" data-f="check" onclick="setFilter('check')">To review</button>
+    <button class="chip" data-f="cancelled" onclick="setFilter('cancelled')">Cancelled</button>
+    <div class="right"><button class="btn-add" onclick="addNew()">+ New subscription</button></div>
   </div>
 
-  <div id="content"><div class="loading">Lade Abos…</div></div>
+  <div id="content"><div class="loading">Loading subscriptions…</div></div>
 
 </div>
 
@@ -160,13 +160,13 @@ async function checkVoicePrefill() {
     if (payload.type !== 'subscription') return;
     const a = payload.data;
     const { data, error } = await db.from('subscriptions').insert({
-      user_id: userId, name: a.name || 'Neues Abo', price: a.price || null,
+      user_id: userId, name: a.name || 'New subscription', price: a.price || null,
       interval: a.interval || 'check', category: a.category || null, status: 'check'
     }).select();
-    if (error) { showToast('Fehler: ' + error.message); return; }
+    if (error) { showToast('Error: ' + error.message); return; }
     allSubs.push(data[0]);
     renderTotal(); render();
-    showToast(data[0].name + ' angelegt – bitte prüfen');
+    showToast(data[0].name + ' created – please review');
   } catch {}
 }
 
@@ -180,13 +180,13 @@ function monthlyEquivalent(price, interval) {
     case 'monthly': return price;
     case 'yearly': return price / 12;
     case '6months': return price / 6;
-    default: return 0; // 'check' / unbekannt -> nicht in Summe
+    default: return 0; // 'check' / unknown -> not included in total
   }
 }
 
 async function loadSubs() {
   const { data, error } = await db.from('subscriptions').select('*').order('price', { ascending: false });
-  if (error) { document.getElementById('content').innerHTML = `<div class="empty">Fehler: ${error.message}</div>`; return; }
+  if (error) { document.getElementById('content').innerHTML = `<div class="empty">Error: ${error.message}</div>`; return; }
   allSubs = data || [];
   renderTotal();
   render();
@@ -196,8 +196,8 @@ function renderTotal() {
   const active = allSubs.filter(s => s.status === 'active');
   const total = active.reduce((s,x) => s + monthlyEquivalent(parseFloat(x.price)||0, x.interval), 0);
   const checkCount = allSubs.filter(s => s.status === 'check').length;
-  document.getElementById('totalMonthly').innerHTML = `${total.toFixed(2)}<span class="u">€/Monat</span>`;
-  document.getElementById('totalSub').textContent = `${active.length} aktive Abos` + (checkCount ? ` · ${checkCount} zu prüfen (nicht in Summe)` : '');
+  document.getElementById('totalMonthly').innerHTML = `${total.toFixed(2)}<span class="u">€/month</span>`;
+  document.getElementById('totalSub').textContent = `${active.length} active subscriptions` + (checkCount ? ` · ${checkCount} to review (not included in total)` : '');
 }
 
 function setFilter(f) {
@@ -208,34 +208,34 @@ function setFilter(f) {
 
 function render() {
   const list = filter === 'all' ? allSubs : allSubs.filter(s => s.status === filter);
-  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">Keine Abos in dieser Ansicht.</div>'; return; }
+  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">No subscriptions in this view.</div>'; return; }
   document.getElementById('content').innerHTML = list.map(subRow).join('');
 }
 
 function subRow(s) {
   const intervalOpts = ['monthly','yearly','6months','check'].map(i =>
-    `<option value="${i}" ${s.interval===i?'selected':''}>${i==='monthly'?'monatlich':i==='yearly'?'jährlich':i==='6months'?'6 Monate':'unklar'}</option>`).join('');
+    `<option value="${i}" ${s.interval===i?'selected':''}>${i==='monthly'?'monthly':i==='yearly'?'yearly':i==='6months'?'6 months':'unclear'}</option>`).join('');
   const statusOpts = ['active','check','cancelled'].map(st =>
-    `<option value="${st}" ${s.status===st?'selected':''}>${st==='active'?'Aktiv':st==='check'?'Zu prüfen':'Gekündigt'}</option>`).join('');
+    `<option value="${st}" ${s.status===st?'selected':''}>${st==='active'?'Active':st==='check'?'To review':'Cancelled'}</option>`).join('');
   return `
     <div class="sub-row" id="row-${s.id}">
       <div class="sub-top">
         <input class="sub-name" value="${esc(s.name)}" id="name-${s.id}">
-        <span class="badge ${s.status}">${s.status==='active'?'Aktiv':s.status==='check'?'Zu prüfen':'Gekündigt'}</span>
+        <span class="badge ${s.status}">${s.status==='active'?'Active':s.status==='check'?'To review':'Cancelled'}</span>
       </div>
       <div class="sub-provider">${esc(s.provider || '')}</div>
       <div class="sub-fields">
-        <div><label>Preis (€)</label><input type="number" step="0.01" value="${s.price ?? ''}" id="price-${s.id}"></div>
-        <div><label>Rhythmus</label><select id="interval-${s.id}">${intervalOpts}</select></div>
+        <div><label>Price (€)</label><input type="number" step="0.01" value="${s.price ?? ''}" id="price-${s.id}"></div>
+        <div><label>Frequency</label><select id="interval-${s.id}">${intervalOpts}</select></div>
         <div><label>Status</label><select id="status-${s.id}">${statusOpts}</select></div>
-        <div><label>Kategorie</label><input type="text" value="${esc(s.category||'')}" id="category-${s.id}"></div>
-        <div><label>Zahlweg</label><input type="text" value="${esc(s.payment_method||'')}" id="pm-${s.id}"></div>
-        <div><label>Anbieter</label><input type="text" value="${esc(s.provider||'')}" id="provider-${s.id}"></div>
+        <div><label>Category</label><input type="text" value="${esc(s.category||'')}" id="category-${s.id}"></div>
+        <div><label>Payment method</label><input type="text" value="${esc(s.payment_method||'')}" id="pm-${s.id}"></div>
+        <div><label>Provider</label><input type="text" value="${esc(s.provider||'')}" id="provider-${s.id}"></div>
       </div>
-      <div class="sub-notes"><textarea id="notes-${s.id}" placeholder="Notizen…">${esc(s.notes||'')}</textarea></div>
+      <div class="sub-notes"><textarea id="notes-${s.id}" placeholder="Notes…">${esc(s.notes||'')}</textarea></div>
       <div class="sub-actions">
-        <button class="del-btn" onclick="deleteSub(${s.id})">🗑 Löschen</button>
-        <button class="save-btn" onclick="saveSub(${s.id})">Speichern</button>
+        <button class="del-btn" onclick="deleteSub(${s.id})">🗑 Delete</button>
+        <button class="save-btn" onclick="saveSub(${s.id})">Save</button>
       </div>
     </div>`;
 }
@@ -253,30 +253,30 @@ async function saveSub(id) {
     updated_at: new Date().toISOString()
   };
   const { error } = await db.from('subscriptions').update(update).eq('id', id);
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   const idx = allSubs.findIndex(s => s.id === id);
   if (idx >= 0) allSubs[idx] = { ...allSubs[idx], ...update };
   renderTotal(); render();
-  showToast('Gespeichert ✓');
+  showToast('Saved ✓');
 }
 
 async function deleteSub(id) {
-  if (!confirm('Abo wirklich löschen?')) return;
+  if (!confirm('Really delete this subscription?')) return;
   const { error } = await db.from('subscriptions').delete().eq('id', id);
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   allSubs = allSubs.filter(s => s.id !== id);
   renderTotal(); render();
-  showToast('Gelöscht');
+  showToast('Deleted');
 }
 
 async function addNew() {
   const { data, error } = await db.from('subscriptions')
-    .insert({ user_id: userId, name: 'Neues Abo', interval: 'monthly', status: 'check' })
+    .insert({ user_id: userId, name: 'New subscription', interval: 'monthly', status: 'check' })
     .select();
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   allSubs.unshift(data[0]);
   setFilter('all');
-  showToast('Abo angelegt – bitte Details ausfüllen');
+  showToast('Subscription created – please fill in details');
 }
 </script>
 </body>
