@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MeDB &middot; Berichte</title>
+<title>MeDB &middot; Reports</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -57,7 +57,7 @@
   .toast.ok { background: #2e7d32; }
   .toast.err { background: #c62828; }
 
-  /* Neue Berichte */
+  /* New reports */
   .new-files-list { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
   .file-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #f8f9fa; border-radius: 8px; font-size: 0.88rem; }
   .file-row .fname { flex: 1; font-weight: 500; }
@@ -114,62 +114,62 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <body>
 
 <header>
-  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#8a8aa5">Import</span><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Berichte</span></h1>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#8a8aa5">Import</span><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Reports</span></h1>
   <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
 <div class="subnav">
-  <a href="me-db-import.html" class="active">Berichte</a>
+  <a href="me-db-import.html" class="active">Reports</a>
   <a href="me-db-bucket.html">Bucket</a>
-  <a href="me-db-werte-review.html">Werte</a>
+  <a href="me-db-werte-review.html">Values</a>
 </div>
 
 
 <div class="container">
 
   <!-- ── BEREICH 1: Upload ── -->
-  <div class="section-title">Bericht hochladen</div>
+  <div class="section-title">Upload Report</div>
   <div class="card">
     <input type="file" id="fileInput" accept="application/pdf" multiple onchange="handleFiles(this.files)" style="display:none">
     <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
       <div id="uploadZoneContent">
         <div class="icon">📄</div>
-        <h3>PDF hier ablegen oder klicken</h3>
-        <p>Laborbefund, Arztbericht, Bildgebung, Gutachten · max. 20 MB pro PDF · Metadaten werden automatisch erkannt</p>
+        <h3>Drop PDF here or click</h3>
+        <p>Lab result, doctor's report, imaging, expert opinion · max. 20 MB per PDF · metadata detected automatically</p>
       </div>
     </div>
 
     <div class="btn-row">
-      <button class="btn" id="uploadBtn" onclick="startUpload()" disabled>In Ablage hochladen</button>
+      <button class="btn" id="uploadBtn" onclick="startUpload()" disabled>Upload to Storage</button>
       <span id="uploadStatus" style="font-size:0.82rem;color:#888"></span>
     </div>
 
@@ -180,15 +180,15 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   </div>
 
   <!-- ── BEREICH 2: Verarbeiten ── -->
-  <div class="section-title">KI-Verarbeitung</div>
+  <div class="section-title">AI Processing</div>
   <div class="card">
     <p style="font-size:0.88rem;color:#666;margin-bottom:16px">
-      Claude liest neue Berichte aus der Ablage, extrahiert Metadaten und speichert den Inhalt in die Wissensdatenbank (Vektorspeicher) — so kann der KI-Chat auf alle Befunde zugreifen.
+      Claude reads new reports from storage, extracts metadata and saves the content to the knowledge base (vector store) — so the AI Chat can access all findings.
     </p>
 
     <div class="btn-row">
-      <button class="btn-secondary" id="scanBtn" onclick="scanBucket()">Neue Berichte prüfen</button>
-      <button class="btn" id="processBtn" onclick="processNew()" disabled style="display:none">Alle neuen verarbeiten</button>
+      <button class="btn-secondary" id="scanBtn" onclick="scanBucket()">Check for New Reports</button>
+      <button class="btn" id="processBtn" onclick="processNew()" disabled style="display:none">Process All New</button>
       <span id="scanStatus" style="font-size:0.82rem;color:#888"></span>
     </div>
 
@@ -201,9 +201,9 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   </div>
 
   <!-- ── BEREICH 3: Alle Berichte ── -->
-  <div class="section-title">Gespeicherte Berichte</div>
+  <div class="section-title">Saved Reports</div>
   <div class="card" style="padding:0;overflow:hidden">
-    <div id="reportsList"><div style="padding:20px;color:#bbb;font-size:0.85rem">Lädt...</div></div>
+    <div id="reportsList"><div style="padding:20px;color:#bbb;font-size:0.85rem">Loading...</div></div>
   </div>
 
 </div>
@@ -219,7 +219,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 let userId = null;
 let selectedFile = null;
-let newFiles = []; // Dateien im Bucket ohne lab_reports Eintrag
+let newFiles = []; // Files in bucket without lab_reports entry
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
@@ -239,12 +239,12 @@ zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('
 function handleFiles(files) {
   const valid = [...files].filter(f => f.type === 'application/pdf' && f.size <= 20 * 1024 * 1024);
   const tooBig = [...files].filter(f => f.size > 20 * 1024 * 1024);
-  if (tooBig.length) toast(`${tooBig.length} Datei(en) zu groß (max. 20 MB)`, true);
+  if (tooBig.length) toast(`${tooBig.length} file(s) too large (max. 20 MB)`, true);
   if (!valid.length) return;
   selectedFile = valid;
   const names = valid.map(f => f.name).join(', ');
   const totalMB = (valid.reduce((s, f) => s + f.size, 0) / 1024 / 1024).toFixed(1);
-  document.getElementById('uploadZoneContent').innerHTML = `<div class="icon">✅</div><h3>${valid.length} PDF${valid.length > 1 ? 's' : ''} ausgewählt</h3><p style="font-size:0.82rem;color:#666">${names}</p><p style="margin-top:4px;font-size:0.78rem;color:#aaa">${totalMB} MB gesamt</p>`;
+  document.getElementById('uploadZoneContent').innerHTML = `<div class="icon">✅</div><h3>${valid.length} PDF${valid.length > 1 ? 's' : ''} selected</h3><p style="font-size:0.82rem;color:#666">${names}</p><p style="margin-top:4px;font-size:0.78rem;color:#aaa">${totalMB} MB total</p>`;
   document.getElementById('uploadBtn').disabled = false;
 }
 
@@ -256,39 +256,39 @@ async function startUpload() {
   for (const file of selectedFile) {
     showProgress('uploadProgress', 'uploadFill', 'uploadText',
       Math.round(done / selectedFile.length * 100),
-      `${file.name} wird hochgeladen... (${done + 1}/${selectedFile.length})`);
+      `Uploading ${file.name}... (${done + 1}/${selectedFile.length})`);
     try {
       const path = `${userId}/${Date.now()}_${safeKey(file.name)}`;
       const { error } = await db.storage.from(BUCKET).upload(path, file, { contentType: 'application/pdf' });
       if (error) throw new Error(error.message);
       done++;
     } catch(e) {
-      toast(`Fehler bei ${file.name}: ${e.message}`, true);
+      toast(`Error with ${file.name}: ${e.message}`, true);
       errors++;
       done++;
     }
   }
 
   showProgress('uploadProgress', 'uploadFill', 'uploadText', 100,
-    `${done - errors} von ${selectedFile.length} hochgeladen ✓`);
+    `${done - errors} of ${selectedFile.length} uploaded ✓`);
   document.getElementById('uploadStatus').textContent = '';
-  toast(`${done - errors} PDF${done - errors !== 1 ? 's' : ''} hochgeladen — "Neue Berichte prüfen" klicken`);
+  toast(`${done - errors} PDF${done - errors !== 1 ? 's' : ''} uploaded — click "Check for New Reports"`);
   selectedFile = null;
 }
 
 // ── SCAN + VERARBEITUNG ─────────────────────────────────────────────────────
 
 async function scanBucket() {
-  document.getElementById('scanStatus').textContent = 'Prüfe Ablage...';
+  document.getElementById('scanStatus').textContent = 'Checking storage...';
   document.getElementById('newFilesList').innerHTML = '';
   document.getElementById('processBtn').style.display = 'none';
 
   try {
-    // Alle Dateien im Bucket für diesen User
+    // All files in the bucket for this user
     const { data: files, error } = await db.storage.from(BUCKET).list(userId, { limit: 200 });
     if (error) throw new Error(error.message);
 
-    // Bekannte storage_paths aus lab_reports
+    // Known storage_paths from lab_reports
     const { data: reports } = await db.from('lab_reports').select('storage_path').eq('user_id', userId);
     const knownPaths = new Set((reports || []).map(r => r.storage_path));
 
@@ -298,12 +298,12 @@ async function scanBucket() {
     });
 
     if (newFiles.length === 0) {
-      document.getElementById('scanStatus').textContent = 'Alle Berichte bereits verarbeitet.';
-      document.getElementById('newFilesList').innerHTML = '<div style="color:#aaa;font-size:0.85rem;padding:8px 0">Keine neuen Dateien gefunden.</div>';
+      document.getElementById('scanStatus').textContent = 'All reports already processed.';
+      document.getElementById('newFilesList').innerHTML = '<div style="color:#aaa;font-size:0.85rem;padding:8px 0">No new files found.</div>';
       return;
     }
 
-    document.getElementById('scanStatus').textContent = `${newFiles.length} neue Datei${newFiles.length > 1 ? 'en' : ''} gefunden`;
+    document.getElementById('scanStatus').textContent = `${newFiles.length} new file${newFiles.length > 1 ? 's' : ''} found`;
     document.getElementById('processBtn').style.display = '';
     document.getElementById('processBtn').disabled = false;
 
@@ -311,11 +311,11 @@ async function scanBucket() {
       <div class="file-row" id="frow-${f.id || f.name}">
         <span class="fname">${f.name.replace(/^\d+_/, '')}</span>
         <span class="fsize">${f.metadata?.size ? (f.metadata.size/1024/1024).toFixed(1)+' MB' : ''}</span>
-        <span class="fstatus"><span class="badge-new">Neu</span></span>
+        <span class="fstatus"><span class="badge-new">New</span></span>
       </div>`).join('');
 
   } catch(e) {
-    document.getElementById('scanStatus').textContent = 'Fehler: ' + e.message;
+    document.getElementById('scanStatus').textContent = 'Error: ' + e.message;
   }
 }
 
@@ -328,19 +328,19 @@ async function processNew() {
   for (const file of newFiles) {
     const storagePath = `${userId}/${file.name}`;
     const displayName = file.name.replace(/^\d+_/, '');
-    setFileStatus(file.id || file.name, 'running', 'Verarbeitung...');
+    setFileStatus(file.id || file.name, 'running', 'Processing...');
     showProgress('processProgress', 'processFill', 'processText',
       Math.round(done / newFiles.length * 100),
-      `Verarbeite ${displayName}...`);
+      `Processing ${displayName}...`);
 
     try {
-      // PDF aus Storage als Blob laden
+      // Load PDF from storage as Blob
       const { data: blob, error: dlErr } = await db.storage.from(BUCKET).download(storagePath);
       if (dlErr) throw new Error(dlErr.message);
 
       const fileBase64 = await blobToBase64(blob);
 
-      // Worker aufrufen — Claude liest PDF und gibt Metadaten + Chunks zurück
+      // Call worker — Claude reads the PDF and returns metadata + chunks
       const resp = await fetch(`${WORKER_URL}/process-pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -356,7 +356,7 @@ async function processNew() {
       const result = await resp.json();
 
       setFileStatus(file.id || file.name, 'ok',
-        `✓ ${result.chunks} Abschnitte · ${result.metadata?.lab || ''} ${result.metadata?.doc_date || ''}`);
+        `✓ ${result.chunks} sections · ${result.metadata?.lab || ''} ${result.metadata?.doc_date || ''}`);
       done++;
 
     } catch(e) {
@@ -365,9 +365,9 @@ async function processNew() {
     }
   }
 
-  showProgress('processProgress', 'processFill', 'processText', 100, `${done} Bericht${done > 1 ? 'e' : ''} verarbeitet`);
+  showProgress('processProgress', 'processFill', 'processText', 100, `${done} report${done > 1 ? 's' : ''} processed`);
   document.getElementById('scanBtn').disabled = false;
-  toast(`${done} Bericht${done > 1 ? 'e' : ''} verarbeitet`);
+  toast(`${done} report${done > 1 ? 's' : ''} processed`);
   loadReports();
 }
 
@@ -389,29 +389,29 @@ async function loadReports() {
 
   const el = document.getElementById('reportsList');
   if (error) {
-    el.innerHTML = `<div style="padding:20px;color:#e65100;font-size:0.85rem">Fehler: ${error.message}</div>`;
+    el.innerHTML = `<div style="padding:20px;color:#e65100;font-size:0.85rem">Error: ${error.message}</div>`;
     return;
   }
   if (!data?.length) {
-    el.innerHTML = '<div style="padding:20px;color:#bbb;font-size:0.85rem">Noch keine Berichte verarbeitet.</div>';
+    el.innerHTML = '<div style="padding:20px;color:#bbb;font-size:0.85rem">No reports processed yet.</div>';
     return;
   }
 
   const statusBadge = s => ({
-    done:       '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:20px;font-size:0.75rem">✓ Fertig</span>',
-    processing: '<span style="background:#fff3e0;color:#e65100;padding:2px 8px;border-radius:20px;font-size:0.75rem">⏳ Läuft</span>',
-    error:      '<span style="background:#fdedec;color:#c62828;padding:2px 8px;border-radius:20px;font-size:0.75rem">✗ Fehler</span>',
+    done:       '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:20px;font-size:0.75rem">✓ Done</span>',
+    processing: '<span style="background:#fff3e0;color:#e65100;padding:2px 8px;border-radius:20px;font-size:0.75rem">⏳ Running</span>',
+    error:      '<span style="background:#fdedec;color:#c62828;padding:2px 8px;border-radius:20px;font-size:0.75rem">✗ Error</span>',
   }[s] || s);
 
-  const typeOptions = { labor: 'Labor', arzt: 'Arztbericht', bildgebung: 'Bildgebung', gutachten: 'Gutachten', sonstiges: 'Sonstiges' };
-  const typeLabel = t => typeOptions[t] || t || 'Labor';
+  const typeOptions = { labor: 'Lab', arzt: "Doctor's Report", bildgebung: 'Imaging', gutachten: 'Expert Opinion', sonstiges: 'Other' };
+  const typeLabel = t => typeOptions[t] || t || 'Lab';
 
   let html = `<table><thead><tr>
-    <th>Bericht</th><th>Typ</th><th>Einrichtung</th><th>Datum</th><th>Status</th><th>Abschnitte</th><th></th>
+    <th>Report</th><th>Type</th><th>Facility</th><th>Date</th><th>Status</th><th>Sections</th><th></th>
   </tr></thead><tbody>`;
   for (const r of data) {
     const date = r.doc_date || '';
-    const dateDisplay = date ? new Date(date).toLocaleDateString('de-DE') : '—';
+    const dateDisplay = date ? new Date(date).toLocaleDateString('en-GB') : '—';
     const typeOpts = Object.entries(typeOptions).map(([v,l]) =>
       `<option value="${v}" ${r.report_type===v?'selected':''}>${l}</option>`).join('');
     html += `<tr id="row-${r.id}">
@@ -422,7 +422,7 @@ async function loadReports() {
       </td>
       <td>
         <span class="view-${r.id}">${r.lab || '—'}</span>
-        <input class="edit-field edit-${r.id}" data-id="${r.id}" data-field="lab" type="text" value="${r.lab||''}" placeholder="Labor" style="display:none;font-size:0.82rem;border:1px solid #e0e0e0;border-radius:6px;padding:3px 8px;width:120px">
+        <input class="edit-field edit-${r.id}" data-id="${r.id}" data-field="lab" type="text" value="${r.lab||''}" placeholder="Facility" style="display:none;font-size:0.82rem;border:1px solid #e0e0e0;border-radius:6px;padding:3px 8px;width:120px">
       </td>
       <td>
         <span class="view-${r.id}">${dateDisplay}</span>
@@ -431,11 +431,11 @@ async function loadReports() {
       <td>${statusBadge(r.status)}</td>
       <td>${r.chunk_count || '—'}</td>
       <td>
-        <button onclick="startEdit('${r.id}')" class="edit-btn-${r.id}" style="font-size:0.78rem;color:#7ec8e3;background:none;border:none;cursor:pointer">Bearbeiten</button>
+        <button onclick="startEdit('${r.id}')" class="edit-btn-${r.id}" style="font-size:0.78rem;color:#7ec8e3;background:none;border:none;cursor:pointer">Edit</button>
         <span style="display:none" class="save-btns-${r.id}">
-          <button onclick="saveEdit('${r.id}')" style="font-size:0.78rem;color:#2e7d32;background:none;border:none;cursor:pointer;font-weight:600">Speichern</button>
+          <button onclick="saveEdit('${r.id}')" style="font-size:0.78rem;color:#2e7d32;background:none;border:none;cursor:pointer;font-weight:600">Save</button>
           &nbsp;
-          <button onclick="cancelEdit('${r.id}')" style="font-size:0.78rem;color:#999;background:none;border:none;cursor:pointer">Abbrechen</button>
+          <button onclick="cancelEdit('${r.id}')" style="font-size:0.78rem;color:#999;background:none;border:none;cursor:pointer">Cancel</button>
         </span>
       </td>
     </tr>`;
@@ -467,21 +467,21 @@ async function saveEdit(id) {
   update.updated_at = new Date().toISOString();
 
   const { error } = await db.from('lab_reports').update(update).eq('id', id);
-  if (error) { toast('Fehler: ' + error.message, true); return; }
-  toast('Gespeichert');
+  if (error) { toast('Error: ' + error.message, true); return; }
+  toast('Saved');
   loadReports();
 }
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 
 function safeKey(name) {
-  // Supabase Storage erlaubt keine Umlaute/Sonderzeichen im Schluessel
+  // Supabase Storage doesn't allow umlauts/special characters in keys
   return name
     .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
     .replace(/Ä/g,'Ae').replace(/Ö/g,'Oe').replace(/Ü/g,'Ue')
     .replace(/ß/g,'ss')
-    .replace(/[^\x20-\x7E]/g,'')       // sonstige Nicht-ASCII entfernen
-    .replace(/[\\/:*?"<>|#%]/g,'_');   // problematische Zeichen ersetzen
+    .replace(/[^\x20-\x7E]/g,'')       // remove other non-ASCII characters
+    .replace(/[\\/:*?"<>|#%]/g,'_');   // replace problematic characters
 }
 
 function showProgress(wrapId, fillId, textId, pct, text) {
