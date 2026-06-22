@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -52,7 +52,7 @@
   .task-date { border: 1px solid #e0e0e0; border-radius: 6px; padding: 4px 6px; font-size: 0.78rem; background: #fafafa; flex-shrink: 0; }
   .task-date.overdue { border-color: #ffcdd2; color: #c62828; background: #fff5f5; font-weight: 600; }
 
-  /* Detail-Overlay (Bearbeiten-Fenster) */
+  /* Detail overlay (edit window) */
   .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 500; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; }
   .overlay.show { display: flex; }
   .detail-card { background: white; border-radius: 14px; padding: 26px; max-width: 480px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.25); }
@@ -108,107 +108,107 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
 <div class="container">
 
   <div class="toolbar">
-    <input type="text" id="fTitle" placeholder="Suche…" oninput="setFilter('title', this.value)">
+    <input type="text" id="fTitle" placeholder="Search…" oninput="setFilter('title', this.value)">
     <select id="fPriority" onchange="setFilter('priority', this.value)">
-      <option value="">Priorität: alle</option>
-      <option value="high">Hoch</option>
-      <option value="medium">Mittel</option>
-      <option value="low">Niedrig</option>
+      <option value="">Priority: all</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
     </select>
-    <select id="fProject" onchange="setFilter('project', this.value)"><option value="">Kategorie: alle</option></select>
-    <button class="chipbtn" id="dueBtn" onclick="toggleDueFilter()">🔴 Fällige Tasks</button>
-    <label class="showdone-label"><input type="checkbox" id="fShowDone" onchange="filters.showDone=this.checked;render()"> Erledigte zeigen</label>
-    <button class="clearbtn" onclick="clearFilters()">Filter zurücksetzen</button>
-    <button class="voicebtn" id="voiceBtn" onclick="toggleVoice()" title="Aufgabe per Sprache anlegen">🎤</button>
-    <button class="addbtn" onclick="openDetail(null)">+ Hinzufügen</button>
+    <select id="fProject" onchange="setFilter('project', this.value)"><option value="">Category: all</option></select>
+    <button class="chipbtn" id="dueBtn" onclick="toggleDueFilter()">🔴 Due tasks</button>
+    <label class="showdone-label"><input type="checkbox" id="fShowDone" onchange="filters.showDone=this.checked;render()"> Show completed</label>
+    <button class="clearbtn" onclick="clearFilters()">Reset filters</button>
+    <button class="voicebtn" id="voiceBtn" onclick="toggleVoice()" title="Create task by voice">🎤</button>
+    <button class="addbtn" onclick="openDetail(null)">+ Add</button>
     <div class="count" id="taskCount"></div>
   </div>
 
-  <div id="content"><div class="loading">Lade Tasks...</div></div>
+  <div id="content"><div class="loading">Loading tasks...</div></div>
 
 </div>
 
-<!-- Bearbeiten-Fenster -->
+<!-- Edit window -->
 <div class="overlay" id="overlay" onclick="if(event.target===this) closeDetail()">
   <div class="detail-card">
-    <h2><span>Aufgabe bearbeiten</span><button class="closebtn" onclick="closeDetail()">&times;</button></h2>
+    <h2><span>Edit task</span><button class="closebtn" onclick="closeDetail()">&times;</button></h2>
     <div class="dfield">
-      <label>Titel</label>
+      <label>Title</label>
       <input type="text" id="dTitle" onkeydown="if(event.key==='Enter'){event.preventDefault();saveDetail();}">
     </div>
     <div class="dfield">
-      <label>Beschreibung</label>
-      <textarea id="dDescription" placeholder="Details, Links, Notizen…"></textarea>
+      <label>Description</label>
+      <textarea id="dDescription" placeholder="Details, links, notes…"></textarea>
     </div>
     <div class="dgrid">
       <div class="dfield">
-        <label>Erledigt</label>
+        <label>Completed</label>
         <label style="display:flex;align-items:center;gap:8px;padding:9px 0;font-size:0.9rem">
-          <input type="checkbox" id="dDone" style="width:18px;height:18px;accent-color:#2e7d32"> Aufgabe ist erledigt
+          <input type="checkbox" id="dDone" style="width:18px;height:18px;accent-color:#2e7d32"> Task is completed
         </label>
       </div>
       <div class="dfield">
-        <label>Priorität</label>
+        <label>Priority</label>
         <select id="dPriority">
           <option value="">–</option>
-          <option value="high">Hoch</option>
-          <option value="medium">Mittel</option>
-          <option value="low">Niedrig</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
         </select>
       </div>
       <div class="dfield">
-        <label>Kategorie</label>
+        <label>Category</label>
         <input type="text" id="dProject">
       </div>
       <div class="dfield">
-        <label>Quelle</label>
-        <input type="text" id="dSource" placeholder="z.B. manual, mobile">
+        <label>Source</label>
+        <input type="text" id="dSource" placeholder="e.g. manual, mobile">
       </div>
       <div class="dfield">
-        <label>Datum</label>
+        <label>Date</label>
         <input type="date" id="dFollowUp">
       </div>
     </div>
     <div class="detail-actions">
-      <button class="del-btn" id="delFromDetailBtn" onclick="deleteFromDetail()">🗑 Löschen</button>
-      <button class="save-btn" onclick="saveDetail()">Speichern</button>
+      <button class="del-btn" id="delFromDetailBtn" onclick="deleteFromDetail()">🗑 Delete</button>
+      <button class="save-btn" onclick="saveDetail()">Save</button>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
-<div class="voice-status" id="voiceStatus"><span class="voice-dot"></span><span id="voiceStatusText">Höre zu…</span></div>
+<div class="voice-status" id="voiceStatus"><span class="voice-dot"></span><span id="voiceStatusText">Listening…</span></div>
 
 <script>
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
@@ -272,7 +272,7 @@ async function loadTasks() {
     populateProjectFilter();
     render();
   } catch (e) {
-    document.getElementById('content').innerHTML = `<div class="error">Fehler beim Laden: ${e.message}</div>`;
+    document.getElementById('content').innerHTML = `<div class="error">Error loading: ${e.message}</div>`;
   }
 }
 
@@ -280,13 +280,13 @@ function populateProjectFilter() {
   const sel = document.getElementById('fProject');
   const cur = sel.value;
   const projects = [...new Set(allTasks.map(t => t.project).filter(Boolean))].sort();
-  sel.innerHTML = '<option value="">Kategorie: alle</option>' + projects.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  sel.innerHTML = '<option value="">Category: all</option>' + projects.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
   sel.value = cur;
 }
 
 async function updateField(id, field, value) {
   const { error } = await db.from('tasks').update({ [field]: value, updated_at: new Date().toISOString() }).eq('id', id);
-  if (error) { showToast('Fehler: ' + error.message); return false; }
+  if (error) { showToast('Error: ' + error.message); return false; }
   const t = allTasks.find(t => t.id === id);
   if (t) t[field] = value;
   return true;
@@ -305,16 +305,16 @@ async function inlineDateChange(id, el) {
 }
 
 async function deleteTask(id) {
-  if (!confirm('Aufgabe wirklich löschen?')) return;
+  if (!confirm('Really delete this task?')) return;
   const { error } = await db.from('tasks').delete().eq('id', id);
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   allTasks = allTasks.filter(t => t.id !== id);
   if (detailId === id) closeDetail();
   populateProjectFilter();
   render();
 }
 
-/* ---------- Bearbeiten-Fenster (auch fürs Anlegen neuer Aufgaben) ---------- */
+/* ---------- Edit window (also used for creating new tasks) ---------- */
 function openDetail(id) {
   const isNew = id == null;
   const t = isNew ? null : allTasks.find(t => t.id === id);
@@ -327,7 +327,7 @@ function openDetail(id) {
   document.getElementById('dProject').value = t?.project || '';
   document.getElementById('dSource').value = t?.source || '';
   document.getElementById('dFollowUp').value = t?.follow_up_date || (isNew ? todayStr() : '');
-  document.querySelector('.detail-card h2 span').textContent = isNew ? 'Neue Aufgabe' : 'Aufgabe bearbeiten';
+  document.querySelector('.detail-card h2 span').textContent = isNew ? 'New task' : 'Edit task';
   document.getElementById('delFromDetailBtn').style.display = isNew ? 'none' : 'inline-block';
   document.getElementById('overlay').classList.add('show');
   document.getElementById('dTitle').focus();
@@ -338,7 +338,7 @@ function closeDetail() {
 }
 async function saveDetail() {
   const title = document.getElementById('dTitle').value.trim();
-  if (!title) { showToast('Titel darf nicht leer sein'); return; }
+  if (!title) { showToast('Title must not be empty'); return; }
   const fields = {
     title,
     description: document.getElementById('dDescription').value.trim() || null,
@@ -351,19 +351,19 @@ async function saveDetail() {
 
   if (detailId == null) {
     const { data, error } = await db.from('tasks').insert({ ...fields, user_id: userId, source: fields.source || 'manual' }).select();
-    if (error) { showToast('Fehler: ' + error.message); return; }
+    if (error) { showToast('Error: ' + error.message); return; }
     allTasks.push(data[0]);
   } else {
     fields.updated_at = new Date().toISOString();
     const { error } = await db.from('tasks').update(fields).eq('id', detailId);
-    if (error) { showToast('Fehler: ' + error.message); return; }
+    if (error) { showToast('Error: ' + error.message); return; }
     const t = allTasks.find(t => t.id === detailId);
     if (t) Object.assign(t, fields);
   }
   closeDetail();
   populateProjectFilter();
   render();
-  showToast('Gespeichert ✓');
+  showToast('Saved ✓');
 }
 function deleteFromDetail() { if (detailId) deleteTask(detailId); }
 
@@ -383,15 +383,15 @@ function applyFilters(list) {
 function setFilter(field, value) { filters[field] = value; render(); }
 
 /* ---------- Render ---------- */
-function fmtDate(s) { if (!s) return ''; const d = new Date(s+'T00:00:00'); return d.toLocaleDateString('de-DE',{day:'2-digit',month:'short'}); }
+function fmtDate(s) { if (!s) return ''; const d = new Date(s+'T00:00:00'); return d.toLocaleDateString('en-US',{day:'2-digit',month:'short'}); }
 function isOverdue(s) { if (!s) return false; const d = new Date(s+'T00:00:00'); const today = new Date(); today.setHours(0,0,0,0); return d <= today; }
-function prioLabel(p) { return p==='high'?'Hoch':p==='medium'?'Mittel':'Niedrig'; }
+function prioLabel(p) { return p==='high'?'High':p==='medium'?'Medium':'Low'; }
 
 function render() {
   const list = applyFilters(allTasks);
-  document.getElementById('taskCount').textContent = `${list.filter(t => t.status !== 'done').length} offen von ${allTasks.length} gesamt`;
+  document.getElementById('taskCount').textContent = `${list.filter(t => t.status !== 'done').length} open of ${allTasks.length} total`;
 
-  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">Keine Aufgaben gefunden.</div>'; return; }
+  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">No tasks found.</div>'; return; }
   document.getElementById('content').innerHTML = list.map(taskRow).join('');
 }
 
@@ -420,7 +420,7 @@ function setupRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return null;
   const r = new SR();
-  r.lang = 'de-DE';
+  r.lang = 'en-US';
   r.continuous = false;
   r.interimResults = false;
   return r;
@@ -431,22 +431,22 @@ function toggleVoice() {
 
   recognition = setupRecognition();
   if (!recognition) {
-    showToast('Spracherkennung nicht verfügbar – bitte Chrome/Edge nutzen');
+    showToast('Speech recognition not available – please use Chrome/Edge');
     return;
   }
 
   isListening = true;
   document.getElementById('voiceBtn').classList.add('listening');
   document.getElementById('voiceStatus').classList.add('show');
-  document.getElementById('voiceStatusText').textContent = 'Höre zu…';
+  document.getElementById('voiceStatusText').textContent = 'Listening…';
 
   recognition.onresult = async (event) => {
     const text = event.results[0][0].transcript;
-    document.getElementById('voiceStatusText').textContent = 'Verarbeite: „' + text + '"…';
+    document.getElementById('voiceStatusText').textContent = 'Processing: "' + text + '"…';
     await parseVoiceTask(text);
   };
   recognition.onerror = (event) => {
-    showToast('Fehler bei Spracherkennung: ' + event.error);
+    showToast('Speech recognition error: ' + event.error);
     stopVoiceUI();
   };
   recognition.onend = () => { stopVoiceUI(); };
@@ -469,7 +469,7 @@ async function parseVoiceTask(text) {
     });
     const data = await resp.json();
     stopVoiceUI();
-    if (!data.success) { showToast('Konnte nichts erkennen: ' + (data.error||'')); return; }
+    if (!data.success) { showToast('Could not recognize anything: ' + (data.error||'')); return; }
 
     const task = data.task;
     openDetail(null);
@@ -478,10 +478,10 @@ async function parseVoiceTask(text) {
     document.getElementById('dPriority').value = task.priority || '';
     document.getElementById('dProject').value = task.project || '';
     if (task.follow_up_date) document.getElementById('dFollowUp').value = task.follow_up_date;
-    showToast('Per Sprache erkannt – bitte prüfen & speichern');
+    showToast('Recognized by voice – please review & save');
   } catch (e) {
     stopVoiceUI();
-    showToast('Fehler: ' + e.message);
+    showToast('Error: ' + e.message);
   }
 }
 </script>
