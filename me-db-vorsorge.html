@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MeDB &middot; Vorsorgeordner</title>
+<title>MeDB &middot; Emergency Folder</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -45,7 +45,7 @@
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; padding: 11px 20px; border-radius: 8px; font-size: 0.88rem; opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 999; }
   .toast.show { opacity: 1; }
 
-  /* Neu-Eintrag-Fenster */
+  /* New entry window */
   .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 500; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; }
   .overlay.show { display: flex; }
   .detail-card { background: white; border-radius: 14px; padding: 26px; max-width: 480px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.25); }
@@ -88,36 +88,36 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <body>
 
 <header>
-  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Vorsorgeordner</span></h1>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Emergency Folder</span></h1>
   <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
-    <div class="navdrop"><span class="navdrop-label">Daten &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-measurements.html">Messungen</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
       <a href="me-db-trend.html">Trend</a>
-      <a href="me-db-parameters.html">Parameter</a>
+      <a href="me-db-parameters.html">Parameters</a>
     </div></div>
-    <div class="navdrop"><span class="navdrop-label">Sport &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-sports.html">Sport-Dashboard</a>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
       <a href="me-db-strava.html">Strava</a>
-      <a href="me-db-activities.html">Aktivit&auml;ten</a>
+      <a href="me-db-activities.html">Activities</a>
     </div></div>
     <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
-      <a href="me-db-import.html">Berichte</a>
+      <a href="me-db-import.html">Reports</a>
       <a href="me-db-bucket.html">Bucket</a>
-      <a href="me-db-werte-review.html">Werte</a>
+      <a href="me-db-werte-review.html">Values</a>
     </div></div>
-    <a href="me-db-chat.html">KI Chat</a>
+    <a href="me-db-chat.html">AI Chat</a>
     <a href="me-db-tasks.html">Tasks</a>
-    <a href="me-db-einkaufsliste.html">Einkauf</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
-    <a href="me-db-abos.html">Abos</a>
+    <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
-    <a href="me-db-vorsorge.html">Vorsorge</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-users.html">Users</a>
-    <button class="logout-btn" onclick="logout()">Abmelden</button>
+    <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
 
@@ -126,60 +126,60 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="warn-banner">
     <div class="icon">⚠️</div>
     <div>
-      <strong>Sensible Daten.</strong> Diese Liste ist für den Notfall gedacht – trage hier <em>keine Passwörter, PINs oder TANs</em> ein, sondern nur, WO etwas liegt und WER zu kontaktieren ist (z.B. "Sparkasse Erlangen, Berater Hr. Müller, Tel. ..."). Nur du siehst diese Seite aktuell (RLS-geschützt auf dein Konto).
+      <strong>Sensitive data.</strong> This list is meant for emergencies – do not enter <em>any passwords, PINs, or TANs</em> here, only WHERE something is located and WHO to contact (e.g. "Sparkasse Erlangen, advisor Mr. Müller, phone ..."). Only you can currently see this page (RLS-protected to your account).
     </div>
   </div>
 
   <div class="filters">
-    <button class="chip active" data-f="all" onclick="setFilter('all')">Alle</button>
-    <button class="chip" data-f="Bankkonto" onclick="setFilter('Bankkonto')">Bankkonten</button>
-    <button class="chip" data-f="Versicherung" onclick="setFilter('Versicherung')">Versicherungen</button>
-    <button class="chip" data-f="Aktien/Depot" onclick="setFilter('Aktien/Depot')">Aktien/Depot</button>
-    <button class="chip" data-f="Sonstiges" onclick="setFilter('Sonstiges')">Sonstiges</button>
-    <div class="right"><button class="btn-add" onclick="openNewItem()">+ Neuer Eintrag</button></div>
+    <button class="chip active" data-f="all" onclick="setFilter('all')">All</button>
+    <button class="chip" data-f="Bankkonto" onclick="setFilter('Bankkonto')">Bank Accounts</button>
+    <button class="chip" data-f="Versicherung" onclick="setFilter('Versicherung')">Insurance</button>
+    <button class="chip" data-f="Aktien/Depot" onclick="setFilter('Aktien/Depot')">Stocks/Portfolio</button>
+    <button class="chip" data-f="Sonstiges" onclick="setFilter('Sonstiges')">Other</button>
+    <div class="right"><button class="btn-add" onclick="openNewItem()">+ New Entry</button></div>
   </div>
 
-  <div id="content"><div class="loading">Lade Vorsorgeordner…</div></div>
+  <div id="content"><div class="loading">Loading emergency folder…</div></div>
 
 </div>
 
-<!-- Neu-Eintrag-Fenster -->
+<!-- New entry window -->
 <div class="overlay" id="overlay" onclick="if(event.target===this) closeNewItem()">
   <div class="detail-card">
-    <h2><span>Neuer Eintrag</span><button class="closebtn" onclick="closeNewItem()">&times;</button></h2>
+    <h2><span>New Entry</span><button class="closebtn" onclick="closeNewItem()">&times;</button></h2>
     <div class="dfield">
       <label>Name</label>
-      <input type="text" id="nName" placeholder="z.B. Sparkasse Girokonto" onkeydown="if(event.key==='Enter'){event.preventDefault();saveNewItem();}">
+      <input type="text" id="nName" placeholder="e.g. Sparkasse checking account" onkeydown="if(event.key==='Enter'){event.preventDefault();saveNewItem();}">
     </div>
     <div class="dgrid">
       <div class="dfield">
-        <label>Kategorie</label>
+        <label>Category</label>
         <select id="nCategory"></select>
       </div>
       <div class="dfield">
-        <label>Referenz (IBAN/Police-Nr.)</label>
+        <label>Reference (IBAN/Policy No.)</label>
         <input type="text" id="nReference">
       </div>
       <div class="dfield">
-        <label>Kontaktperson</label>
+        <label>Contact Person</label>
         <input type="text" id="nContact">
       </div>
       <div class="dfield">
-        <label>Telefon/E-Mail</label>
+        <label>Phone/Email</label>
         <input type="text" id="nContactInfo">
       </div>
     </div>
     <div class="dfield">
-      <label>Wo liegen Unterlagen?</label>
-      <input type="text" id="nDocLoc" placeholder="z.B. Aktenordner Büro, Fach 3">
+      <label>Where are the documents?</label>
+      <input type="text" id="nDocLoc" placeholder="e.g. Office filing cabinet, drawer 3">
     </div>
     <div class="dfield">
-      <label>Notizen</label>
-      <textarea id="nNotes" placeholder="Notizen…"></textarea>
+      <label>Notes</label>
+      <textarea id="nNotes" placeholder="Notes…"></textarea>
     </div>
     <div class="detail-actions">
-      <button class="cancel-btn" onclick="closeNewItem()">Abbrechen</button>
-      <button class="save-btn" onclick="saveNewItem()">Speichern</button>
+      <button class="cancel-btn" onclick="closeNewItem()">Cancel</button>
+      <button class="save-btn" onclick="saveNewItem()">Save</button>
     </div>
   </div>
 </div>
@@ -227,7 +227,7 @@ function showToast(msg){ const t=document.getElementById('toast'); t.textContent
 
 async function loadItems() {
   const { data, error } = await db.from('vorsorge_items').select('*').order('category').order('name');
-  if (error) { document.getElementById('content').innerHTML = `<div class="empty">Fehler: ${error.message}</div>`; return; }
+  if (error) { document.getElementById('content').innerHTML = `<div class="empty">Error: ${error.message}</div>`; return; }
   allItems = data || [];
   render();
 }
@@ -240,7 +240,7 @@ function setFilter(f) {
 
 function render() {
   const list = filter === 'all' ? allItems : allItems.filter(i => i.category === filter);
-  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">Noch keine Einträge.</div>'; return; }
+  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">No entries yet.</div>'; return; }
 
   if (filter !== 'all') {
     document.getElementById('content').innerHTML = list.map(itemRow).join('');
@@ -253,9 +253,9 @@ function render() {
     if (!items.length) continue;
     html += `<div class="cat-title">${esc(cat)}</div>` + items.map(itemRow).join('');
   }
-  // Kategorien außerhalb der Standardliste (falls vorhanden)
+  // Categories outside the standard list (if any)
   const other = list.filter(i => !CATS.includes(i.category));
-  if (other.length) html += `<div class="cat-title">${esc(other[0].category || 'Weitere')}</div>` + other.map(itemRow).join('');
+  if (other.length) html += `<div class="cat-title">${esc(other[0].category || 'Other')}</div>` + other.map(itemRow).join('');
 
   document.getElementById('content').innerHTML = html;
 }
@@ -265,19 +265,19 @@ function itemRow(i) {
   return `
     <div class="item-row" id="row-${i.id}">
       <div class="item-top">
-        <input class="item-name" value="${esc(i.name)}" id="name-${i.id}" placeholder="z.B. Sparkasse Girokonto">
+        <input class="item-name" value="${esc(i.name)}" id="name-${i.id}" placeholder="e.g. Sparkasse checking account">
         <select id="category-${i.id}" style="width:auto;border:1px solid #e0e0e0;border-radius:6px;padding:5px 8px;font-size:0.8rem">${catOpts}</select>
       </div>
       <div class="item-fields">
-        <div><label>Referenz (IBAN/Police-Nr.)</label><input type="text" value="${esc(i.reference||'')}" id="reference-${i.id}"></div>
-        <div><label>Kontaktperson</label><input type="text" value="${esc(i.contact_person||'')}" id="contact-${i.id}"></div>
-        <div><label>Telefon/E-Mail</label><input type="text" value="${esc(i.contact_info||'')}" id="contactinfo-${i.id}"></div>
-        <div><label>Wo liegen Unterlagen?</label><input type="text" value="${esc(i.document_location||'')}" id="docloc-${i.id}" placeholder="z.B. Aktenordner Büro, Fach 3"></div>
+        <div><label>Reference (IBAN/Policy No.)</label><input type="text" value="${esc(i.reference||'')}" id="reference-${i.id}"></div>
+        <div><label>Contact Person</label><input type="text" value="${esc(i.contact_person||'')}" id="contact-${i.id}"></div>
+        <div><label>Phone/Email</label><input type="text" value="${esc(i.contact_info||'')}" id="contactinfo-${i.id}"></div>
+        <div><label>Where are the documents?</label><input type="text" value="${esc(i.document_location||'')}" id="docloc-${i.id}" placeholder="e.g. Office filing cabinet, drawer 3"></div>
       </div>
-      <div class="item-notes"><textarea id="notes-${i.id}" placeholder="Notizen…">${esc(i.notes||'')}</textarea></div>
+      <div class="item-notes"><textarea id="notes-${i.id}" placeholder="Notes…">${esc(i.notes||'')}</textarea></div>
       <div class="item-actions">
-        <button class="del-btn" onclick="deleteItem(${i.id})">🗑 Löschen</button>
-        <button class="save-btn" onclick="saveItem(${i.id})">Speichern</button>
+        <button class="del-btn" onclick="deleteItem(${i.id})">🗑 Delete</button>
+        <button class="save-btn" onclick="saveItem(${i.id})">Save</button>
       </div>
     </div>`;
 }
@@ -294,17 +294,17 @@ async function saveItem(id) {
     updated_at: new Date().toISOString()
   };
   const { error } = await db.from('vorsorge_items').update(update).eq('id', id);
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   const idx = allItems.findIndex(i => i.id === id);
   if (idx >= 0) allItems[idx] = { ...allItems[idx], ...update };
-  showToast('Gespeichert ✓');
+  showToast('Saved ✓');
   render();
 }
 
 async function deleteItem(id) {
-  if (!confirm('Eintrag wirklich löschen?')) return;
+  if (!confirm('Really delete this entry?')) return;
   const { error } = await db.from('vorsorge_items').delete().eq('id', id);
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   allItems = allItems.filter(i => i.id !== id);
   render();
 }
@@ -318,7 +318,7 @@ function openNewItem() {
   document.getElementById('nNotes').value = '';
   const catSel = document.getElementById('nCategory');
   catSel.innerHTML = CATS.map(c => `<option value="${c}">${c}</option>`).join('');
-  catSel.value = (filter !== 'all' && CATS.includes(filter)) ? filter : 'Sonstiges';
+  catSel.value = (filter !== 'all' && CATS.includes(filter)) ? filter : 'Sonstiges'; // value must stay German (DB enum)
   document.getElementById('overlay').classList.add('show');
   document.getElementById('nName').focus();
 }
@@ -327,7 +327,7 @@ function closeNewItem() {
 }
 async function saveNewItem() {
   const name = document.getElementById('nName').value.trim();
-  if (!name) { showToast('Name darf nicht leer sein'); return; }
+  if (!name) { showToast('Name must not be empty'); return; }
   const row = {
     user_id: userId,
     name,
@@ -339,11 +339,11 @@ async function saveNewItem() {
     notes: document.getElementById('nNotes').value.trim() || null,
   };
   const { data, error } = await db.from('vorsorge_items').insert(row).select();
-  if (error) { showToast('Fehler: ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   allItems.push(data[0]);
   closeNewItem();
   render();
-  showToast('Eintrag angelegt ✓');
+  showToast('Entry created ✓');
 }
 </script>
 </body>
