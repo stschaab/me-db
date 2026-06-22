@@ -80,6 +80,10 @@
 
   .sidebar-list::-webkit-scrollbar { width: 4px; }
   .sidebar-list::-webkit-scrollbar-thumb { background: #374151; border-radius: 2px; }
+
+  .sidebar-toggle { display: none; background: none; border: none; color: white; font-size: 1.3rem; cursor: pointer; padding: 4px 8px; line-height: 1; }
+  .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 399; }
+  .sidebar-backdrop.show { display: block; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -108,6 +112,17 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   input, select, textarea, button { font-size: 16px !important; }
   .addbar { flex-direction: column; align-items: stretch; }
   .addbar input, .addbar select, .addbar button { width: 100%; }
+
+  .sidebar-toggle { display: block; }
+  .main { position: relative; }
+  .sidebar { position: fixed; top: 0; bottom: 0; left: 0; width: 82%; max-width: 300px; z-index: 400; transform: translateX(-100%); transition: transform 0.2s ease; }
+  .sidebar.open { transform: translateX(0); }
+  .chat-area { width: 100%; min-width: 0; }
+  .bubble { max-width: 88%; }
+  .context-bar { padding: 8px 12px; }
+  .messages { padding: 14px; }
+  .bottom-area { padding: 10px 12px; }
+  .suggestions { display: none; }
 }
 </style>
 </head>
@@ -115,7 +130,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
 <header>
   <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">KI Chat</span></h1>
-  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <div style="display:flex;align-items:center;">
+    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Gespräche">&#128172;</button>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  </div>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
     <a href="me-db-lab-dashboard.html">Lab</a>
@@ -148,8 +166,9 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 </header>
 
 <div class="main">
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar(false)"></div>
   <!-- Sidebar -->
-  <div class="sidebar">
+  <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <button class="new-chat-btn" onclick="newChat()">
         <span style="font-size:1.1rem">+</span> Neuer Chat
@@ -219,6 +238,14 @@ db.auth.getSession().then(({ data }) => {
 });
 
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+function toggleSidebar(force) {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebarBackdrop');
+  const open = force !== undefined ? force : !sb.classList.contains('open');
+  sb.classList.toggle('open', open);
+  bd.classList.toggle('show', open);
+}
 
 // ── Session-Liste laden ──────────────────────────────────────────
 async function loadSessions() {
@@ -328,6 +355,7 @@ async function loadSession(sid, itemEl) {
 
   document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
   if (itemEl) itemEl.classList.add('active');
+  if (window.innerWidth <= 768) toggleSidebar(false);
 
   document.getElementById('suggestions').style.display = 'none';
   const div = document.getElementById('messages');
@@ -354,6 +382,7 @@ function newChat() {
   sessionId = crypto.randomUUID();
   messages = [];
   document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+  if (window.innerWidth <= 768) toggleSidebar(false);
   const div = document.getElementById('messages');
   div.innerHTML = `<div class="welcome">
     <h2>Neues Gespräch</h2>
