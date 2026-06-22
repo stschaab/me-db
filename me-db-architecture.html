@@ -119,8 +119,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <path d="M1060,250 C 1180,250 1230,300 1230,360"/>
         <!-- Browser <-> Supabase REST (CRUD, JWT) -->
         <path d="M820,610 C 950,650 1100,650 1230,610" marker-start="url(#arrow)"/>
-        <!-- Browser -> Cloudflare Worker (chat / voice / parse) -->
-        <path d="M820,690 C 1000,760 1250,800 1430,690"/>
+        <!-- Browser <-> Cloudflare Worker (chat / voice / parse, JSON result back) -->
+        <path d="M820,690 C 1000,760 1250,800 1430,690" marker-start="url(#arrow)"/>
         <!-- Worker -> Claude API -->
         <path d="M1560,640 C 1640,560 1640,460 1560,400"/>
         <!-- Worker <-> Supabase (read context, save chat/strava) -->
@@ -146,7 +146,9 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <text x="845" y="450">Sign in with Google</text>
         <text x="1040" y="320">issues JWT</text>
         <text x="845" y="640">REST API, RLS by JWT</text>
-        <text x="940" y="760">fetch() chat / voice / parse</text>
+        <text x="845" y="657" font-size="10.5" fill="#999">(incl. voice/AI-parsed inserts)</text>
+        <text x="940" y="755">fetch() chat / voice / parse</text>
+        <text x="940" y="772">⟵ JSON result (task/item)</text>
         <text x="1565" y="500">Claude Sonnet API</text>
         <text x="1300" y="585">read context, save history</text>
         <text x="1330" y="850" fill="#f38020">/sync-strava</text>
