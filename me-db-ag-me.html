@@ -296,7 +296,7 @@ async function loadSettings() {
 
 let allSupplements = [];
 async function loadSupplementsList() {
-  const { data } = await db.from('supplements').select('id,name,package_amount,package_unit,package_price').order('name');
+  const { data } = await db.from('supplements').select('id,name,package_amount,package_unit,package_price').eq('active', true).order('name');
   allSupplements = data || [];
   const sel = document.getElementById('dFromSupplement');
   sel.innerHTML = '<option value="">— pick to prefill name / package / price —</option>'
