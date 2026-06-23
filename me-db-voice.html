@@ -122,12 +122,15 @@ function startListening() {
 
 async function classify(text) {
   try {
-    // Send product catalog along for shopping-list matching
-    const { data: products } = await db.from('products').select('id,name');
+    // Send product + shop catalog along for shopping-list matching
+    const [{ data: products }, { data: shops }] = await Promise.all([
+      db.from('products').select('id,name'),
+      db.from('shops').select('id,name'),
+    ]);
     const resp = await fetch(WORKER_URL + '/parse-universal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, products: products || [] }),
+      body: JSON.stringify({ text, products: products || [], shops: shops || [] }),
     });
     const data = await resp.json();
     document.getElementById('status').textContent = '';
@@ -174,7 +177,7 @@ function previewHtml() {
       return `${esc(t.title)||'–'}${t.follow_up_date ? '<br>📅 '+t.follow_up_date : ''}${t.priority ? '<br>⚡ '+t.priority : ''}`;
     }
     case 'shopping':
-      return (r.shopping_items||[]).map(i => esc(i.name) + (i.quantity?' ('+esc(i.quantity)+')':'')).join('<br>') || '–';
+      return (r.shopping_items||[]).map(i => esc(i.name) + (i.quantity?' ('+esc(i.quantity)+')':'') + (i.shop_name?' 🏬'+esc(i.shop_name):'')).join('<br>') || '–';
     case 'supplement': {
       const s = r.supplement;
       return `${esc(s.name)||'–'}${s.manufacturer?'<br>'+esc(s.manufacturer):''}${s.daily_amount?'<br>'+s.daily_amount+'x daily':''}`;
