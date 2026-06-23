@@ -174,6 +174,11 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="detail-card">
     <h2><span>Ingredient</span><button class="closebtn" onclick="closeDetail()">&times;</button></h2>
 
+    <div class="dfield"><label>Import from Supplements list (optional)</label>
+      <select id="dFromSupplement" onchange="importFromSupplement(this.value)">
+        <option value="">— pick to prefill name / package / price —</option>
+      </select>
+    </div>
     <div class="dfield"><label>Name</label><input id="dName" placeholder="e.g. Magnesium bisglycinate"></div>
 
     <div class="type-toggle">
@@ -246,7 +251,7 @@ let currentType = 'concentrate';
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   userId = data.session.user.id;
-  Promise.all([loadIngredients(), loadSettings()]).then(renderAll);
+  Promise.all([loadIngredients(), loadSettings(), loadSupplementsList()]).then(renderAll);
 });
 
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
@@ -287,6 +292,29 @@ async function loadIngredients() {
 async function loadSettings() {
   const { data } = await db.from('ag_me_settings').select('*').eq('user_id', userId).maybeSingle();
   if (data) settings = data;
+}
+
+let allSupplements = [];
+async function loadSupplementsList() {
+  const { data } = await db.from('supplements').select('id,name,package_amount,package_unit,package_price').order('name');
+  allSupplements = data || [];
+  const sel = document.getElementById('dFromSupplement');
+  sel.innerHTML = '<option value="">— pick to prefill name / package / price —</option>'
+    + allSupplements.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+}
+
+function importFromSupplement(id) {
+  if (!id) return;
+  const s = allSupplements.find(s => String(s.id) === String(id));
+  if (!s) return;
+  document.getElementById('dName').value = s.name || '';
+  if (s.package_amount != null && (!s.package_unit || /^g$|gram/i.test(s.package_unit))) {
+    document.getElementById('dPkgSize').value = s.package_amount;
+  }
+  if (s.package_price != null) document.getElementById('dPkgPrice').value = s.package_price;
+  if (s.package_unit && !/^g$|gram/i.test(s.package_unit)) {
+    showToast(`Note: package unit is "${s.package_unit}", not g — check package size manually`);
+  }
 }
 
 function renderAll() {
@@ -398,6 +426,7 @@ function openDetail(id) {
   const i = isNew ? {} : allIngredients.find(i => i.id === id);
   if (!isNew && !i) return;
 
+  document.getElementById('dFromSupplement').value = '';
   document.getElementById('dName').value = i.name || '';
   setType(i.type || 'concentrate');
   document.getElementById('dTargetMg').value = i.target_dose_mg ?? '';
