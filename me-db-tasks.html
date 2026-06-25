@@ -242,6 +242,7 @@ function checkVoicePrefill() {
     document.getElementById('dPriority').value = t.priority || '';
     document.getElementById('dProject').value = t.project || '';
     if (t.follow_up_date) document.getElementById('dFollowUp').value = t.follow_up_date;
+    document.activeElement?.blur();
   } catch {}
 }
 
