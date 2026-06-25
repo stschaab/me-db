@@ -82,6 +82,7 @@ let currentType = null;
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'me-db-login.html';
+  else startListening();
 });
 
 function setupRecognition() {
