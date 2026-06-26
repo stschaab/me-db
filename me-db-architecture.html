@@ -98,7 +98,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
 <div class="canvas-wrap" id="canvasWrap">
   <div class="canvas-inner" id="canvasInner">
-    <svg id="diagram" width="1760" height="1180" viewBox="0 0 1760 1180" xmlns="http://www.w3.org/2000/svg">
+    <svg id="diagram" width="1900" height="1260" viewBox="0 0 1900 1260" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="#8a8fa3"/>
@@ -136,6 +136,12 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <path d="M280,1000 C 500,950 800,750 1130,650" stroke="#999" marker-end="url(#arrow)"/>
         <!-- Local PC scheduler -> Google Drive backup -->
         <path d="M260,1080 C 260,1110 320,1110 380,1110"/>
+        <!-- Worker -> SMA API (cron daily ROPC login) -->
+        <path d="M1500,650 C 1400,820 1000,820 830,870" stroke="#f38020" marker-end="url(#arrowCron)"/>
+        <!-- SMA API -> Supabase pv_daily -->
+        <path d="M720,960 C 800,1040 1200,980 1270,690" stroke="#f38020" marker-end="url(#arrowCron)"/>
+        <!-- DWD -> Supabase (manual import) -->
+        <path d="M590,910 C 800,960 1100,920 1270,710" stroke="#999" stroke-dasharray="6 3" marker-end="url(#arrow)"/>
         <!-- Voice/Web Speech API -> Browser -->
         <path d="M560,690 C 500,720 460,720 440,700" marker-end="url(#arrow)"/>
       </g>
@@ -158,6 +164,9 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <text x="500" y="800" fill="#777">service_role key, daily 03:00</text>
         <text x="280" y="1100" fill="#777">zip backup</text>
         <text x="395" y="715">SpeechRecognition</text>
+        <text x="1050" y="800" fill="#f38020">/sync-pv (ROPC login)</text>
+        <text x="860" y="1010" fill="#f38020">upsert pv_daily</text>
+        <text x="700" y="970" fill="#777">manual import</text>
       </g>
 
       <!-- ===================== NODES ===================== -->
@@ -209,9 +218,9 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <text x="1270" y="484" text-anchor="middle" fill="#9fe6c8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">private: measurements, hrv, chat</text>
         <text x="1270" y="500" text-anchor="middle" fill="#9fe6c8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">server-only: strava_tokens</text>
         <line x1="1150" y1="514" x2="1390" y2="514" stroke="#1a5a44"/>
-        <text x="1270" y="535" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">17 tables · tasks, supplements,</text>
-        <text x="1270" y="551" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">vorsorge_items, subscriptions,</text>
-        <text x="1270" y="567" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">activities, measurements, …</text>
+        <text x="1270" y="535" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">19 tables · tasks, supplements,</text>
+        <text x="1270" y="551" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">activities, measurements,</text>
+        <text x="1270" y="567" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">pv_daily · dwd_radiation_daily</text>
         <line x1="1150" y1="580" x2="1390" y2="580" stroke="#1a5a44"/>
         <text x="1270" y="601" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">anon key (RLS-bound, in page src)</text>
         <text x="1270" y="617" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">service_role key (server-only)</text>
@@ -227,17 +236,17 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <text x="1560" y="412" text-anchor="middle" fill="#ffcd9e" font-size="10.5" font-family="monospace">me-db-ai.st-schaab.workers.dev</text>
         <line x1="1450" y1="426" x2="1670" y2="426" stroke="#5a3000"/>
         <text x="1560" y="447" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">POST /  (AI chat)</text>
-        <text x="1560" y="464" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">/parse-task</text>
-        <text x="1560" y="481" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">/parse-universal</text>
-        <text x="1560" y="498" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">/sync-strava</text>
-        <line x1="1450" y1="512" x2="1670" y2="512" stroke="#5a3000"/>
-        <text x="1560" y="533" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">scheduled() cron handler</text>
-        <text x="1560" y="549" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">05:00 UTC daily</text>
-        <line x1="1450" y1="563" x2="1670" y2="563" stroke="#5a3000"/>
-        <text x="1560" y="585" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">holds ANTHROPIC_API_KEY,</text>
-        <text x="1560" y="601" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Supabase service key,</text>
-        <text x="1560" y="617" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Strava client secret (env vars)</text>
-        <text x="1560" y="638" text-anchor="middle" fill="#ffcd9e" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">deployed via raw API (no wrangler)</text>
+        <text x="1560" y="464" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">/parse-task · /parse-universal</text>
+        <text x="1560" y="481" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">/sync-strava · /sync-pv</text>
+        <line x1="1450" y1="495" x2="1670" y2="495" stroke="#5a3000"/>
+        <text x="1560" y="513" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">scheduled() — 05:00 UTC daily</text>
+        <text x="1560" y="529" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Strava sync + PV sync</text>
+        <line x1="1450" y1="543" x2="1670" y2="543" stroke="#5a3000"/>
+        <text x="1560" y="561" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">ANTHROPIC_API_KEY</text>
+        <text x="1560" y="577" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">SUPABASE_SERVICE_KEY</text>
+        <text x="1560" y="593" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">STRAVA_CLIENT_SECRET</text>
+        <text x="1560" y="609" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">SMA_USERNAME · SMA_PASSWORD</text>
+        <text x="1560" y="630" text-anchor="middle" fill="#ffcd9e" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">deployed via raw API (no wrangler)</text>
       </g>
 
       <!-- Claude API -->
@@ -277,6 +286,25 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <text x="480" y="1142" text-anchor="middle" fill="#888" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">excl. activities &amp; secrets</text>
       </g>
 
+      <!-- SMA ennexOS -->
+      <g>
+        <rect x="620" y="870" width="210" height="100" rx="12" fill="#1a3a1a" stroke="#1a3a1a"/>
+        <text x="725" y="900" text-anchor="middle" fill="#90ee90" font-size="14" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">☀️ SMA ennexOS</text>
+        <text x="725" y="919" text-anchor="middle" fill="#b0d9b0" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">uiapi.sunnyportal.com</text>
+        <line x1="638" y1="930" x2="812" y2="930" stroke="#2a5a2a"/>
+        <text x="725" y="948" text-anchor="middle" fill="#b0d9b0" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Keycloak ROPC login</text>
+        <text x="725" y="963" text-anchor="middle" fill="#b0d9b0" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">/energybalance · /consumerbalance</text>
+      </g>
+
+      <!-- DWD Radiation -->
+      <g>
+        <rect x="380" y="870" width="210" height="80" rx="12" fill="#2a2a40" stroke="#2a2a40"/>
+        <text x="485" y="898" text-anchor="middle" fill="#a0a8d0" font-size="14" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">🌤 DWD Radiation</text>
+        <text x="485" y="916" text-anchor="middle" fill="#8890b8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Globalstrahlung J/cm²/Tag</text>
+        <text x="485" y="933" text-anchor="middle" fill="#8890b8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">manual CSV import (Python)</text>
+        <text x="485" y="950" text-anchor="middle" fill="#8890b8" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">Station 03668 · 2009–today</text>
+      </g>
+
       <!-- Cloudflare Cron trigger -->
       <g>
         <rect x="1420" y="1010" width="160" height="60" rx="10" fill="white" stroke="#f38020" stroke-width="1.5" stroke-dasharray="4 3"/>
@@ -297,6 +325,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="row"><div class="sw" style="background:#2a1810"></div>Claude API (Anthropic)</div>
   <div class="row"><div class="sw" style="background:#fc4c02"></div>Strava API</div>
   <div class="row"><div class="sw" style="background:#37404d"></div>Local PC / scheduled tasks</div>
+  <div class="row"><div class="sw" style="background:#1a3a1a"></div>SMA ennexOS (PV API)</div>
+  <div class="row"><div class="sw" style="background:#2a2a40"></div>DWD (radiation data)</div>
   <div class="hint">Scroll/pinch to zoom · drag to pan · buttons bottom-right</div>
 </div>
 
