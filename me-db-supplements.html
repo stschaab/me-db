@@ -151,6 +151,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="detail-card">
     <h2><span>Supplement</span><button class="closebtn" onclick="closeDetail()">&times;</button></h2>
     <div class="dfield"><label>Name</label><input id="dName"></div>
+    <div class="dfield"><label>Product / Model</label><input id="dProductName" placeholder="e.g. Creatin Monohydrat 500g"></div>
     <div class="dgrid">
       <div class="dfield"><label>Amount/Day</label><input id="dAmount" type="number" step="0.01"></div>
       <div class="dfield"><label>Unit</label><input id="dUnit" placeholder="capsules, mg…"></div>
@@ -281,6 +282,7 @@ function openDetail(id) {
   document.getElementById('dName').value = s.name || '';
   document.getElementById('dAmount').value = s.daily_amount ?? '';
   document.getElementById('dUnit').value = s.unit || '';
+  document.getElementById('dProductName').value = s.product_name || '';
   document.getElementById('dTiming').value = s.timing || '';
   document.getElementById('dManufacturer').value = s.manufacturer || '';
   document.getElementById('dPackageAmount').value = s.package_amount ?? '';
@@ -305,6 +307,7 @@ async function saveDetail() {
     name,
     daily_amount: document.getElementById('dAmount').value === '' ? null : parseFloat(document.getElementById('dAmount').value),
     unit: document.getElementById('dUnit').value.trim() || null,
+    product_name: document.getElementById('dProductName').value.trim() || null,
     timing: document.getElementById('dTiming').value.trim() || null,
     manufacturer: document.getElementById('dManufacturer').value.trim() || null,
     package_amount: document.getElementById('dPackageAmount').value === '' ? null : parseFloat(document.getElementById('dPackageAmount').value),
