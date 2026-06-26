@@ -449,30 +449,39 @@ async function loadPvStat() {
   try {
     // Last 30 days
     const today = new Date().toISOString().substring(0, 10);
-    const from30d = new Date(); from30d.setDate(from30d.getDate() - 29);
-    const from30Str = from30d.toISOString().substring(0, 10);
+    const d30 = new Date(); d30.setDate(d30.getDate() - 29);
+    const from30Str = d30.toISOString().substring(0, 10);
 
-    // Find latest DWD date to anchor the η window
-    const dwdLatestRes = await db.from('dwd_radiation_daily').select('date').order('date', { ascending: false }).limit(1);
-    const dwdLatest = dwdLatestRes.data?.[0]?.date;
-    const dwdFrom = dwdLatest ? (() => { const d = new Date(dwdLatest + 'T12:00:00'); d.setDate(d.getDate() - 29); return d.toISOString().substring(0, 10); })() : null;
-
-    const [pvRes, pvEtaRes, dwdRes] = await Promise.all([
+    // Fetch last 30 days pv + last 30 DWD rows (most recent available)
+    const [pvRes, dwdRes] = await Promise.all([
       db.from('pv_daily').select('date,pv_generation_kwh').gte('date', from30Str).lte('date', today),
-      dwdFrom ? db.from('pv_daily').select('date,pv_generation_kwh').gte('date', dwdFrom).lte('date', dwdLatest) : Promise.resolve({ data: [] }),
-      dwdFrom ? db.from('dwd_radiation_daily').select('date,radiation_kwh_m2').gte('date', dwdFrom).lte('date', dwdLatest) : Promise.resolve({ data: [] }),
+      db.from('dwd_radiation_daily').select('date,radiation_kwh_m2').order('date', { ascending: false }).limit(30),
     ]);
     if (pvRes.error) throw pvRes.error;
 
     const pvRows = pvRes.data || [];
-    const dwdMap = {};
-    for (const r of (dwdRes.data || [])) dwdMap[r.date] = +r.radiation_kwh_m2 || 0;
+    const dwdRows = dwdRes.data || [];
 
     const totalGen = pvRows.reduce((s, r) => s + (+r.pv_generation_kwh || 0), 0);
 
+    // Build pv lookup for η calculation
+    const pvMap = {};
+    for (const r of pvRows) pvMap[r.date] = +r.pv_generation_kwh || 0;
+
+    // η over matching dates in the most recent DWD window
     let radGen = 0, totalRad = 0;
-    for (const r of (pvEtaRes.data || [])) {
-      if (dwdMap[r.date]) { totalRad += dwdMap[r.date]; radGen += +r.pv_generation_kwh || 0; }
+    for (const r of dwdRows) {
+      if (pvMap[r.date] != null) { totalRad += +r.radiation_kwh_m2 || 0; radGen += pvMap[r.date]; }
+    }
+    // fallback: if no overlap with last 30d, use all DWD rows vs all pv for those dates
+    if (totalRad === 0 && dwdRows.length) {
+      const pvFallback = await db.from('pv_daily').select('date,pv_generation_kwh')
+        .gte('date', dwdRows[dwdRows.length - 1].date).lte('date', dwdRows[0].date);
+      const pvFbMap = {};
+      for (const r of (pvFallback.data || [])) pvFbMap[r.date] = +r.pv_generation_kwh || 0;
+      for (const r of dwdRows) {
+        if (pvFbMap[r.date] != null) { totalRad += +r.radiation_kwh_m2 || 0; radGen += pvFbMap[r.date]; }
+      }
     }
     const theoretical = totalRad * MODULE_AREA_M2;
     const efficiency = theoretical > 0 ? Math.round((radGen / theoretical) * 100) : null;
