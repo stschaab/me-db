@@ -445,16 +445,37 @@ async function loadSuppStat() {
 }
 
 async function loadPvStat() {
+  const MODULE_AREA_M2 = 40;
   try {
-    const { data, error } = await db.from('pv_daily').select('date,pv_generation_kwh,grid_export_kwh').order('date', { ascending: false }).limit(30);
-    if (error) throw error;
-    const rows = data || [];
-    const totalGen = rows.reduce((s, r) => s + (+r.pv_generation_kwh || 0), 0);
-    const totalExport = rows.reduce((s, r) => s + (+r.grid_export_kwh || 0), 0);
-    const selfUse = totalGen > 0 ? Math.round((1 - totalExport / totalGen) * 100) : 0;
+    const now = new Date();
+    const monthStr = now.toISOString().substring(0, 7); // e.g. "2026-06"
+    const monthStart = monthStr + '-01';
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().substring(0, 10);
+
+    const [pvRes, dwdRes] = await Promise.all([
+      db.from('pv_daily').select('date,pv_generation_kwh').gte('date', monthStart).lte('date', monthEnd),
+      db.from('dwd_radiation_daily').select('date,radiation_kwh_m2').gte('date', monthStart).lte('date', monthEnd)
+    ]);
+    if (pvRes.error) throw pvRes.error;
+
+    const pvRows = pvRes.data || [];
+    const dwdMap = {};
+    for (const r of (dwdRes.data || [])) dwdMap[r.date] = +r.radiation_kwh_m2 || 0;
+
+    const totalGen = pvRows.reduce((s, r) => s + (+r.pv_generation_kwh || 0), 0);
+    let totalRad = 0, radDays = 0;
+    for (const r of pvRows) {
+      const rad = dwdMap[r.date];
+      if (rad) { totalRad += rad; radDays++; }
+    }
+    const theoretical = totalRad * MODULE_AREA_M2;
+    const efficiency = theoretical > 0 ? Math.round((totalGen / theoretical) * 100) : null;
+
+    const monthLabel = now.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    const effStr = efficiency !== null ? ` · ${efficiency}% η` : '';
     document.getElementById('pvStat').innerHTML = `
       <div class="stat"><span class="n">${totalGen.toFixed(0)}</span><span class="u">kWh</span></div>
-      <div style="font-size:0.65rem;color:#aaa;margin-top:2px">last 30 days · ${selfUse}% self-use</div>`;
+      <div style="font-size:0.65rem;color:#aaa;margin-top:2px">${monthLabel}${effStr}</div>`;
   } catch (e) {
     document.getElementById('pvStat').innerHTML = '';
   }
