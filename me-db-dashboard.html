@@ -134,6 +134,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
 
+    <a href="me-db-pv.html">PV Plant</a>
     <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-architecture.html">Architecture</a>
@@ -208,6 +209,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div class="desc">Talk directly to Claude about your MeDB data</div>
     </a>
 
+    <a class="tile" href="me-db-pv.html">
+      <div class="icon">☀️</div>
+      <div class="title">PV Plant</div>
+      <div class="desc">Solar generation, self-consumption &amp; grid balance</div>
+      <div id="pvStat">…</div>
+    </a>
+
     <a class="tile" href="me-db-architecture.html">
       <div class="icon">🗺️</div>
       <div class="title">MeDB Architecture</div>
@@ -224,7 +232,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'me-db-login.html';
-  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); }
+  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); }
 });
 
 async function logout() {
@@ -433,6 +441,22 @@ async function loadSuppStat() {
       <div class="supp-sub">${active.length} active</div>`;
   } catch (e) {
     document.getElementById('suppStat').innerHTML = '';
+  }
+}
+
+async function loadPvStat() {
+  try {
+    const { data, error } = await db.from('pv_daily').select('date,pv_generation_kwh,grid_export_kwh').order('date', { ascending: false }).limit(30);
+    if (error) throw error;
+    const rows = data || [];
+    const totalGen = rows.reduce((s, r) => s + (+r.pv_generation_kwh || 0), 0);
+    const totalExport = rows.reduce((s, r) => s + (+r.grid_export_kwh || 0), 0);
+    const selfUse = totalGen > 0 ? Math.round((1 - totalExport / totalGen) * 100) : 0;
+    document.getElementById('pvStat').innerHTML = `
+      <div class="stat"><span class="n">${totalGen.toFixed(0)}</span><span class="u">kWh</span></div>
+      <div style="font-size:0.65rem;color:#aaa;margin-top:2px">last 30 days · ${selfUse}% self-use</div>`;
+  } catch (e) {
+    document.getElementById('pvStat').innerHTML = '';
   }
 }
 
