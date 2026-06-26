@@ -5,72 +5,79 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MeDB &middot; PV Plant</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
-  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-  header h1 { font-size: 1.4rem; font-weight: 600; }
-  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
-  nav a:hover { text-decoration: underline; }
-  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
-  .container { max-width: 1100px; margin: 28px auto; padding: 0 24px 60px; }
-
-  .hero { background: white; border-radius: 14px; padding: 24px 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-start; }
-  .hero-stat { }
-  .hero-stat .n { font-size: 2.2rem; font-weight: 800; }
-  .hero-stat .u { font-size: 0.9rem; color: #aaa; font-weight: 500; margin-left: 3px; }
-  .hero-stat .lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin-top: 2px; }
-
-  .filters { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
-  .chip { border: 1px solid #d8d8d8; background: white; border-radius: 20px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; }
-  .chip.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
-  .chip-right { margin-left: auto; }
-
-  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.07); font-size: 0.85rem; }
-  thead { background: #1a1a2e; color: white; }
-  th { padding: 10px 12px; text-align: right; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
-  th:first-child { text-align: left; }
-  td { padding: 9px 12px; text-align: right; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
-  td:first-child { text-align: left; font-weight: 500; }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: #fafafa; }
-
-  .bar-cell { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
-  .bar { height: 6px; border-radius: 3px; background: #f0a500; flex-shrink: 0; }
-  .bar.blue { background: #1976d2; }
-  .bar.green { background: #2e7d32; }
-
-  .empty { text-align: center; padding: 60px; color: #aaa; }
-  .loading { text-align: center; padding: 60px; color: #aaa; }
-
-  .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 14px; font-size: 0.85rem; color: #666; }
-  .pager button { border: 1px solid #d8d8d8; background: white; border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 0.82rem; }
-  .pager button:disabled { opacity: 0.4; cursor: default; }
-
-/* nav */
-nav { display: flex; align-items: center; flex-wrap: wrap; }
-.navdrop { position: relative; margin-left: 16px; }
-.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
-.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
-.navdrop:hover .navdrop-menu { display: block; }
-.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
-.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; }
+header h1 { font-size: 1.4rem; font-weight: 600; }
 .hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
-header { flex-wrap: wrap; }
 nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
 nav.open { display: flex; }
-nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
-.navdrop { width: 100%; margin-left: 0 !important; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; color: #7ec8e3; text-decoration: none; background: none; border-top: none; cursor: pointer; }
+.navdrop { width: 100%; }
 .navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
 .navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+.container { max-width: 1200px; margin: 24px auto; padding: 0 20px 60px; }
+
+/* Hero */
+.hero { background: white; border-radius: 14px; padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; gap: 28px; flex-wrap: wrap; margin-bottom: 18px; align-items: flex-start; }
+.hero-stat .n { font-size: 2rem; font-weight: 800; }
+.hero-stat .u { font-size: 0.85rem; color: #aaa; font-weight: 500; margin-left: 3px; }
+.hero-stat .lbl { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin-top: 2px; }
+
+/* Chart card */
+.card { background: white; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 18px; overflow: hidden; }
+.card-header { padding: 16px 20px 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card-title { font-weight: 700; font-size: 1rem; color: #1a1a2e; flex: 1; min-width: 120px; }
+.chart-wrap { padding: 0 16px 12px; position: relative; }
+canvas#pvChart { width: 100% !important; }
+
+/* Range + controls */
+.range-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.rbtn { border: 1px solid #d8d8d8; background: white; border-radius: 16px; padding: 4px 12px; font-size: 0.78rem; cursor: pointer; color: #555; transition: background 0.15s; }
+.rbtn.active, .rbtn:hover { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+.hint { font-size: 0.72rem; color: #aaa; margin-left: 4px; }
+.reset-btn { border: none; background: #f0f0f0; border-radius: 10px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer; color: #555; }
+.reset-btn:hover { background: #e0e0e0; }
+
+/* Signal toggles */
+.signals { display: flex; gap: 6px; flex-wrap: wrap; padding: 6px 20px 14px; }
+.sig { display: flex; align-items: center; gap: 5px; border: 1.5px solid; border-radius: 16px; padding: 4px 11px; font-size: 0.78rem; cursor: pointer; user-select: none; transition: opacity 0.15s; }
+.sig.off { opacity: 0.35; }
+.sig-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+/* Table */
+.filters { display: flex; gap: 8px; align-items: center; padding: 14px 20px 8px; flex-wrap: wrap; }
+.chip { border: 1px solid #d8d8d8; background: white; border-radius: 20px; padding: 5px 13px; font-size: 0.8rem; cursor: pointer; }
+.chip.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+.chip-right { margin-left: auto; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.83rem; min-width: 700px; }
+thead { background: #1a1a2e; color: white; }
+th { padding: 9px 11px; text-align: right; font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+th:first-child { text-align: left; }
+td { padding: 8px 11px; text-align: right; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+td:first-child { text-align: left; font-weight: 500; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafafa; }
+.bar-cell { display: flex; align-items: center; gap: 5px; justify-content: flex-end; }
+.bar { height: 5px; border-radius: 3px; background: #f0a500; flex-shrink: 0; }
+.pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; padding: 10px 20px 16px; font-size: 0.83rem; color: #666; }
+.pager button { border: 1px solid #d8d8d8; background: white; border-radius: 6px; padding: 4px 11px; cursor: pointer; font-size: 0.8rem; }
+.pager button:disabled { opacity: 0.4; cursor: default; }
+.empty { text-align: center; padding: 50px; color: #aaa; }
+.loading { text-align: center; padding: 50px; color: #aaa; }
+
 @media (max-width: 768px) {
-  header { padding: 14px 16px; }
+  header { padding: 12px 14px; }
   header h1 { font-size: 0.95rem; }
-  .container { padding: 0 10px 60px; margin: 14px auto; }
-  .hero { gap: 18px; padding: 18px; }
-  .hero-stat .n { font-size: 1.6rem; }
-  table { font-size: 0.78rem; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  th, td { padding: 8px 9px; }
+  .container { padding: 0 10px 60px; margin: 12px auto; }
+  .hero { gap: 16px; padding: 16px; }
+  .hero-stat .n { font-size: 1.5rem; }
 }
 </style>
 </head>
@@ -105,7 +112,6 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-supplements.html">Supplements</a>
     <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
-    <a href="me-db-architecture.html">Architecture</a>
     <a href="me-db-users.html">Users</a>
     <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
@@ -113,22 +119,45 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
 <div class="container">
 
+  <!-- Hero stats -->
   <div class="hero" id="hero"><div class="loading">Loading…</div></div>
 
-  <div class="filters">
-    <button class="chip active" data-m="0" onclick="setMonth(0)">All</button>
-    <div id="monthChips"></div>
-    <div class="chip-right">
-      <select id="sortSel" onchange="render()" style="border:1px solid #d8d8d8;border-radius:20px;padding:6px 12px;font-size:0.82rem;background:white;cursor:pointer">
-        <option value="date_desc">Date ↓</option>
-        <option value="date_asc">Date ↑</option>
-        <option value="gen_desc">Generation ↓</option>
-      </select>
+  <!-- Interactive Chart -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Time Series</span>
+      <div class="range-bar">
+        <button class="rbtn" onclick="setRange(30)">30d</button>
+        <button class="rbtn" onclick="setRange(90)">3M</button>
+        <button class="rbtn" onclick="setRange(180)">6M</button>
+        <button class="rbtn" onclick="setRange(365)">1Y</button>
+        <button class="rbtn active" onclick="setRange(0)">All</button>
+        <button class="reset-btn" onclick="resetZoom()" title="Reset zoom (or double-click chart)">⟲ Reset</button>
+        <span class="hint">Scroll to zoom · Drag to pan</span>
+      </div>
+    </div>
+    <div class="signals" id="signals"></div>
+    <div class="chart-wrap">
+      <canvas id="pvChart" height="320"></canvas>
     </div>
   </div>
 
-  <div id="tableWrap"><div class="loading">Loading data…</div></div>
-  <div class="pager" id="pager"></div>
+  <!-- Table -->
+  <div class="card">
+    <div class="filters">
+      <button class="chip active" data-m="0" onclick="setMonth(0)">All</button>
+      <div id="monthChips"></div>
+      <div class="chip-right">
+        <select id="sortSel" onchange="renderTable()" style="border:1px solid #d8d8d8;border-radius:20px;padding:5px 11px;font-size:0.8rem;background:white;cursor:pointer">
+          <option value="date_desc">Date ↓</option>
+          <option value="date_asc">Date ↑</option>
+          <option value="gen_desc">Generation ↓</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap" id="tableWrap"><div class="loading">Loading data…</div></div>
+    <div class="pager" id="pager"></div>
+  </div>
 
 </div>
 
@@ -136,119 +165,272 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
-
 const MODULE_AREA_M2 = 40;
-let allData = [];
-let dwdMap = {};
+
+let allData = [];   // pv_daily rows sorted date asc for chart
+let dwdMap  = {};
+let pvChart = null;
 let activeMonth = 0;
 let page = 0;
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 31;
 
+// ── Signal definitions ────────────────────────────────────────────────────────
+const SIGNALS = [
+  { key: 'pv_generation_kwh',      label: 'Generation',   color: '#f0a500', type: 'bar',  yAxis: 'y',  on: true  },
+  { key: 'grid_export_kwh',        label: 'Feed-in',      color: '#1976d2', type: 'line', yAxis: 'y',  on: true  },
+  { key: 'grid_import_kwh',        label: 'Grid import',  color: '#e53935', type: 'line', yAxis: 'y',  on: true  },
+  { key: 'direct_consumption_kwh', label: 'Direct use',   color: '#2e7d32', type: 'line', yAxis: 'y',  on: false },
+  { key: 'total_consumption_kwh',  label: 'Consumption',  color: '#5d4037', type: 'line', yAxis: 'y',  on: false },
+  { key: 'battery_charge_kwh',     label: 'Bat. charge',  color: '#7b1fa2', type: 'line', yAxis: 'y',  on: false },
+  { key: 'battery_discharge_kwh',  label: 'Bat. disch.',  color: '#ab47bc', type: 'line', yAxis: 'y',  on: false },
+  { key: 'echarger_kwh',           label: 'eCharger',     color: '#00838f', type: 'line', yAxis: 'y',  on: false },
+  { key: '_radiation',             label: 'Radiation',    color: '#90a4ae', type: 'line', yAxis: 'y',  on: false },
+  { key: '_efficiency',            label: 'Efficiency η', color: '#8bc34a', type: 'line', yAxis: 'y1', on: false },
+];
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   loadData();
 });
-
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 
+// ── Load ─────────────────────────────────────────────────────────────────────
 async function loadData() {
   const [pvRes, dwdRes] = await Promise.all([
-    db.from('pv_daily').select('*').order('date', { ascending: false }),
-    db.from('dwd_radiation_daily').select('date,radiation_kwh_m2').order('date', { ascending: false })
+    db.from('pv_daily').select('*').order('date', { ascending: true }),
+    db.from('dwd_radiation_daily').select('date,radiation_kwh_m2').order('date', { ascending: true }),
   ]);
-  if (pvRes.error) { document.getElementById('tableWrap').innerHTML = `<div class="empty">Error: ${pvRes.error.message}</div>`; return; }
   allData = pvRes.data || [];
-  dwdMap = {};
+  dwdMap  = {};
   for (const r of (dwdRes.data || [])) dwdMap[r.date] = +r.radiation_kwh_m2 || 0;
   renderHero();
+  buildSignalToggles();
+  buildChart();
   buildMonthChips();
-  render();
+  renderTable();
 }
 
+// ── Hero ─────────────────────────────────────────────────────────────────────
 function renderHero() {
   if (!allData.length) { document.getElementById('hero').innerHTML = ''; return; }
-
-  // Use current month; fall back to most recent month with data
+  const sorted = [...allData].sort((a, b) => b.date.localeCompare(a.date));
   const now = new Date();
   let monthStr = now.toISOString().substring(0, 7);
-  let monthRows = allData.filter(r => r.date.startsWith(monthStr));
+  let monthRows = sorted.filter(r => r.date.startsWith(monthStr));
   if (!monthRows.length) {
-    monthStr = allData[0].date.substring(0, 7); // most recent available
-    monthRows = allData.filter(r => r.date.startsWith(monthStr));
+    monthStr = sorted[0].date.substring(0, 7);
+    monthRows = sorted.filter(r => r.date.startsWith(monthStr));
   }
-  const mGen = monthRows.reduce((s, r) => s + (+r.pv_generation_kwh || 0), 0);
+  const mGen    = monthRows.reduce((s, r) => s + (+r.pv_generation_kwh || 0), 0);
   const mExport = monthRows.reduce((s, r) => s + (+r.grid_export_kwh || 0), 0);
   const mImport = monthRows.reduce((s, r) => s + (+r.grid_import_kwh || 0), 0);
-  const mSelfUse = mGen > 0 ? Math.round((1 - mExport / mGen) * 100) : 0;
+  const mSelf   = mGen > 0 ? Math.round((1 - mExport / mGen) * 100) : 0;
   let mRad = 0;
   for (const r of monthRows) { if (dwdMap[r.date]) mRad += dwdMap[r.date]; }
   const mTheo = mRad * MODULE_AREA_M2;
-  const mEff = mTheo > 0 ? (mGen / mTheo * 100).toFixed(1) : null;
-
-  const latest = allData[0];
-  const monthLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
+  const mEff  = mTheo > 0 ? (mGen / mTheo * 100).toFixed(1) : null;
+  const latest = sorted[0];
+  const [y, mo] = monthStr.split('-');
+  const monthLabel = new Date(+y, +mo - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   document.getElementById('hero').innerHTML = `
-    <div class="hero-stat">
-      <div class="n">${mGen.toFixed(0)}<span class="u">kWh</span></div>
-      <div class="lbl">Generated · ${monthLabel}</div>
-    </div>
-    <div class="hero-stat">
-      <div class="n">${mSelfUse}<span class="u">%</span></div>
-      <div class="lbl">Self-consumption rate</div>
-    </div>
-    ${mEff !== null ? `<div class="hero-stat">
-      <div class="n">${mEff}<span class="u">%</span></div>
-      <div class="lbl">Efficiency (η) · ${monthLabel}</div>
-    </div>` : ''}
-    <div class="hero-stat">
-      <div class="n">${mExport.toFixed(0)}<span class="u">kWh</span></div>
-      <div class="lbl">Fed into grid</div>
-    </div>
-    <div class="hero-stat">
-      <div class="n">${mImport.toFixed(1)}<span class="u">kWh</span></div>
-      <div class="lbl">Drawn from grid</div>
-    </div>
+    <div class="hero-stat"><div class="n">${mGen.toFixed(0)}<span class="u">kWh</span></div><div class="lbl">Generated · ${monthLabel}</div></div>
+    <div class="hero-stat"><div class="n">${mSelf}<span class="u">%</span></div><div class="lbl">Self-consumption</div></div>
+    ${mEff !== null ? `<div class="hero-stat"><div class="n">${mEff}<span class="u">%</span></div><div class="lbl">Efficiency η · ${monthLabel}</div></div>` : ''}
+    <div class="hero-stat"><div class="n">${mExport.toFixed(0)}<span class="u">kWh</span></div><div class="lbl">Fed into grid</div></div>
+    <div class="hero-stat"><div class="n">${mImport.toFixed(1)}<span class="u">kWh</span></div><div class="lbl">Grid import</div></div>
     <div class="hero-stat" style="margin-left:auto;text-align:right">
-      <div style="font-size:0.75rem;color:#aaa">Latest entry</div>
+      <div style="font-size:0.72rem;color:#aaa">Latest entry</div>
       <div style="font-weight:700">${latest.date}</div>
-      <div style="font-size:0.85rem;color:#f0a500">${(+latest.pv_generation_kwh||0).toFixed(1)} kWh generated</div>
+      <div style="font-size:0.82rem;color:#f0a500">${(+latest.pv_generation_kwh||0).toFixed(1)} kWh generated</div>
     </div>`;
 }
 
+// ── Signal toggles ────────────────────────────────────────────────────────────
+function buildSignalToggles() {
+  const wrap = document.getElementById('signals');
+  wrap.innerHTML = SIGNALS.map((s, i) => `
+    <div class="sig ${s.on ? '' : 'off'}" id="sig_${i}" style="border-color:${s.color}" onclick="toggleSignal(${i})">
+      <div class="sig-dot" style="background:${s.color}"></div>
+      ${s.label}
+    </div>`).join('');
+}
+
+function toggleSignal(i) {
+  SIGNALS[i].on = !SIGNALS[i].on;
+  document.getElementById('sig_' + i).classList.toggle('off', !SIGNALS[i].on);
+  updateChartDatasets();
+}
+
+// ── Chart ─────────────────────────────────────────────────────────────────────
+function getChartData(sig) {
+  return allData.map(r => {
+    if (sig.key === '_radiation') return { x: r.date, y: dwdMap[r.date] ?? null };
+    if (sig.key === '_efficiency') {
+      const rad = dwdMap[r.date];
+      const gen = +r.pv_generation_kwh || 0;
+      const theo = rad ? rad * MODULE_AREA_M2 : 0;
+      return { x: r.date, y: theo > 0 ? +(gen / theo * 100).toFixed(2) : null };
+    }
+    return { x: r.date, y: r[sig.key] != null ? +r[sig.key] : null };
+  });
+}
+
+function makeDataset(sig) {
+  const isBar = sig.type === 'bar';
+  return {
+    label: sig.label,
+    data: getChartData(sig),
+    yAxisID: sig.yAxis,
+    hidden: !sig.on,
+    type: sig.type,
+    backgroundColor: isBar ? sig.color + 'cc' : sig.color + '22',
+    borderColor: sig.color,
+    borderWidth: isBar ? 0 : 2,
+    pointRadius: 0,
+    pointHoverRadius: 5,
+    tension: 0.3,
+    fill: !isBar,
+    order: isBar ? 2 : 1,
+    barThickness: 'flex',
+    barPercentage: 0.9,
+    categoryPercentage: 1.0,
+  };
+}
+
+function buildChart() {
+  const ctx = document.getElementById('pvChart').getContext('2d');
+  const datasets = SIGNALS.map(makeDataset);
+
+  pvChart = new Chart(ctx, {
+    type: 'bar',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
+      parsing: false,
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: 'month', tooltipFormat: 'dd MMM yyyy', displayFormats: { day: 'dd MMM', month: 'MMM yy', year: 'yyyy' } },
+          adapters: { date: {} },
+          grid: { color: '#f0f0f0' },
+          ticks: { maxRotation: 0, color: '#888', font: { size: 11 } },
+        },
+        y: {
+          position: 'left',
+          title: { display: true, text: 'kWh', color: '#888', font: { size: 11 } },
+          grid: { color: '#f0f0f0' },
+          ticks: { color: '#888', font: { size: 11 } },
+          beginAtZero: true,
+        },
+        y1: {
+          position: 'right',
+          title: { display: true, text: 'η %', color: '#8bc34a', font: { size: 11 } },
+          grid: { drawOnChartArea: false },
+          ticks: { color: '#8bc34a', font: { size: 11 }, callback: v => v + '%' },
+          beginAtZero: true,
+          min: 0,
+          max: 30,
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              if (ctx.parsed.y == null) return null;
+              const u = ctx.dataset.yAxisID === 'y1' ? '%' : ' kWh';
+              return ` ${ctx.dataset.label}: ${(+ctx.parsed.y).toFixed(2)}${u}`;
+            },
+          },
+        },
+        zoom: {
+          pan:  { enabled: true, mode: 'x' },
+          zoom: {
+            wheel: { enabled: true, speed: 0.1 },
+            pinch: { enabled: true },
+            mode: 'x',
+          },
+          limits: { x: { minRange: 7 * 86400000 } },
+        },
+      },
+    },
+    plugins: [{
+      id: 'dblclick-reset',
+      afterEvent(chart, { event }) {
+        if (event.type === 'dblclick') chart.resetZoom();
+      },
+    }],
+  });
+}
+
+// Chart.js 4 needs date adapter — use built-in luxon adapter or fallback to simple string labels
+// Since we're using time scale, we need the date adapter. Let's swap to category scale for simplicity
+// Actually Chart.js 4 has a built-in date adapter for basic use — let's check if it works.
+// If not, we fall back to category scale with string labels.
+
+function updateChartDatasets() {
+  if (!pvChart) return;
+  SIGNALS.forEach((sig, i) => {
+    pvChart.data.datasets[i].hidden = !sig.on;
+  });
+  pvChart.update('none');
+}
+
+function setRange(days) {
+  document.querySelectorAll('.rbtn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  if (!pvChart) return;
+  if (days === 0) {
+    pvChart.resetZoom();
+    return;
+  }
+  const to   = new Date();
+  const from = new Date(to.getTime() - days * 86400000);
+  pvChart.zoomScale('x', { min: from.getTime(), max: to.getTime() }, 'default');
+}
+
+function resetZoom() {
+  pvChart?.resetZoom();
+  document.querySelectorAll('.rbtn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.rbtn:last-of-type')?.classList.add('active');
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
 function buildMonthChips() {
-  const months = [...new Set(allData.map(r => r.date.substring(0, 7)))].sort().reverse();
-  const wrap = document.getElementById('monthChips');
-  wrap.innerHTML = months.map(m => {
+  const sorted = [...allData].sort((a, b) => b.date.localeCompare(a.date));
+  const months = [...new Set(sorted.map(r => r.date.substring(0, 7)))];
+  document.getElementById('monthChips').innerHTML = months.map(m => {
     const [y, mo] = m.split('-');
-    const label = new Date(+y, +mo-1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-    return `<button class="chip" data-m="${m}" onclick="setMonth('${m}')">${label}</button>`;
+    const lbl = new Date(+y, +mo - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    return `<button class="chip" data-m="${m}" onclick="setMonth('${m}')">${lbl}</button>`;
   }).join('');
 }
 
 function setMonth(m) {
-  activeMonth = m;
-  page = 0;
+  activeMonth = m; page = 0;
   document.querySelectorAll('.chip[data-m]').forEach(c => c.classList.toggle('active', c.dataset.m == m));
-  render();
+  renderTable();
 }
 
-function filtered() {
-  let d = allData;
+function filteredRows() {
+  let d = [...allData].sort((a, b) => b.date.localeCompare(a.date));
   if (activeMonth && activeMonth !== 0) d = d.filter(r => r.date.startsWith(activeMonth));
   const sort = document.getElementById('sortSel').value;
-  if (sort === 'date_asc') d = [...d].sort((a,b) => a.date.localeCompare(b.date));
-  else if (sort === 'gen_desc') d = [...d].sort((a,b) => (+b.pv_generation_kwh||0) - (+a.pv_generation_kwh||0));
+  if (sort === 'date_asc') d.sort((a, b) => a.date.localeCompare(b.date));
+  else if (sort === 'gen_desc') d.sort((a, b) => (+b.pv_generation_kwh || 0) - (+a.pv_generation_kwh || 0));
   return d;
 }
 
-function render() {
-  const rows = filtered();
+function renderTable() {
+  const rows = filteredRows();
   const maxGen = Math.max(...rows.map(r => +r.pv_generation_kwh || 0), 1);
-  const total = rows.length;
-  const pages = Math.ceil(total / PAGE_SIZE);
+  const total  = rows.length;
+  const pages  = Math.ceil(total / PAGE_SIZE);
   if (page >= pages) page = Math.max(0, pages - 1);
-  const slice = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const slice  = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   if (!slice.length) {
     document.getElementById('tableWrap').innerHTML = '<div class="empty">No data for this period.</div>';
@@ -259,15 +441,9 @@ function render() {
   document.getElementById('tableWrap').innerHTML = `
     <table>
       <thead><tr>
-        <th>Date</th>
-        <th>Generation</th>
-        <th>Direct use</th>
-        <th>Battery ↓</th>
-        <th>Battery ↑</th>
-        <th>Feed-in</th>
-        <th>Grid import</th>
-        <th>Consumption</th>
-        <th>eCharger</th>
+        <th>Date</th><th>Generation</th><th>Direct use</th>
+        <th>Bat ↓</th><th>Bat ↑</th><th>Feed-in</th>
+        <th>Grid import</th><th>Consumption</th><th>eCharger</th>
         <th title="DWD global radiation kWh/m²">Radiation</th>
         <th title="Efficiency = Generation / (Radiation × ${MODULE_AREA_M2}m²)">η</th>
       </tr></thead>
@@ -275,23 +451,23 @@ function render() {
     </table>`;
 
   document.getElementById('pager').innerHTML = pages <= 1 ? '' : `
-    <button onclick="page--;render()" ${page===0?'disabled':''}>← Prev</button>
-    <span>${page+1} / ${pages}  (${total} rows)</span>
-    <button onclick="page++;render()" ${page>=pages-1?'disabled':''}>Next →</button>`;
+    <button onclick="page--;renderTable()" ${page===0?'disabled':''}>← Prev</button>
+    <span>${page+1} / ${pages} (${total} rows)</span>
+    <button onclick="page++;renderTable()" ${page>=pages-1?'disabled':''}>Next →</button>`;
 }
 
 function rowHtml(r, maxGen) {
-  const gen = +r.pv_generation_kwh || 0;
-  const barW = Math.round((gen / maxGen) * 60);
-  const d = new Date(r.date);
+  const gen   = +r.pv_generation_kwh || 0;
+  const barW  = Math.round((gen / maxGen) * 55);
+  const d     = new Date(r.date + 'T12:00:00');
   const dateStr = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
-  const dow = d.toLocaleDateString('en-US', { weekday: 'short' });
-  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-  const rad = dwdMap[r.date];
-  const eff = (rad && gen > 0) ? (gen / (rad * MODULE_AREA_M2) * 100).toFixed(1) : null;
+  const dow   = d.toLocaleDateString('en-US', { weekday: 'short' });
+  const isWe  = d.getDay() === 0 || d.getDay() === 6;
+  const rad   = dwdMap[r.date];
+  const eff   = (rad && gen > 0) ? (gen / (rad * MODULE_AREA_M2) * 100).toFixed(1) : null;
   const effColor = eff ? (eff >= 18 ? '#2e7d32' : eff >= 13 ? '#f0a500' : '#aaa') : '';
-  return `<tr style="${isWeekend?'background:#fafff8':''}">
-    <td>${dateStr} <span style="color:#aaa;font-size:0.75rem">${dow}</span></td>
+  return `<tr style="${isWe ? 'background:#fafff8' : ''}">
+    <td>${dateStr} <span style="color:#aaa;font-size:0.73rem">${dow}</span></td>
     <td><div class="bar-cell"><div class="bar" style="width:${barW}px"></div>${gen.toFixed(1)}</div></td>
     <td>${fmt(r.direct_consumption_kwh)}</td>
     <td>${fmt(r.battery_discharge_kwh)}</td>
@@ -307,7 +483,8 @@ function rowHtml(r, maxGen) {
 
 function fmt(v) {
   if (v == null || v === '') return '<span style="color:#ccc">–</span>';
-  return (+v).toFixed(1);
+  const n = +v;
+  return n === 0 ? '<span style="color:#ccc">0.0</span>' : n.toFixed(1);
 }
 </script>
 </body>
