@@ -469,10 +469,15 @@ async function loadPvStat() {
     const theoretical = totalRad * MODULE_AREA_M2;
     const efficiency = theoretical > 0 ? Math.round((totalGen / theoretical) * 100) : null;
 
-    const effStr = efficiency !== null ? ` · ${efficiency}% η` : '';
+    const effHtml = efficiency !== null
+      ? `<div class="stat" style="margin-left:10px;padding-left:10px;border-left:1px solid #eee"><span class="n">${efficiency}</span><span class="u">% η</span></div>`
+      : '';
     document.getElementById('pvStat').innerHTML = `
-      <div class="stat"><span class="n">${totalGen.toFixed(0)}</span><span class="u">kWh</span></div>
-      <div style="font-size:0.65rem;color:#aaa;margin-top:2px">last 30 days${effStr}</div>`;
+      <div style="display:flex;align-items:baseline;flex-wrap:wrap">
+        <div class="stat"><span class="n">${totalGen.toFixed(0)}</span><span class="u">kWh</span></div>
+        ${effHtml}
+      </div>
+      <div style="font-size:0.65rem;color:#aaa;margin-top:2px">last 30 days</div>`;
   } catch (e) {
     document.getElementById('pvStat').innerHTML = '';
   }
