@@ -176,7 +176,7 @@ const PAGE_SIZE = 31;
 
 // ── Signal definitions ────────────────────────────────────────────────────────
 const SIGNALS = [
-  { key: 'pv_generation_kwh',      label: 'Generation',   color: '#f0a500', type: 'bar',  yAxis: 'y',  on: true  },
+  { key: 'pv_generation_kwh',      label: 'Generation',   color: '#f0a500', type: 'line', yAxis: 'y',  on: true  },
   { key: 'grid_export_kwh',        label: 'Feed-in',      color: '#1976d2', type: 'line', yAxis: 'y',  on: true  },
   { key: 'grid_import_kwh',        label: 'Grid import',  color: '#e53935', type: 'line', yAxis: 'y',  on: true  },
   { key: 'direct_consumption_kwh', label: 'Direct use',   color: '#2e7d32', type: 'line', yAxis: 'y',  on: false },
@@ -285,17 +285,14 @@ function makeDataset(sig) {
     yAxisID: sig.yAxis,
     hidden: !sig.on,
     type: sig.type,
-    backgroundColor: isBar ? sig.color + 'cc' : sig.color + '22',
+    backgroundColor: sig.color + '22',
     borderColor: sig.color,
-    borderWidth: isBar ? 0 : 2,
+    borderWidth: 2,
     pointRadius: 0,
     pointHoverRadius: 5,
     tension: 0.3,
-    fill: !isBar,
-    order: isBar ? 2 : 1,
-    barThickness: 'flex',
-    barPercentage: 0.9,
-    categoryPercentage: 1.0,
+    fill: false,
+    order: 1,
   };
 }
 
@@ -304,7 +301,7 @@ function buildChart() {
   const datasets = SIGNALS.map(makeDataset);
 
   pvChart = new Chart(ctx, {
-    type: 'bar',
+    type: 'line',
     data: { datasets },
     options: {
       responsive: true,
