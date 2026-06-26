@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; PV Plant</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .container { max-width: 1100px; margin: 28px auto; padding: 0 24px 60px; }
+
+  .hero { background: white; border-radius: 14px; padding: 24px 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-start; }
+  .hero-stat { }
+  .hero-stat .n { font-size: 2.2rem; font-weight: 800; }
+  .hero-stat .u { font-size: 0.9rem; color: #aaa; font-weight: 500; margin-left: 3px; }
+  .hero-stat .lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin-top: 2px; }
+
+  .filters { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .chip { border: 1px solid #d8d8d8; background: white; border-radius: 20px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; }
+  .chip.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+  .chip-right { margin-left: auto; }
+
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.07); font-size: 0.85rem; }
+  thead { background: #1a1a2e; color: white; }
+  th { padding: 10px 12px; text-align: right; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+  th:first-child { text-align: left; }
+  td { padding: 9px 12px; text-align: right; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+  td:first-child { text-align: left; font-weight: 500; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; }
+
+  .bar-cell { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+  .bar { height: 6px; border-radius: 3px; background: #f0a500; flex-shrink: 0; }
+  .bar.blue { background: #1976d2; }
+  .bar.green { background: #2e7d32; }
+
+  .empty { text-align: center; padding: 60px; color: #aaa; }
+  .loading { text-align: center; padding: 60px; color: #aaa; }
+
+  .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 14px; font-size: 0.85rem; color: #666; }
+  .pager button { border: 1px solid #d8d8d8; background: white; border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 0.82rem; }
+  .pager button:disabled { opacity: 0.4; cursor: default; }
+
+/* nav */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 0.95rem; }
+  .container { padding: 0 10px 60px; margin: 14px auto; }
+  .hero { gap: 18px; padding: 18px; }
+  .hero-stat .n { font-size: 1.6rem; }
+  table { font-size: 0.78rem; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  th, td { padding: 8px 9px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">PV Plant</span></h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Activities</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Reports</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Values</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-abos.html">Subscriptions</a>
+    <a href="me-db-supplements.html">Supplements</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <div class="hero" id="hero"><div class="loading">Loading…</div></div>
+
+  <div class="filters">
+    <button class="chip active" data-m="0" onclick="setMonth(0)">All</button>
+    <div id="monthChips"></div>
+    <div class="chip-right">
+      <select id="sortSel" onchange="render()" style="border:1px solid #d8d8d8;border-radius:20px;padding:6px 12px;font-size:0.82rem;background:white;cursor:pointer">
+        <option value="date_desc">Date ↓</option>
+        <option value="date_asc">Date ↑</option>
+        <option value="gen_desc">Generation ↓</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="tableWrap"><div class="loading">Loading data…</div></div>
+  <div class="pager" id="pager"></div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+let allData = [];
+let activeMonth = 0;
+let page = 0;
+const PAGE_SIZE = 30;
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  loadData();
+});
+
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+async function loadData() {
+  const { data, error } = await db.from('pv_daily').select('*').order('date', { ascending: false });
+  if (error) { document.getElementById('tableWrap').innerHTML = `<div class="empty">Error: ${error.message}</div>`; return; }
+  allData = data || [];
+  renderHero();
+  buildMonthChips();
+  render();
+}
+
+function renderHero() {
+  if (!allData.length) { document.getElementById('hero').innerHTML = ''; return; }
+
+  // Last 30 days
+  const last30 = allData.slice(0, 30);
+  const totalGen = last30.reduce((s, r) => s + (+r.pv_generation_kwh || 0), 0);
+  const totalExport = last30.reduce((s, r) => s + (+r.grid_export_kwh || 0), 0);
+  const totalImport = last30.reduce((s, r) => s + (+r.grid_import_kwh || 0), 0);
+  const selfUse = totalGen > 0 ? Math.round((1 - totalExport / totalGen) * 100) : 0;
+  const latest = allData[0];
+
+  document.getElementById('hero').innerHTML = `
+    <div class="hero-stat">
+      <div class="n">${totalGen.toFixed(0)}<span class="u">kWh</span></div>
+      <div class="lbl">Generated · last 30 days</div>
+    </div>
+    <div class="hero-stat">
+      <div class="n">${selfUse}<span class="u">%</span></div>
+      <div class="lbl">Self-consumption rate</div>
+    </div>
+    <div class="hero-stat">
+      <div class="n">${totalExport.toFixed(0)}<span class="u">kWh</span></div>
+      <div class="lbl">Fed into grid</div>
+    </div>
+    <div class="hero-stat">
+      <div class="n">${totalImport.toFixed(1)}<span class="u">kWh</span></div>
+      <div class="lbl">Drawn from grid</div>
+    </div>
+    <div class="hero-stat" style="margin-left:auto;text-align:right">
+      <div style="font-size:0.75rem;color:#aaa">Latest entry</div>
+      <div style="font-weight:700">${latest.date}</div>
+      <div style="font-size:0.85rem;color:#f0a500">${(+latest.pv_generation_kwh||0).toFixed(1)} kWh generated</div>
+    </div>`;
+}
+
+function buildMonthChips() {
+  const months = [...new Set(allData.map(r => r.date.substring(0, 7)))].sort().reverse();
+  const wrap = document.getElementById('monthChips');
+  wrap.innerHTML = months.map(m => {
+    const [y, mo] = m.split('-');
+    const label = new Date(+y, +mo-1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    return `<button class="chip" data-m="${m}" onclick="setMonth('${m}')">${label}</button>`;
+  }).join('');
+}
+
+function setMonth(m) {
+  activeMonth = m;
+  page = 0;
+  document.querySelectorAll('.chip[data-m]').forEach(c => c.classList.toggle('active', c.dataset.m == m));
+  render();
+}
+
+function filtered() {
+  let d = allData;
+  if (activeMonth && activeMonth !== 0) d = d.filter(r => r.date.startsWith(activeMonth));
+  const sort = document.getElementById('sortSel').value;
+  if (sort === 'date_asc') d = [...d].sort((a,b) => a.date.localeCompare(b.date));
+  else if (sort === 'gen_desc') d = [...d].sort((a,b) => (+b.pv_generation_kwh||0) - (+a.pv_generation_kwh||0));
+  return d;
+}
+
+function render() {
+  const rows = filtered();
+  const maxGen = Math.max(...rows.map(r => +r.pv_generation_kwh || 0), 1);
+  const total = rows.length;
+  const pages = Math.ceil(total / PAGE_SIZE);
+  if (page >= pages) page = Math.max(0, pages - 1);
+  const slice = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  if (!slice.length) {
+    document.getElementById('tableWrap').innerHTML = '<div class="empty">No data for this period.</div>';
+    document.getElementById('pager').innerHTML = '';
+    return;
+  }
+
+  document.getElementById('tableWrap').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Date</th>
+        <th>Generation</th>
+        <th>Direct use</th>
+        <th>Battery ↓</th>
+        <th>Battery ↑</th>
+        <th>Feed-in</th>
+        <th>Grid import</th>
+        <th>Consumption</th>
+        <th>eCharger</th>
+      </tr></thead>
+      <tbody>${slice.map(r => rowHtml(r, maxGen)).join('')}</tbody>
+    </table>`;
+
+  document.getElementById('pager').innerHTML = pages <= 1 ? '' : `
+    <button onclick="page--;render()" ${page===0?'disabled':''}>← Prev</button>
+    <span>${page+1} / ${pages}  (${total} rows)</span>
+    <button onclick="page++;render()" ${page>=pages-1?'disabled':''}>Next →</button>`;
+}
+
+function rowHtml(r, maxGen) {
+  const gen = +r.pv_generation_kwh || 0;
+  const barW = Math.round((gen / maxGen) * 60);
+  const d = new Date(r.date);
+  const dateStr = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  const dow = d.toLocaleDateString('en-US', { weekday: 'short' });
+  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+  return `<tr style="${isWeekend?'background:#fafff8':''}">
+    <td>${dateStr} <span style="color:#aaa;font-size:0.75rem">${dow}</span></td>
+    <td><div class="bar-cell"><div class="bar" style="width:${barW}px"></div>${gen.toFixed(1)}</div></td>
+    <td>${fmt(r.direct_consumption_kwh)}</td>
+    <td>${fmt(r.battery_discharge_kwh)}</td>
+    <td>${fmt(r.battery_charge_kwh)}</td>
+    <td>${fmt(r.grid_export_kwh)}</td>
+    <td>${fmt(r.grid_import_kwh)}</td>
+    <td>${fmt(r.total_consumption_kwh)}</td>
+    <td>${fmt(r.echarger_kwh)}</td>
+  </tr>`;
+}
+
+function fmt(v) {
+  if (v == null || v === '') return '<span style="color:#ccc">–</span>';
+  return (+v).toFixed(1);
+}
+</script>
+</body>
+</html>
