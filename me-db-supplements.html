@@ -57,6 +57,16 @@
   .loading { text-align: center; padding: 60px; color: #aaa; }
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; padding: 11px 20px; border-radius: 8px; font-size: 0.88rem; opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 999; }
   .toast.show { opacity: 1; }
+  .photo-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .photo-slot { aspect-ratio: 1; border: 2px dashed #ddd; border-radius: 8px; cursor: pointer; overflow: hidden; position: relative; }
+  .photo-slot.filled { border: 2px solid #bbb; }
+  .photo-slot:hover { border-color: #999; }
+  .slot-inner { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: #fafafa; }
+  .slot-inner img { width: 100%; height: 100%; object-fit: cover; }
+  .slot-cam { font-size: 1.5rem; }
+  .slot-lbl { font-size: 0.65rem; color: #aaa; }
+  .scan-btn { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 9px 16px; font-size: 0.85rem; cursor: pointer; width: 100%; }
+  .scan-btn:disabled { opacity: 0.5; cursor: default; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -164,6 +174,19 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     </div>
     <div class="dfield"><label>Price/Package €</label><input id="dPackagePrice" type="number" step="0.01"></div>
     <div class="dfield"><label><input type="checkbox" id="dActive" style="width:auto;display:inline-block;margin-right:6px;"> Active</label></div>
+    <div class="dfield">
+      <label>Photos</label>
+      <div class="photo-slots">
+        <div class="photo-slot" id="slot0" onclick="pickPhoto(0)"><div class="slot-inner" id="slotInner0"><span class="slot-cam">📷</span><span class="slot-lbl">Photo 1</span></div></div>
+        <div class="photo-slot" id="slot1" onclick="pickPhoto(1)"><div class="slot-inner" id="slotInner1"><span class="slot-cam">📷</span><span class="slot-lbl">Photo 2</span></div></div>
+        <div class="photo-slot" id="slot2" onclick="pickPhoto(2)"><div class="slot-inner" id="slotInner2"><span class="slot-cam">📷</span><span class="slot-lbl">Photo 3</span></div></div>
+      </div>
+      <input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none" onchange="handlePhotoSelected(event)">
+    </div>
+    <div id="scanBtnWrap" style="display:none;margin-bottom:14px">
+      <button class="scan-btn" onclick="scanWithAI()">🤖 AI Scan – fill fields from photos</button>
+      <div id="scanStatus" style="font-size:0.78rem;color:#888;margin-top:6px"></div>
+    </div>
     <div class="detail-actions">
       <button class="del-btn" id="delBtn" onclick="deleteSup()">Delete</button>
       <button class="save-btn" onclick="saveDetail()">Save</button>
@@ -176,12 +199,16 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <script>
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 let userId = null;
 let allSupps = [];
 let filter = 'all';
 let saveTimers = {};
+let photoFiles = [null, null, null];
+let photoUrls  = [null, null, null];
+let photoSlotPicking = null;
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
@@ -291,8 +318,17 @@ function openDetail(id) {
   document.getElementById('dActive').checked = isNew ? true : !!s.active;
   document.querySelector('.detail-card h2 span').textContent = isNew ? 'New Supplement' : 'Edit Supplement';
   document.getElementById('delBtn').style.display = isNew ? 'none' : '';
+  // reset photo slots
+  photoFiles = [null, null, null];
+  photoUrls  = [null, null, null];
+  for (let i = 0; i < 3; i++) {
+    document.getElementById('slotInner'+i).innerHTML = `<span class="slot-cam">📷</span><span class="slot-lbl">Photo ${i+1}</span>`;
+    document.getElementById('slot'+i).classList.remove('filled');
+  }
+  document.getElementById('scanBtnWrap').style.display = 'none';
+  document.getElementById('scanStatus').textContent = '';
+  if (!isNew) loadPhotoUrls(s);
   document.getElementById('overlay').classList.add('show');
-  document.getElementById('dName').focus();
 }
 
 function closeDetail() {
@@ -320,11 +356,13 @@ async function saveDetail() {
     const { data, error } = await db.from('supplements').insert({ user_id: userId, ...fields }).select();
     if (error) { showToast('Error: ' + error.message); return; }
     allSupps.push(data[0]);
+    await uploadPhotos(data[0].id);
   } else {
     const { error } = await db.from('supplements').update(fields).eq('id', detailId);
     if (error) { showToast('Error: ' + error.message); return; }
     const s = allSupps.find(s => s.id === detailId);
     Object.assign(s, fields);
+    await uploadPhotos(detailId);
   }
   closeDetail();
   renderTotal(); render();
@@ -337,6 +375,134 @@ async function toggleActive(id, val) {
   const s = allSupps.find(s => s.id === id);
   if (s) s.active = val;
   renderTotal(); render();
+}
+
+// ── Photo functions ──────────────────────────────────────────────────────────
+
+function pickPhoto(slot) {
+  photoSlotPicking = slot;
+  const inp = document.getElementById('photoInput');
+  inp.value = '';
+  inp.click();
+}
+
+async function handlePhotoSelected(event) {
+  const file = event.target.files[0];
+  if (!file || photoSlotPicking === null) return;
+  const slot = photoSlotPicking;
+  const compressed = await compressImage(file, 1200, 0.82);
+  photoFiles[slot] = compressed;
+  showSlotPreview(slot, URL.createObjectURL(compressed));
+  updateScanBtn();
+}
+
+function showSlotPreview(slot, url) {
+  document.getElementById('slotInner'+slot).innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover">`;
+  document.getElementById('slot'+slot).classList.add('filled');
+}
+
+function updateScanBtn() {
+  const has = photoFiles.some(f => f) || photoUrls.some(u => u);
+  document.getElementById('scanBtnWrap').style.display = has ? '' : 'none';
+}
+
+async function loadPhotoUrls(s) {
+  const paths = [s.image_1_path, s.image_2_path, s.image_3_path];
+  for (let i = 0; i < 3; i++) {
+    if (paths[i]) {
+      const { data } = await db.storage.from('medical-reports').createSignedUrl(paths[i], 3600);
+      if (data?.signedUrl) { photoUrls[i] = data.signedUrl; showSlotPreview(i, data.signedUrl); }
+    }
+  }
+  updateScanBtn();
+}
+
+async function uploadPhotos(suppId) {
+  const keys = ['image_1_path', 'image_2_path', 'image_3_path'];
+  const updates = {};
+  for (let i = 0; i < 3; i++) {
+    if (!photoFiles[i]) continue;
+    const path = `${userId}/supplements/${suppId}/photo_${i+1}.jpg`;
+    const { error } = await db.storage.from('medical-reports').upload(path, photoFiles[i], { upsert: true, contentType: 'image/jpeg' });
+    if (!error) { updates[keys[i]] = path; }
+  }
+  if (Object.keys(updates).length) {
+    await db.from('supplements').update(updates).eq('id', suppId);
+    const s = allSupps.find(s => s.id === suppId);
+    if (s) Object.assign(s, updates);
+  }
+}
+
+async function compressImage(file, maxPx, quality) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxPx || h > maxPx) {
+        if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+        else { w = Math.round(w * maxPx / h); h = maxPx; }
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      c.toBlob(resolve, 'image/jpeg', quality);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function fileToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+
+async function scanWithAI() {
+  const statusEl = document.getElementById('scanStatus');
+  const btn = document.querySelector('.scan-btn');
+  statusEl.style.color = '#888';
+  statusEl.textContent = 'Analyzing photos…';
+  btn.disabled = true;
+  try {
+    const images = [];
+    for (let i = 0; i < 3; i++) {
+      if (photoFiles[i]) {
+        images.push({ data: await fileToBase64(photoFiles[i]), mediaType: 'image/jpeg' });
+      } else if (photoUrls[i]) {
+        const blob = await fetch(photoUrls[i]).then(r => r.blob());
+        images.push({ data: await fileToBase64(blob), mediaType: 'image/jpeg' });
+      }
+    }
+    if (!images.length) { statusEl.textContent = 'No photos available'; return; }
+
+    const resp = await fetch(WORKER_URL + '/scan-supplement', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ images }),
+    });
+    const d = await resp.json();
+    if (!d.success) throw new Error(d.error);
+    const r = d.result;
+
+    if (r.name && !document.getElementById('dName').value) document.getElementById('dName').value = r.name || '';
+    if (r.product_name) document.getElementById('dProductName').value = r.product_name;
+    if (r.manufacturer) document.getElementById('dManufacturer').value = r.manufacturer;
+    if (r.daily_amount != null) document.getElementById('dAmount').value = r.daily_amount;
+    if (r.unit) document.getElementById('dUnit').value = r.unit;
+    if (r.package_amount != null) document.getElementById('dPackageAmount').value = r.package_amount;
+    if (r.package_unit) document.getElementById('dPackageUnit').value = r.package_unit;
+
+    statusEl.style.color = '#2e7d32';
+    statusEl.textContent = '✓ Fields filled — please review and save';
+  } catch (e) {
+    statusEl.style.color = '#c62828';
+    statusEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function deleteSup() {
