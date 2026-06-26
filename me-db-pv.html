@@ -311,7 +311,7 @@ function buildChart() {
       scales: {
         x: {
           type: 'time',
-          time: { tooltipFormat: 'dd MMM yyyy', displayFormats: { day: 'd MMM', week: 'd MMM', month: 'MMM yy', year: 'yyyy' } },
+          time: { minUnit: 'day', tooltipFormat: 'dd MMM yyyy', displayFormats: { day: 'd MMM', week: 'd MMM', month: 'MMM yy', year: 'yyyy' } },
           adapters: { date: {} },
           grid: { color: '#f0f0f0' },
           ticks: { maxRotation: 0, color: '#888', font: { size: 11 } },
