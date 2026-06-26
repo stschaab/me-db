@@ -311,7 +311,7 @@ function buildChart() {
       scales: {
         x: {
           type: 'time',
-          time: { minUnit: 'day', tooltipFormat: 'dd MMM yyyy', displayFormats: { day: 'd MMM', week: 'd MMM', month: 'MMM yy', year: 'yyyy' } },
+          time: { unit: 'month', tooltipFormat: 'dd MMM yyyy', displayFormats: { day: 'd MMM', month: 'MMM yy', year: 'yyyy' } },
           adapters: { date: {} },
           grid: { color: '#f0f0f0' },
           ticks: { maxRotation: 0, color: '#888', font: { size: 11 } },
@@ -345,11 +345,12 @@ function buildChart() {
           },
         },
         zoom: {
-          pan:  { enabled: true, mode: 'x' },
+          pan:  { enabled: true, mode: 'x', onPanComplete: () => updateTimeUnit() },
           zoom: {
             wheel: { enabled: true, speed: 0.1 },
             pinch: { enabled: true },
             mode: 'x',
+            onZoomComplete: () => updateTimeUnit(),
           },
           limits: { x: { minRange: 7 * 86400000 } },
         },
@@ -369,6 +370,17 @@ function buildChart() {
 // Actually Chart.js 4 has a built-in date adapter for basic use — let's check if it works.
 // If not, we fall back to category scale with string labels.
 
+function updateTimeUnit() {
+  if (!pvChart) return;
+  const scale = pvChart.scales.x;
+  const days = (scale.max - scale.min) / 86400000;
+  const unit = days > 500 ? 'year' : days > 60 ? 'month' : 'day';
+  if (pvChart.options.scales.x.time.unit !== unit) {
+    pvChart.options.scales.x.time.unit = unit;
+    pvChart.update('none');
+  }
+}
+
 function updateChartDatasets() {
   if (!pvChart) return;
   SIGNALS.forEach((sig, i) => {
@@ -383,11 +395,13 @@ function setRange(days) {
   if (!pvChart) return;
   if (days === 0) {
     pvChart.resetZoom();
+    updateTimeUnit();
     return;
   }
   const to   = new Date();
   const from = new Date(to.getTime() - days * 86400000);
   pvChart.zoomScale('x', { min: from.getTime(), max: to.getTime() }, 'default');
+  updateTimeUnit();
 }
 
 function resetZoom() {
