@@ -265,14 +265,15 @@ function toggleSignal(i) {
 // ── Chart ─────────────────────────────────────────────────────────────────────
 function getChartData(sig) {
   return allData.map(r => {
-    if (sig.key === '_radiation') return { x: r.date, y: dwdMap[r.date] ?? null };
+    const x = new Date(r.date + 'T12:00:00').getTime();
+    if (sig.key === '_radiation') return { x, y: dwdMap[r.date] ?? null };
     if (sig.key === '_efficiency') {
       const rad = dwdMap[r.date];
       const gen = +r.pv_generation_kwh || 0;
       const theo = rad ? rad * MODULE_AREA_M2 : 0;
-      return { x: r.date, y: theo > 0 ? +(gen / theo * 100).toFixed(2) : null };
+      return { x, y: theo > 0 ? +(gen / theo * 100).toFixed(2) : null };
     }
-    return { x: r.date, y: r[sig.key] != null ? +r[sig.key] : null };
+    return { x, y: r[sig.key] != null ? +r[sig.key] : null };
   });
 }
 
