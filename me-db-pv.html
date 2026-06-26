@@ -137,7 +137,9 @@ const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
+const MODULE_AREA_M2 = 40;
 let allData = [];
+let dwdMap = {};
 let activeMonth = 0;
 let page = 0;
 const PAGE_SIZE = 30;
@@ -150,9 +152,14 @@ db.auth.getSession().then(({ data }) => {
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 
 async function loadData() {
-  const { data, error } = await db.from('pv_daily').select('*').order('date', { ascending: false });
-  if (error) { document.getElementById('tableWrap').innerHTML = `<div class="empty">Error: ${error.message}</div>`; return; }
-  allData = data || [];
+  const [pvRes, dwdRes] = await Promise.all([
+    db.from('pv_daily').select('*').order('date', { ascending: false }),
+    db.from('dwd_radiation_daily').select('date,radiation_kwh_m2').order('date', { ascending: false })
+  ]);
+  if (pvRes.error) { document.getElementById('tableWrap').innerHTML = `<div class="empty">Error: ${pvRes.error.message}</div>`; return; }
+  allData = pvRes.data || [];
+  dwdMap = {};
+  for (const r of (dwdRes.data || [])) dwdMap[r.date] = +r.radiation_kwh_m2 || 0;
   renderHero();
   buildMonthChips();
   render();
@@ -161,29 +168,41 @@ async function loadData() {
 function renderHero() {
   if (!allData.length) { document.getElementById('hero').innerHTML = ''; return; }
 
-  // Last 30 days
-  const last30 = allData.slice(0, 30);
-  const totalGen = last30.reduce((s, r) => s + (+r.pv_generation_kwh || 0), 0);
-  const totalExport = last30.reduce((s, r) => s + (+r.grid_export_kwh || 0), 0);
-  const totalImport = last30.reduce((s, r) => s + (+r.grid_import_kwh || 0), 0);
-  const selfUse = totalGen > 0 ? Math.round((1 - totalExport / totalGen) * 100) : 0;
+  // Current month
+  const now = new Date();
+  const monthStr = now.toISOString().substring(0, 7);
+  const monthRows = allData.filter(r => r.date.startsWith(monthStr));
+  const mGen = monthRows.reduce((s, r) => s + (+r.pv_generation_kwh || 0), 0);
+  const mExport = monthRows.reduce((s, r) => s + (+r.grid_export_kwh || 0), 0);
+  const mImport = monthRows.reduce((s, r) => s + (+r.grid_import_kwh || 0), 0);
+  const mSelfUse = mGen > 0 ? Math.round((1 - mExport / mGen) * 100) : 0;
+  let mRad = 0;
+  for (const r of monthRows) { if (dwdMap[r.date]) mRad += dwdMap[r.date]; }
+  const mTheo = mRad * MODULE_AREA_M2;
+  const mEff = mTheo > 0 ? (mGen / mTheo * 100).toFixed(1) : null;
+
   const latest = allData[0];
+  const monthLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   document.getElementById('hero').innerHTML = `
     <div class="hero-stat">
-      <div class="n">${totalGen.toFixed(0)}<span class="u">kWh</span></div>
-      <div class="lbl">Generated · last 30 days</div>
+      <div class="n">${mGen.toFixed(0)}<span class="u">kWh</span></div>
+      <div class="lbl">Generated · ${monthLabel}</div>
     </div>
     <div class="hero-stat">
-      <div class="n">${selfUse}<span class="u">%</span></div>
+      <div class="n">${mSelfUse}<span class="u">%</span></div>
       <div class="lbl">Self-consumption rate</div>
     </div>
+    ${mEff !== null ? `<div class="hero-stat">
+      <div class="n">${mEff}<span class="u">%</span></div>
+      <div class="lbl">Efficiency (η) · ${monthLabel}</div>
+    </div>` : ''}
     <div class="hero-stat">
-      <div class="n">${totalExport.toFixed(0)}<span class="u">kWh</span></div>
+      <div class="n">${mExport.toFixed(0)}<span class="u">kWh</span></div>
       <div class="lbl">Fed into grid</div>
     </div>
     <div class="hero-stat">
-      <div class="n">${totalImport.toFixed(1)}<span class="u">kWh</span></div>
+      <div class="n">${mImport.toFixed(1)}<span class="u">kWh</span></div>
       <div class="lbl">Drawn from grid</div>
     </div>
     <div class="hero-stat" style="margin-left:auto;text-align:right">
@@ -245,6 +264,8 @@ function render() {
         <th>Grid import</th>
         <th>Consumption</th>
         <th>eCharger</th>
+        <th title="DWD global radiation kWh/m²">Radiation</th>
+        <th title="Efficiency = Generation / (Radiation × ${MODULE_AREA_M2}m²)">η</th>
       </tr></thead>
       <tbody>${slice.map(r => rowHtml(r, maxGen)).join('')}</tbody>
     </table>`;
@@ -262,6 +283,9 @@ function rowHtml(r, maxGen) {
   const dateStr = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
   const dow = d.toLocaleDateString('en-US', { weekday: 'short' });
   const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+  const rad = dwdMap[r.date];
+  const eff = (rad && gen > 0) ? (gen / (rad * MODULE_AREA_M2) * 100).toFixed(1) : null;
+  const effColor = eff ? (eff >= 18 ? '#2e7d32' : eff >= 13 ? '#f0a500' : '#aaa') : '';
   return `<tr style="${isWeekend?'background:#fafff8':''}">
     <td>${dateStr} <span style="color:#aaa;font-size:0.75rem">${dow}</span></td>
     <td><div class="bar-cell"><div class="bar" style="width:${barW}px"></div>${gen.toFixed(1)}</div></td>
@@ -272,6 +296,8 @@ function rowHtml(r, maxGen) {
     <td>${fmt(r.grid_import_kwh)}</td>
     <td>${fmt(r.total_consumption_kwh)}</td>
     <td>${fmt(r.echarger_kwh)}</td>
+    <td>${rad ? rad.toFixed(3) : '<span style="color:#ccc">–</span>'}</td>
+    <td>${eff ? `<span style="color:${effColor};font-weight:600">${eff}%</span>` : '<span style="color:#ccc">–</span>'}</td>
   </tr>`;
 }
 
