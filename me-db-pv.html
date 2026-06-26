@@ -168,10 +168,14 @@ async function loadData() {
 function renderHero() {
   if (!allData.length) { document.getElementById('hero').innerHTML = ''; return; }
 
-  // Current month
+  // Use current month; fall back to most recent month with data
   const now = new Date();
-  const monthStr = now.toISOString().substring(0, 7);
-  const monthRows = allData.filter(r => r.date.startsWith(monthStr));
+  let monthStr = now.toISOString().substring(0, 7);
+  let monthRows = allData.filter(r => r.date.startsWith(monthStr));
+  if (!monthRows.length) {
+    monthStr = allData[0].date.substring(0, 7); // most recent available
+    monthRows = allData.filter(r => r.date.startsWith(monthStr));
+  }
   const mGen = monthRows.reduce((s, r) => s + (+r.pv_generation_kwh || 0), 0);
   const mExport = monthRows.reduce((s, r) => s + (+r.grid_export_kwh || 0), 0);
   const mImport = monthRows.reduce((s, r) => s + (+r.grid_import_kwh || 0), 0);
