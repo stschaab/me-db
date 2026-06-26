@@ -455,7 +455,7 @@ async function loadPvStat() {
     // Find latest DWD date to anchor the η window
     const dwdLatestRes = await db.from('dwd_radiation_daily').select('date').order('date', { ascending: false }).limit(1);
     const dwdLatest = dwdLatestRes.data?.[0]?.date;
-    const dwdFrom = dwdLatest ? (() => { const d = new Date(dwdLatest); d.setDate(d.getDate() - 29); return d.toISOString().substring(0, 10); })() : null;
+    const dwdFrom = dwdLatest ? (() => { const d = new Date(dwdLatest + 'T12:00:00'); d.setDate(d.getDate() - 29); return d.toISOString().substring(0, 10); })() : null;
 
     const [pvRes, pvEtaRes, dwdRes] = await Promise.all([
       db.from('pv_daily').select('date,pv_generation_kwh').gte('date', from30Str).lte('date', today),
