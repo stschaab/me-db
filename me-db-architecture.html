@@ -144,8 +144,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <path d="M280,1000 C 500,950 800,750 1130,650" stroke="#999" marker-end="url(#arrow)"/>
         <!-- Local PC scheduler -> Google Drive backup -->
         <path d="M260,1080 C 260,1110 320,1110 380,1110"/>
-        <!-- Voice/Web Speech API -> Browser -->
-        <path d="M560,690 C 500,720 460,720 440,700" marker-end="url(#arrow)"/>
+        <!-- Browser -> Voice node (speech transcript) -->
+        <path d="M650,700 C 630,720 570,725 570,730" marker-end="url(#arrow)"/>
+        <!-- Voice -> Worker (/parse-*) -->
+        <path d="M590,790 C 800,850 1200,760 1430,550" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow)"/>
       </g>
 
       <!-- ===================== LABELS ON EDGES ===================== -->
@@ -168,7 +170,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <text x="600" y="916" fill="#777">monthly Python import</text>
         <text x="500" y="1000" fill="#777">service_role key, daily 03:00</text>
         <text x="280" y="1100" fill="#777">zip backup</text>
-        <text x="395" y="715">SpeechRecognition</text>
+        <text x="560" y="718" font-size="10.5">speech transcript</text>
+        <text x="760" y="840" fill="#7c3aed">/parse-universal · /parse-shopping · /parse-task</text>
       </g>
 
       <!-- ===================== NODES ===================== -->
@@ -308,6 +311,19 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <text x="1595" y="866" text-anchor="middle" fill="#8890b8" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">Local PC · monthly Python import</text>
       </g>
 
+      <!-- Voice Input -->
+      <g>
+        <rect x="350" y="730" width="230" height="130" rx="12" fill="#1e1040" stroke="#1e1040"/>
+        <text x="465" y="757" text-anchor="middle" fill="#c4b5fd" font-size="14" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">🎤 Voice Input</text>
+        <text x="465" y="775" text-anchor="middle" fill="#a78bfa" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Web Speech API (de-DE)</text>
+        <line x1="368" y1="786" x2="562" y2="786" stroke="#3b2080"/>
+        <text x="465" y="803" text-anchor="middle" fill="#ddd6fe" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">me-db-voice.html (global 🎤)</text>
+        <text x="465" y="819" text-anchor="middle" fill="#ddd6fe" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Tasks · Shopping · Supplements</text>
+        <text x="465" y="835" text-anchor="middle" fill="#ddd6fe" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Abos · Vorsorge · HRV</text>
+        <line x1="368" y1="846" x2="562" y2="846" stroke="#3b2080"/>
+        <text x="465" y="863" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">→ Claude classifies type → Supabase</text>
+      </g>
+
       <!-- Cloudflare Cron trigger -->
       <g>
         <rect x="1420" y="1010" width="160" height="60" rx="10" fill="white" stroke="#f38020" stroke-width="1.5" stroke-dasharray="4 3"/>
@@ -327,6 +343,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="row"><div class="sw" style="background:#3a1f00"></div>Cloudflare Worker</div>
   <div class="row"><div class="sw" style="background:#2a1810"></div>Claude API (Anthropic)</div>
   <div class="row"><div class="sw" style="background:#fc4c02"></div>Strava API</div>
+  <div class="row"><div class="sw" style="background:#1e1040"></div>Voice Input (Web Speech API)</div>
   <div class="row"><div class="sw" style="background:#37404d"></div>Local PC / scheduled tasks</div>
   <div class="row"><div class="sw" style="background:#1a3a1a"></div>SMA ennexOS (PV API)</div>
   <div class="row"><div class="sw" style="background:#2a2a40"></div>DWD (radiation data)</div>
