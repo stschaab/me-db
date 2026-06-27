@@ -588,7 +588,7 @@ async function parseVoiceShopping(text) {
     const resp = await fetch(WORKER_URL + '/parse-shopping', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, products: products.map(p => ({ id: p.id, name: p.name })) }),
+      body: JSON.stringify({ text, products: products.map(p => ({ id: p.id, name: p.name })), shops: shops.map(s => ({ id: s.id, name: s.name })) }),
     });
     const data = await resp.json();
     stopVoiceUI();
@@ -606,7 +606,7 @@ async function parseVoiceShopping(text) {
       }
       if (!prod) continue;
 
-      const shopId = prod.default_shop_id || null;
+      const shopId = item.matched_shop_id || prod.default_shop_id || null;
       const { data: insData, error } = await db.from('shopping_items')
         .insert({ user_id: userId, product_id: prod.id, shop_id: shopId, qty: item.quantity || null, checked: false })
         .select('*, products(id,name,default_shop_id)');
