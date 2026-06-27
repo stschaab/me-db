@@ -265,19 +265,32 @@ async function loadLabMeasurements(parameterId) {
   return tableCache[key];
 }
 
-// ── Generic column loader ─────────────────────────────────────────────────────
+// ── Generic column loader (paginated — bypasses Supabase max_rows=1000) ───────
 async function loadColumn(table, xField, yField, transform) {
   const key = table + '_' + yField;
-  if (!tableCache[key]) {
-    const { data } = await db.from(table).select(xField + ',' + yField).order(xField, { ascending: true }).limit(50000);
-    tableCache[key] = (data || []).map(r => {
-      const xStr = r[xField];
-      const x = new Date(xStr.includes?.('T') ? xStr : xStr + 'T12:00:00').getTime();
-      const raw = r[yField];
-      const y = raw != null ? (transform ? transform(+raw) : +raw) : null;
-      return { x, y };
-    }).filter(p => p.y !== null && !isNaN(p.y));
+  if (tableCache[key]) return tableCache[key];
+
+  const PAGE = 1000;
+  let allRows = [], from = 0;
+  while (true) {
+    const { data, error } = await db.from(table)
+      .select(xField + ',' + yField)
+      .order(xField, { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error || !data?.length) break;
+    allRows = allRows.concat(data);
+    if (data.length < PAGE) break;
+    from += PAGE;
   }
+
+  tableCache[key] = allRows.map(r => {
+    const xStr = r[xField];
+    const x = new Date(xStr.includes?.('T') ? xStr : xStr + 'T12:00:00').getTime();
+    const raw = r[yField];
+    const y = raw != null ? (transform ? transform(+raw) : +raw) : null;
+    return { x, y };
+  }).filter(p => p.y !== null && !isNaN(p.y));
+
   return tableCache[key];
 }
 
