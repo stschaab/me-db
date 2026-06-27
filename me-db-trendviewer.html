@@ -218,9 +218,12 @@ let tableCache = {};     // cache key → [{x,y}]
 let catalogReady = false;
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
-db.auth.getSession().then(({ data }) => {
+db.auth.getSession().then(async ({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
-  loadLabParameters();
+  await loadLabParameters();
+  // ?add=<seriesId> from Indicators page — auto-add series on load
+  const addId = new URLSearchParams(location.search).get('add');
+  if (addId) addSeries(addId);
 });
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 
