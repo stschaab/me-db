@@ -367,7 +367,7 @@ async function addProductToList(pid) {
     .select('*, products(id,name,default_shop_id)');
   if (error) { showToast('Error: ' + error.message); return; }
   items.push(data[0]);
-  renderChips(); render();
+  renderChips(); render(); renderProdPanel();
   showToast(p.name + ' added');
 }
 
