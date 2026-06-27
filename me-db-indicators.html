@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Indicators</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; }
+header h1 { font-size: 1.4rem; font-weight: 600; }
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; color: #7ec8e3; text-decoration: none; background: none; border-top: none; cursor: pointer; }
+.navdrop { width: 100%; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+
+.container { max-width: 1200px; margin: 20px auto; padding: 0 20px 60px; }
+
+/* ── Summary bar ── */
+.summary { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 18px; }
+.sum-item { background: white; border-radius: 10px; padding: 12px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); flex: 1; min-width: 120px; }
+.sum-item .n { font-size: 1.6rem; font-weight: 800; }
+.sum-item .lbl { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin-top: 2px; }
+.sum-item.alert .n { color: #c62828; }
+.sum-item.warn .n { color: #f57c00; }
+
+/* ── Filter bar ── */
+.filterbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 320px; }
+.search-wrap input { width: 100%; border: 1.5px solid #ddd; border-radius: 20px; padding: 7px 14px 7px 34px; font-size: 0.85rem; outline: none; }
+.search-wrap input:focus { border-color: #1a1a2e; }
+.search-wrap::before { content: '🔍'; position: absolute; left: 11px; top: 7px; font-size: 0.8rem; }
+.cat-chip { border: 1px solid #ddd; background: white; border-radius: 20px; padding: 5px 13px; font-size: 0.78rem; cursor: pointer; color: #555; white-space: nowrap; }
+.cat-chip.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+.filter-count { font-size: 0.78rem; color: #aaa; margin-left: auto; white-space: nowrap; }
+
+/* ── Cards / sections ── */
+.section { margin-bottom: 14px; }
+.section-header { display: flex; align-items: center; gap: 10px; padding: 10px 0 6px; }
+.section-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.section-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #888; }
+.section-count { font-size: 0.72rem; color: #bbb; }
+
+/* ── Table ── */
+.table-wrap { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); overflow: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+thead th { background: #f8f8f8; padding: 9px 12px; text-align: left; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #aaa; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+th.r, td.r { text-align: right; }
+tbody tr { border-bottom: 1px solid #f8f8f8; cursor: pointer; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #fafafa; }
+tbody tr.expanded { background: #f5f8ff; }
+td { padding: 10px 12px; vertical-align: middle; }
+.ind-name { font-weight: 600; font-size: 0.85rem; }
+.ind-cat { display: inline-block; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background: #f0f0f0; color: #888; border-radius: 10px; padding: 2px 7px; margin-left: 5px; vertical-align: middle; }
+.formula-badge { display: inline-block; font-size: 0.65rem; font-family: monospace; background: #e8f0fe; color: #1565c0; border-radius: 6px; padding: 1px 6px; margin-top: 3px; }
+.val { font-weight: 700; font-size: 0.92rem; }
+.unit { color: #aaa; font-size: 0.72rem; margin-left: 3px; }
+.ref { font-size: 0.72rem; color: #aaa; white-space: nowrap; }
+.date-cell { font-size: 0.75rem; color: #aaa; white-space: nowrap; }
+.count-cell { font-size: 0.75rem; color: #bbb; text-align: right; }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.status-ok   { background: #43a047; }
+.status-high { background: #e53935; }
+.status-low  { background: #1976d2; }
+.status-none { background: #ddd; }
+.trend-link { color: #1a1a2e; text-decoration: none; font-size: 1rem; opacity: 0.4; }
+.trend-link:hover { opacity: 1; }
+
+/* ── Expanded detail row ── */
+.detail-row td { padding: 10px 16px 14px 32px; background: #f5f8ff; border-bottom: 1px solid #e8edf8; }
+.detail-row { display: none; }
+.detail-row.show { display: table-row; }
+.detail-grid { display: flex; gap: 24px; flex-wrap: wrap; }
+.detail-item .dl { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: #aaa; font-weight: 700; margin-bottom: 3px; }
+.detail-item .dv { font-size: 0.82rem; color: #444; }
+.detail-item .dv.mono { font-family: monospace; font-size: 0.78rem; background: #e8f0fe; color: #1565c0; padding: 2px 7px; border-radius: 5px; }
+
+/* ── Source badge ── */
+.source-badge { display: inline-block; font-size: 0.65rem; background: #f0f0f0; color: #777; border-radius: 8px; padding: 2px 8px; }
+
+/* ── Empty ── */
+.empty { text-align: center; padding: 40px; color: #ccc; font-size: 0.88rem; }
+
+@media (max-width: 768px) {
+  header { padding: 12px 14px; }
+  header h1 { font-size: 0.95rem; }
+  .container { padding: 0 12px 60px; margin: 12px auto; }
+  .hide-mobile { display: none; }
+  table { font-size: 0.78rem; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>
+    <a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a>
+    <span style="color:#5c5c78;margin:0 6px">&rsaquo;</span>
+    <span>Indicators</span>
+  </h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Lab Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+      <a href="me-db-indicators.html">Indicators</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Activities</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Reports</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Values</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-abos.html">Subscriptions</a>
+    <a href="me-db-supplements.html">Supplements</a>
+    <a href="me-db-pv.html">PV Plant</a>
+    <a href="me-db-trendviewer.html">Trend Viewer</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <!-- Summary -->
+  <div class="summary" id="summary">
+    <div class="sum-item"><div class="n" id="s-total">–</div><div class="lbl">Total Indicators</div></div>
+    <div class="sum-item alert"><div class="n" id="s-high">–</div><div class="lbl">Too High</div></div>
+    <div class="sum-item warn"><div class="n" id="s-low">–</div><div class="lbl">Too Low</div></div>
+    <div class="sum-item"><div class="n" id="s-ok">–</div><div class="lbl">In Range</div></div>
+    <div class="sum-item"><div class="n" id="s-sources">5</div><div class="lbl">Data Sources</div></div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filterbar">
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Search indicators…" oninput="applyFilter()">
+    </div>
+    <div id="catChips"></div>
+    <span class="filter-count" id="filterCount"></span>
+  </div>
+
+  <!-- Content -->
+  <div id="content"><div class="empty">Loading…</div></div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+// ── Static non-lab indicators ─────────────────────────────────────────────────
+const EXTRA_GROUPS = [
+  { group: 'HRV', color: '#7b1fa2', source: 'Polar H10 · 60 s measurement', items: [
+    { id: 'hrv_rmssd', name: 'RMSSD', unit: 'ms',
+      description: 'Root Mean Square of Successive Differences — primary HRV marker. Higher values indicate better parasympathetic tone and recovery.',
+      formula: '√( Σ(RRₙ₊₁ − RRₙ)² / (N−1) )', trendId: 'hrv_rmssd' },
+    { id: 'hrv_sdnn', name: 'SDNN', unit: 'ms',
+      description: 'Standard Deviation of all NN intervals. Reflects total autonomic variability (both sympathetic and parasympathetic).',
+      formula: 'σ(all RR intervals)', trendId: 'hrv_sdnn' },
+    { id: 'hrv_pnn50', name: 'pNN50', unit: '%',
+      description: 'Percentage of successive RR intervals differing by more than 50 ms. Higher = more parasympathetic activity.',
+      formula: 'N(|RRₙ₊₁ − RRₙ| > 50 ms) ÷ N × 100', trendId: 'hrv_pnn50' },
+    { id: 'hrv_hr', name: 'Mean HR', unit: 'bpm',
+      description: 'Mean heart rate during the 60-second HRV measurement window.', trendId: 'hrv_hr' },
+  ]},
+  { group: 'Sport', color: '#e53935', source: 'Strava · daily auto-sync', items: [
+    { id: 'act_dur_d', name: 'Duration (daily)', unit: 'h',
+      description: 'Recorded sport duration per activity day.',
+      formula: 'duration_sec ÷ 3600', trendId: 'act_duration' },
+    { id: 'act_dur_w', name: 'Duration (weekly)', unit: 'h',
+      description: 'Total sport hours aggregated per calendar week (Monday start).',
+      formula: 'Σ(duration_sec per ISO week) ÷ 3600', trendId: 'act_duration_weekly' },
+  ]},
+  { group: 'PV', color: '#f0a500', source: 'SMA ennexOS · daily auto-sync', items: [
+    { id: 'pv_gen',    name: 'Generation',    unit: 'kWh', description: 'Daily PV energy generation.', trendId: 'pv_gen' },
+    { id: 'pv_export', name: 'Feed-in',       unit: 'kWh', description: 'Energy exported to the public grid.', trendId: 'pv_export' },
+    { id: 'pv_import', name: 'Grid import',   unit: 'kWh', description: 'Energy drawn from the public grid.', trendId: 'pv_import' },
+    { id: 'pv_direct', name: 'Direct use',    unit: 'kWh', description: 'PV energy consumed directly without storage.', trendId: 'pv_direct' },
+    { id: 'pv_bat_c',  name: 'Battery charge',unit: 'kWh', description: 'Energy stored in the home battery.', trendId: 'pv_bat_c' },
+    { id: 'pv_eff',    name: 'Efficiency η',  unit: '%',
+      description: 'Actual generation as a percentage of the theoretical yield based on DWD solar radiation data.',
+      formula: 'Generation ÷ (Radiation × 40 m²) × 100', trendId: null },
+  ]},
+  { group: 'Weather', color: '#607d8b', source: 'DWD Station 03668 · monthly import', items: [
+    { id: 'dwd_rad', name: 'Solar Radiation', unit: 'kWh/m²',
+      description: 'Daily global horizontal irradiance. Used as reference for PV efficiency calculation.', trendId: 'dwd_rad' },
+  ]},
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let allGroups = [];   // { group, color, source, items: [{...indicator, latestVal, latestDate, count, status}] }
+let activeCategory = 'All';
+let expandedId = null;
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  loadAll();
+});
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+// ── Load all data ─────────────────────────────────────────────────────────────
+async function loadAll() {
+  const [paramsRes, measRes, hrvRes, actRes, pvRes, dwdRes] = await Promise.all([
+    db.from('parameters').select('id,name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si,ref_note').order('name'),
+    db.from('measurements').select('parameter_id,measured_at,value,value_si,unit').order('measured_at', { ascending: false }),
+    db.from('hrv_measurements').select('measured_at,rmssd,sdnn,pnn50,mean_hr').order('measured_at', { ascending: false }).limit(1),
+    db.from('activities').select('date,duration_sec').order('date', { ascending: false }).limit(1),
+    db.from('pv_daily').select('date,pv_generation_kwh,grid_export_kwh,grid_import_kwh,direct_consumption_kwh,battery_charge_kwh').order('date', { ascending: false }).limit(1),
+    db.from('dwd_radiation_daily').select('date,radiation_kwh_m2').order('date', { ascending: false }).limit(1),
+  ]);
+
+  // ── Process lab measurements ──────────────────────────────────────────────
+  // Build: latest per parameter + count per parameter
+  const latestMap = {};  // parameter_id → { value_si, value, unit, measured_at }
+  const countMap  = {};  // parameter_id → count
+  for (const m of (measRes.data || [])) {
+    if (!latestMap[m.parameter_id]) latestMap[m.parameter_id] = m;
+    countMap[m.parameter_id] = (countMap[m.parameter_id] || 0) + 1;
+  }
+
+  // ── Build lab groups ──────────────────────────────────────────────────────
+  const labCats = {};
+  for (const p of (paramsRes.data || [])) {
+    const cat = p.category || 'Other';
+    if (!labCats[cat]) labCats[cat] = [];
+    const latest = latestMap[p.id];
+    const val = latest ? (latest.value_si ?? latest.value) : null;
+    const low  = p.ref_range_low_si  ?? p.ref_range_low;
+    const high = p.ref_range_high_si ?? p.ref_range_high;
+    const status = calcStatus(val, low, high);
+    labCats[cat].push({
+      id: 'lab_' + p.id,
+      paramId: p.id,
+      name: p.name,
+      unit: p.unit_si || p.unit || '',
+      description: p.ref_note || '',
+      formula: null,
+      ref_low: low, ref_high: high,
+      latestVal: val,
+      latestDate: latest?.measured_at ? latest.measured_at.substring(0, 10) : null,
+      count: countMap[p.id] || 0,
+      status,
+      trendId: 'lab_' + p.id,
+      source: 'Lab measurements',
+    });
+  }
+
+  const labGroups = Object.entries(labCats).sort(([a],[b]) => a.localeCompare(b)).map(([cat, items]) => ({
+    group: 'Lab · ' + cat, color: '#1a1a2e', source: 'Lab measurements', items,
+  }));
+
+  // ── Hydrate non-lab indicators with live values ───────────────────────────
+  const hrv  = hrvRes.data?.[0];
+  const act  = actRes.data?.[0];
+  const pv   = pvRes.data?.[0];
+  const dwd  = dwdRes.data?.[0];
+
+  const extraLiveMap = {
+    hrv_rmssd: hrv ? { val: hrv.rmssd,    date: hrv.measured_at?.substring(0,10) } : null,
+    hrv_sdnn:  hrv ? { val: hrv.sdnn,     date: hrv.measured_at?.substring(0,10) } : null,
+    hrv_pnn50: hrv ? { val: hrv.pnn50,    date: hrv.measured_at?.substring(0,10) } : null,
+    hrv_hr:    hrv ? { val: hrv.mean_hr,  date: hrv.measured_at?.substring(0,10) } : null,
+    act_dur_d: act ? { val: act.duration_sec ? +(act.duration_sec/3600).toFixed(2) : null, date: act.date } : null,
+    act_dur_w: null,
+    pv_gen:    pv  ? { val: pv.pv_generation_kwh,      date: pv.date } : null,
+    pv_export: pv  ? { val: pv.grid_export_kwh,        date: pv.date } : null,
+    pv_import: pv  ? { val: pv.grid_import_kwh,        date: pv.date } : null,
+    pv_direct: pv  ? { val: pv.direct_consumption_kwh, date: pv.date } : null,
+    pv_bat_c:  pv  ? { val: pv.battery_charge_kwh,     date: pv.date } : null,
+    pv_eff:    (pv && dwd?.radiation_kwh_m2 && pv.pv_generation_kwh)
+               ? { val: +(+pv.pv_generation_kwh / (+dwd.radiation_kwh_m2 * 40) * 100).toFixed(1), date: pv.date }
+               : null,
+    dwd_rad:   dwd ? { val: dwd.radiation_kwh_m2, date: dwd.date } : null,
+  };
+
+  const extraGroups = EXTRA_GROUPS.map(g => ({
+    ...g,
+    items: g.items.map(item => {
+      const live = extraLiveMap[item.id];
+      return { ...item, latestVal: live?.val ?? null, latestDate: live?.date ?? null, count: null, status: null, ref_low: null, ref_high: null };
+    }),
+  }));
+
+  allGroups = [...labGroups, ...extraGroups];
+  buildCategoryChips();
+  applyFilter();
+  updateSummary();
+}
+
+// ── Status calculation ────────────────────────────────────────────────────────
+function calcStatus(val, low, high) {
+  if (val === null || val === undefined) return 'none';
+  if (high != null && val > high) return 'high';
+  if (low  != null && val < low)  return 'low';
+  if (low != null || high != null) return 'ok';
+  return 'none';
+}
+
+// ── Summary ───────────────────────────────────────────────────────────────────
+function updateSummary() {
+  let total = 0, high = 0, low = 0, ok = 0;
+  for (const g of allGroups) {
+    for (const item of g.items) {
+      total++;
+      if (item.status === 'high') high++;
+      else if (item.status === 'low') low++;
+      else if (item.status === 'ok') ok++;
+    }
+  }
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-high').textContent  = high;
+  document.getElementById('s-low').textContent   = low;
+  document.getElementById('s-ok').textContent    = ok;
+}
+
+// ── Category chips ────────────────────────────────────────────────────────────
+function buildCategoryChips() {
+  const cats = ['All', ...allGroups.map(g => g.group)];
+  document.getElementById('catChips').innerHTML = cats.map(c =>
+    `<button class="cat-chip ${c === activeCategory ? 'active' : ''}" onclick="setCategory('${c}')">${c}</button>`
+  ).join('');
+}
+
+function setCategory(cat) {
+  activeCategory = cat;
+  buildCategoryChips();
+  applyFilter();
+}
+
+// ── Filter & render ───────────────────────────────────────────────────────────
+function applyFilter() {
+  const query = document.getElementById('searchInput').value.toLowerCase();
+  let visibleCount = 0;
+  let html = '';
+
+  for (const g of allGroups) {
+    if (activeCategory !== 'All' && g.group !== activeCategory) continue;
+    const items = g.items.filter(i =>
+      !query ||
+      i.name.toLowerCase().includes(query) ||
+      (i.description || '').toLowerCase().includes(query) ||
+      (i.unit || '').toLowerCase().includes(query)
+    );
+    if (!items.length) continue;
+    visibleCount += items.length;
+
+    html += `<div class="section">
+      <div class="section-header">
+        <div class="section-dot" style="background:${g.color}"></div>
+        <span class="section-title">${esc(g.group)}</span>
+        <span class="section-count">${items.length}</span>
+        <span class="source-badge" style="margin-left:6px">${esc(g.source)}</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Indicator</th>
+              <th class="r">Latest</th>
+              <th></th>
+              <th class="hide-mobile">Reference Range</th>
+              <th class="hide-mobile r">Last Date</th>
+              <th class="r hide-mobile">#</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+    for (const item of items) {
+      html += rowHtml(item, g.color);
+    }
+
+    html += `</tbody></table></div></div>`;
+  }
+
+  if (!visibleCount) {
+    html = `<div class="empty">No indicators match your filter.</div>`;
+  }
+
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('filterCount').textContent = visibleCount + ' indicators';
+}
+
+function rowHtml(item, groupColor) {
+  const statusClass = `status-${item.status || 'none'}`;
+  const valStr = item.latestVal != null ? (+item.latestVal).toFixed(2).replace(/\.?0+$/, '') : '–';
+  const refStr = (item.ref_low != null || item.ref_high != null)
+    ? `${item.ref_low ?? '–'} – ${item.ref_high ?? '–'}`
+    : '';
+  const dateStr = item.latestDate ? item.latestDate.substring(0, 10) : '–';
+  const countStr = item.count != null ? item.count : '';
+  const trendHref = item.trendId ? `me-db-trendviewer.html?add=${item.trendId}` : null;
+
+  return `
+    <tr onclick="toggleExpand('${item.id}')">
+      <td>
+        <div class="ind-name">${esc(item.name)}</div>
+        ${item.formula ? `<div class="formula-badge">${esc(item.formula)}</div>` : ''}
+      </td>
+      <td class="r">
+        ${item.latestVal != null ? `<span class="val">${valStr}</span><span class="unit">${esc(item.unit)}</span>` : '<span style="color:#ddd">–</span>'}
+      </td>
+      <td><div class="status-dot ${statusClass}"></div></td>
+      <td class="ref hide-mobile">${refStr ? refStr + ' <span class="unit">' + esc(item.unit) + '</span>' : ''}</td>
+      <td class="date-cell hide-mobile r">${dateStr}</td>
+      <td class="count-cell hide-mobile">${countStr}</td>
+      <td>${trendHref ? `<a class="trend-link" href="${trendHref}" onclick="event.stopPropagation()" title="Open in Trend Viewer">📈</a>` : ''}</td>
+    </tr>
+    <tr class="detail-row ${expandedId === item.id ? 'show' : ''}" id="detail_${item.id}">
+      <td colspan="7">
+        <div class="detail-grid">
+          ${item.description ? `<div class="detail-item"><div class="dl">Description</div><div class="dv">${esc(item.description)}</div></div>` : ''}
+          ${item.formula ? `<div class="detail-item"><div class="dl">Formula</div><div class="dv mono">${esc(item.formula)}</div></div>` : ''}
+          ${refStr ? `<div class="detail-item"><div class="dl">Reference Range</div><div class="dv">${refStr} ${esc(item.unit)}</div></div>` : ''}
+          ${item.count != null ? `<div class="detail-item"><div class="dl">Measurements</div><div class="dv">${item.count}</div></div>` : ''}
+          ${item.latestDate ? `<div class="detail-item"><div class="dl">Last Measured</div><div class="dv">${item.latestDate}</div></div>` : ''}
+          <div class="detail-item"><div class="dl">Source</div><div class="dv">${esc(item.source || '')}</div></div>
+          ${item.trendId ? `<div class="detail-item"><div class="dl">Trend Viewer</div><div class="dv"><a href="me-db-trendviewer.html?add=${item.trendId}" style="color:#1976d2;font-size:0.82rem">Open in Trend Viewer →</a></div></div>` : ''}
+        </div>
+      </td>
+    </tr>`;
+}
+
+function toggleExpand(id) {
+  expandedId = expandedId === id ? null : id;
+  applyFilter();
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+</script>
+</body>
+</html>
