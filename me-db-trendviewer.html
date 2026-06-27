@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Trend Viewer</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+
+/* ── Header / Nav ── */
+header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; }
+header h1 { font-size: 1.4rem; font-weight: 600; }
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; color: #7ec8e3; text-decoration: none; background: none; border-top: none; cursor: pointer; }
+.navdrop { width: 100%; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+
+/* ── Layout ── */
+.container { max-width: 1200px; margin: 20px auto; padding: 0 20px 60px; }
+
+/* ── Toolbar ── */
+.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.add-btn { background: #1a1a2e; color: white; border: none; border-radius: 20px; padding: 7px 16px; font-size: 0.85rem; cursor: pointer; font-weight: 600; }
+.add-btn:hover { background: #2d2d4e; }
+.rbtn { border: 1px solid #d8d8d8; background: white; border-radius: 16px; padding: 5px 13px; font-size: 0.78rem; cursor: pointer; color: #555; }
+.rbtn.active, .rbtn:hover { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+.reset-btn { border: none; background: #e8e8e8; border-radius: 10px; padding: 5px 12px; font-size: 0.75rem; cursor: pointer; color: #555; }
+.reset-btn:hover { background: #ddd; }
+.hint { font-size: 0.72rem; color: #aaa; }
+
+/* ── Series panel ── */
+.series-panel { background: white; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.13); margin-bottom: 12px; overflow: hidden; display: none; }
+.series-panel.open { display: block; }
+.panel-search { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; }
+.panel-search input { width: 100%; border: 1.5px solid #ddd; border-radius: 8px; padding: 8px 13px; font-size: 0.85rem; outline: none; }
+.panel-search input:focus { border-color: #1a1a2e; }
+.panel-groups { max-height: 340px; overflow-y: auto; padding: 6px 0; }
+.group-label { padding: 10px 16px 4px; font-size: 0.67rem; text-transform: uppercase; letter-spacing: 0.09em; color: #aaa; font-weight: 700; }
+.series-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; cursor: pointer; font-size: 0.84rem; user-select: none; }
+.series-item:hover { background: #f7f7f7; }
+.series-item.active { background: #f0f4ff; }
+.si-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid #ccc; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+.series-item.active .si-check { background: #1a1a2e; border-color: #1a1a2e; color: white; }
+.si-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.si-name { flex: 1; }
+.si-unit { font-size: 0.72rem; color: #bbb; }
+.panel-loading { padding: 20px; text-align: center; color: #aaa; font-size: 0.85rem; }
+
+/* ── Active series chips ── */
+.active-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; min-height: 30px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px; padding: 5px 10px 5px 9px; font-size: 0.79rem; font-weight: 500; border: 1.5px solid; white-space: nowrap; }
+.chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.chip-label { color: #333; }
+.chip-unit { font-size: 0.68rem; color: #aaa; }
+.chip-remove { background: none; border: none; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0 0 3px; opacity: 0.5; color: #333; }
+.chip-remove:hover { opacity: 1; color: #e53935; }
+.loading-chip { font-size: 0.75rem; color: #aaa; padding: 4px 8px; }
+.no-series-hint { font-size: 0.83rem; color: #bbb; font-style: italic; }
+.clear-btn { background: none; border: none; cursor: pointer; font-size: 0.75rem; color: #bbb; padding: 4px 8px; margin-left: 4px; }
+.clear-btn:hover { color: #e53935; }
+
+/* ── Chart card ── */
+.chart-card { background: white; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
+.chart-inner { position: relative; height: 420px; padding: 16px; }
+.chart-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #ccc; gap: 10px; }
+.chart-empty .icon { font-size: 2.8rem; }
+.chart-empty .txt { font-size: 0.9rem; }
+#trendChart { display: none; width: 100% !important; height: 100% !important; }
+
+@media (max-width: 768px) {
+  header { padding: 12px 14px; }
+  header h1 { font-size: 0.95rem; }
+  .container { padding: 0 12px 60px; margin: 12px auto; }
+  .chart-inner { height: 300px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>
+    <a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a>
+    <span style="color:#5c5c78;margin:0 6px">&rsaquo;</span>
+    <span>Trend Viewer</span>
+  </h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Lab Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Activities</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Reports</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Values</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-abos.html">Subscriptions</a>
+    <a href="me-db-supplements.html">Supplements</a>
+    <a href="me-db-pv.html">PV Plant</a>
+    <a href="me-db-trendviewer.html">Trend Viewer</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <button class="add-btn" id="addBtn" onclick="togglePanel()">＋ Add Series</button>
+    <button class="rbtn" onclick="setRange(30, this)">30d</button>
+    <button class="rbtn" onclick="setRange(90, this)">3M</button>
+    <button class="rbtn" onclick="setRange(180, this)">6M</button>
+    <button class="rbtn" onclick="setRange(365, this)">1Y</button>
+    <button class="rbtn active" onclick="setRange(0, this)">All</button>
+    <button class="reset-btn" onclick="resetZoom()">⟲ Reset zoom</button>
+    <span class="hint">Scroll to zoom · Drag to pan · Double-click to reset</span>
+  </div>
+
+  <!-- Series panel (hidden by default) -->
+  <div class="series-panel" id="seriesPanel">
+    <div class="panel-search">
+      <input type="text" id="searchInput" placeholder="Search series…" oninput="renderPanel()">
+    </div>
+    <div class="panel-groups" id="panelGroups">
+      <div class="panel-loading">Loading catalog…</div>
+    </div>
+  </div>
+
+  <!-- Active series chips -->
+  <div class="active-row" id="activeRow">
+    <span class="no-series-hint">No series selected — click "+ Add Series" to start</span>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-card">
+    <div class="chart-inner">
+      <div class="chart-empty" id="chartEmpty">
+        <div class="icon">📈</div>
+        <div class="txt">Add a series above to see trends</div>
+      </div>
+      <canvas id="trendChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+// ── Color palette ────────────────────────────────────────────────────────────
+const PALETTE = [
+  '#f0a500','#1976d2','#e53935','#2e7d32','#7b1fa2',
+  '#00838f','#ff7043','#8bc34a','#ab47bc','#26c6da',
+  '#5d4037','#d97757','#66bb6a','#90a4ae','#ef5350',
+];
+
+// ── Series catalog ───────────────────────────────────────────────────────────
+// Each item: { id, label, unit, load: async () => [{x: ms, y: number}] }
+let catalog = [
+  { group: 'HRV', items: [
+    { id: 'hrv_rmssd', label: 'RMSSD',  unit: 'ms', load: () => loadColumn('hrv_measurements', 'measured_at', 'rmssd') },
+    { id: 'hrv_sdnn',  label: 'SDNN',   unit: 'ms', load: () => loadColumn('hrv_measurements', 'measured_at', 'sdnn') },
+    { id: 'hrv_pnn50', label: 'pNN50',  unit: '%',  load: () => loadColumn('hrv_measurements', 'measured_at', 'pnn50') },
+    { id: 'hrv_hr',    label: 'Mean HR', unit: 'bpm',load: () => loadColumn('hrv_measurements', 'measured_at', 'mean_hr') },
+  ]},
+  { group: 'Sport', items: [
+    { id: 'act_duration', label: 'Duration', unit: 'h',  load: () => loadColumn('activities', 'date', 'duration_sec', v => +(v / 3600).toFixed(2)) },
+  ]},
+  { group: 'PV', items: [
+    { id: 'pv_gen',     label: 'Generation',     unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'pv_generation_kwh') },
+    { id: 'pv_export',  label: 'Feed-in',         unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'grid_export_kwh') },
+    { id: 'pv_import',  label: 'Grid import',     unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'grid_import_kwh') },
+    { id: 'pv_direct',  label: 'Direct use',      unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'direct_consumption_kwh') },
+    { id: 'pv_consume', label: 'Consumption',     unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'total_consumption_kwh') },
+    { id: 'pv_bat_c',   label: 'Battery charge',  unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'battery_charge_kwh') },
+    { id: 'pv_bat_d',   label: 'Battery disch.',  unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'battery_discharge_kwh') },
+    { id: 'pv_echarge', label: 'eCharger',        unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'echarger_kwh') },
+  ]},
+  { group: 'Weather', items: [
+    { id: 'dwd_rad', label: 'Solar Radiation', unit: 'kWh/m²', load: () => loadColumn('dwd_radiation_daily', 'date', 'radiation_kwh_m2') },
+  ]},
+  // Lab groups injected dynamically after parameters load
+];
+
+// ── State ────────────────────────────────────────────────────────────────────
+let chart = null;
+let activeSeries = {};   // id → { def, color }
+let nextColorIdx = 0;
+let tableCache = {};     // cache key → [{x,y}]
+let catalogReady = false;
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  loadLabParameters();
+});
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+// ── Lab parameters ────────────────────────────────────────────────────────────
+async function loadLabParameters() {
+  const { data } = await db.from('parameters').select('id,name,category,unit_si,unit').order('name');
+  if (data?.length) {
+    const cats = {};
+    for (const p of data) {
+      const cat = p.category || 'Other';
+      if (!cats[cat]) cats[cat] = [];
+      cats[cat].push({
+        id: 'lab_' + p.id,
+        label: p.name,
+        unit: p.unit_si || p.unit || '',
+        load: () => loadLabMeasurements(p.id),
+      });
+    }
+    for (const [cat, items] of Object.entries(cats).sort(([a],[b]) => a.localeCompare(b))) {
+      catalog.push({ group: 'Lab · ' + cat, items });
+    }
+  }
+  catalogReady = true;
+  renderPanel();
+}
+
+async function loadLabMeasurements(parameterId) {
+  const key = 'lab_' + parameterId;
+  if (!tableCache[key]) {
+    const { data } = await db.from('measurements')
+      .select('measured_at,value_si,value')
+      .eq('parameter_id', parameterId)
+      .order('measured_at', { ascending: true });
+    tableCache[key] = (data || []).map(r => ({
+      x: new Date(r.measured_at).getTime(),
+      y: r.value_si != null ? +r.value_si : (r.value != null ? +r.value : null),
+    })).filter(p => p.y !== null && !isNaN(p.y));
+  }
+  return tableCache[key];
+}
+
+// ── Generic column loader ─────────────────────────────────────────────────────
+async function loadColumn(table, xField, yField, transform) {
+  const key = table + '_' + yField;
+  if (!tableCache[key]) {
+    const { data } = await db.from(table).select(xField + ',' + yField).order(xField, { ascending: true });
+    tableCache[key] = (data || []).map(r => {
+      const xStr = r[xField];
+      const x = new Date(xStr.includes?.('T') ? xStr : xStr + 'T12:00:00').getTime();
+      const raw = r[yField];
+      const y = raw != null ? (transform ? transform(+raw) : +raw) : null;
+      return { x, y };
+    }).filter(p => p.y !== null && !isNaN(p.y));
+  }
+  return tableCache[key];
+}
+
+// ── Panel ─────────────────────────────────────────────────────────────────────
+function togglePanel() {
+  const panel = document.getElementById('seriesPanel');
+  const isOpen = panel.classList.toggle('open');
+  document.getElementById('addBtn').textContent = isOpen ? '✕ Close' : '＋ Add Series';
+  if (isOpen && catalogReady) renderPanel();
+}
+
+function renderPanel() {
+  if (!catalogReady) return;
+  const filter = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  let html = '';
+  for (const group of catalog) {
+    const items = filter
+      ? group.items.filter(i => i.label.toLowerCase().includes(filter))
+      : group.items;
+    if (!items.length) continue;
+    html += `<div class="group-label">${esc(group.group)}</div>`;
+    for (const item of items) {
+      const active = !!activeSeries[item.id];
+      const color = active ? activeSeries[item.id].color : '#ccc';
+      html += `<div class="series-item ${active ? 'active' : ''}" onclick="toggleSeries('${item.id}')">
+        <div class="si-check">${active ? '✓' : ''}</div>
+        <div class="si-dot" style="background:${color}"></div>
+        <span class="si-name">${esc(item.label)}</span>
+        <span class="si-unit">${esc(item.unit)}</span>
+      </div>`;
+    }
+  }
+  document.getElementById('panelGroups').innerHTML = html ||
+    '<div class="panel-loading">No results</div>';
+}
+
+// ── Add / remove series ───────────────────────────────────────────────────────
+async function toggleSeries(id) {
+  if (activeSeries[id]) {
+    removeSeries(id);
+  } else {
+    await addSeries(id);
+  }
+}
+
+function findDef(id) {
+  for (const g of catalog) {
+    const item = g.items.find(i => i.id === id);
+    if (item) return item;
+  }
+  return null;
+}
+
+async function addSeries(id) {
+  const def = findDef(id);
+  if (!def || activeSeries[id]) return;
+
+  const color = PALETTE[nextColorIdx % PALETTE.length];
+  nextColorIdx++;
+
+  // Optimistic: show loading chip immediately
+  activeSeries[id] = { def, color, loading: true };
+  renderChips();
+  renderPanel();
+
+  const points = await def.load();
+
+  activeSeries[id].loading = false;
+
+  if (!chart) initChart();
+
+  // Each series gets its own hidden y-axis → independent auto-scale
+  const axisId = safeId(id);
+  chart.options.scales[axisId] = {
+    type: 'linear',
+    display: false,
+    beginAtZero: false,
+  };
+
+  chart.data.datasets.push({
+    label: def.label,
+    seriesId: id,
+    data: points,
+    yAxisID: axisId,
+    borderColor: color,
+    backgroundColor: color + '28',
+    borderWidth: 2,
+    pointRadius: points.length < 80 ? 3 : 0,
+    pointHoverRadius: 6,
+    tension: 0.25,
+    fill: false,
+    spanGaps: false,
+  });
+
+  chart.update();
+  renderChips();
+  renderPanel();
+}
+
+function removeSeries(id) {
+  if (!activeSeries[id]) return;
+  delete activeSeries[id];
+
+  if (chart) {
+    chart.data.datasets = chart.data.datasets.filter(ds => ds.seriesId !== id);
+    delete chart.options.scales[safeId(id)];
+    if (chart.data.datasets.length === 0) {
+      showEmpty(true);
+    } else {
+      chart.update();
+    }
+  }
+  renderChips();
+  renderPanel();
+}
+
+function clearAll() {
+  for (const id of Object.keys(activeSeries)) removeSeries(id);
+}
+
+// ── Chips ─────────────────────────────────────────────────────────────────────
+function renderChips() {
+  const row = document.getElementById('activeRow');
+  const entries = Object.entries(activeSeries);
+  if (!entries.length) {
+    row.innerHTML = '<span class="no-series-hint">No series selected — click "+ Add Series" to start</span>';
+    return;
+  }
+  row.innerHTML = entries.map(([id, s]) =>
+    s.loading
+      ? `<span class="loading-chip">⏳ ${esc(s.def.label)}</span>`
+      : `<div class="chip" style="border-color:${s.color}">
+          <div class="chip-dot" style="background:${s.color}"></div>
+          <span class="chip-label">${esc(s.def.label)}</span>
+          <span class="chip-unit">${esc(s.def.unit)}</span>
+          <button class="chip-remove" onclick="removeSeries('${id}')" title="Remove">×</button>
+        </div>`
+  ).join('') + `<button class="clear-btn" onclick="clearAll()">Clear all</button>`;
+}
+
+// ── Chart ─────────────────────────────────────────────────────────────────────
+function initChart() {
+  showEmpty(false);
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: { datasets: [] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      parsing: false,
+      scales: {
+        x: {
+          type: 'time',
+          time: {
+            unit: 'month',
+            tooltipFormat: 'dd MMM yyyy',
+            displayFormats: { day: 'd MMM', week: 'd MMM', month: 'MMM yy', year: 'yyyy' },
+          },
+          adapters: { date: {} },
+          grid: { color: '#f0f0f0' },
+          ticks: { maxRotation: 0, color: '#888', font: { size: 11 } },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              if (ctx.parsed.y == null) return null;
+              const s = activeSeries[ctx.dataset.seriesId];
+              const unit = s ? s.def.unit : '';
+              const val = Number.isInteger(ctx.parsed.y) ? ctx.parsed.y : ctx.parsed.y.toFixed(2);
+              return `  ${ctx.dataset.label}: ${val}${unit ? ' ' + unit : ''}`;
+            },
+          },
+        },
+        zoom: {
+          pan:  { enabled: true, mode: 'x', onPanComplete: adaptTimeUnit },
+          zoom: {
+            wheel: { enabled: true, speed: 0.1 },
+            pinch: { enabled: true },
+            mode: 'x',
+            onZoomComplete: adaptTimeUnit,
+          },
+          limits: { x: { minRange: 2 * 86400000 } },
+        },
+      },
+    },
+    plugins: [{
+      id: 'dblclick-reset',
+      afterEvent(ch, { event }) { if (event.type === 'dblclick') ch.resetZoom(); },
+    }],
+  });
+}
+
+function showEmpty(empty) {
+  document.getElementById('chartEmpty').style.display = empty ? 'flex' : 'none';
+  document.getElementById('trendChart').style.display = empty ? 'none' : 'block';
+}
+
+function adaptTimeUnit() {
+  if (!chart) return;
+  const scale = chart.scales.x;
+  const days = (scale.max - scale.min) / 86400000;
+  const unit = days > 500 ? 'year' : days > 60 ? 'month' : days > 14 ? 'week' : 'day';
+  if (chart.options.scales.x.time.unit !== unit) {
+    chart.options.scales.x.time.unit = unit;
+    chart.update('none');
+  }
+}
+
+function setRange(days, btn) {
+  document.querySelectorAll('.rbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (!chart) return;
+  if (days === 0) { chart.resetZoom(); adaptTimeUnit(); return; }
+  const to   = new Date();
+  const from = new Date(to.getTime() - days * 86400000);
+  chart.zoomScale('x', { min: from.getTime(), max: to.getTime() }, 'default');
+  adaptTimeUnit();
+}
+
+function resetZoom() {
+  if (!chart) return;
+  chart.resetZoom();
+  document.querySelectorAll('.rbtn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.rbtn[onclick*="setRange(0"]').classList.add('active');
+  adaptTimeUnit();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function safeId(id) { return 'y_' + id.replace(/[^a-z0-9]/gi, '_'); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+</script>
+</body>
+</html>
