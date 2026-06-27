@@ -191,7 +191,8 @@ let catalog = [
     { id: 'hrv_hr',    label: 'Mean HR', unit: 'bpm',load: () => loadColumn('hrv_measurements', 'measured_at', 'mean_hr') },
   ]},
   { group: 'Sport', items: [
-    { id: 'act_duration', label: 'Duration', unit: 'h',  load: () => loadColumn('activities', 'date', 'duration_sec', v => +(v / 3600).toFixed(2)) },
+    { id: 'act_duration',        label: 'Duration (daily)',  unit: 'h', load: () => loadColumn('activities', 'date', 'duration_sec', v => +(v / 3600).toFixed(2)) },
+    { id: 'act_duration_weekly', label: 'Duration (weekly)', unit: 'h', load: loadWeeklyDuration },
   ]},
   { group: 'PV', items: [
     { id: 'pv_gen',     label: 'Generation',     unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'pv_generation_kwh') },
@@ -275,6 +276,27 @@ async function loadColumn(table, xField, yField, transform) {
     }).filter(p => p.y !== null && !isNaN(p.y));
   }
   return tableCache[key];
+}
+
+// ── Weekly aggregation: sport duration ────────────────────────────────────────
+async function loadWeeklyDuration() {
+  if (!tableCache['act_weekly_duration']) {
+    const { data } = await db.from('activities').select('date,duration_sec').order('date', { ascending: true });
+    const weeks = {};
+    for (const r of (data || [])) {
+      if (!r.duration_sec) continue;
+      // ISO week Monday as anchor
+      const d = new Date(r.date + 'T12:00:00');
+      const day = d.getDay() || 7; // Mon=1 … Sun=7
+      const mon = new Date(d); mon.setDate(d.getDate() - (day - 1));
+      const key = mon.toISOString().substring(0, 10);
+      weeks[key] = (weeks[key] || 0) + +r.duration_sec;
+    }
+    tableCache['act_weekly_duration'] = Object.entries(weeks)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([dateStr, sec]) => ({ x: new Date(dateStr + 'T12:00:00').getTime(), y: +(sec / 3600).toFixed(2) }));
+  }
+  return tableCache['act_weekly_duration'];
 }
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
