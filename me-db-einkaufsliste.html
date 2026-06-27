@@ -382,7 +382,7 @@ async function deleteItem(id) {
   const { error } = await db.from('shopping_items').delete().eq('id', id);
   if (error) { showToast('Error: ' + error.message); return; }
   items = items.filter(i=>i.id!==id);
-  renderChips(); render();
+  renderChips(); render(); renderProdPanel();
 }
 
 async function changeItemShop(id, shopId) {
@@ -398,7 +398,7 @@ async function clearChecked() {
   const { error } = await db.from('shopping_items').delete().in('id', ids);
   if (error) { showToast('Error: ' + error.message); return; }
   items = items.filter(i=>!i.checked);
-  renderChips(); render();
+  renderChips(); render(); renderProdPanel();
   showToast(ids.length + ' removed');
 }
 
