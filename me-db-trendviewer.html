@@ -269,7 +269,7 @@ async function loadLabMeasurements(parameterId) {
 async function loadColumn(table, xField, yField, transform) {
   const key = table + '_' + yField;
   if (!tableCache[key]) {
-    const { data } = await db.from(table).select(xField + ',' + yField).order(xField, { ascending: true });
+    const { data } = await db.from(table).select(xField + ',' + yField).order(xField, { ascending: true }).limit(50000);
     tableCache[key] = (data || []).map(r => {
       const xStr = r[xField];
       const x = new Date(xStr.includes?.('T') ? xStr : xStr + 'T12:00:00').getTime();
