@@ -157,7 +157,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <div id="shopChips"></div>
     <div class="right">
       <button class="linkbtn" onclick="togglePanel('shopPanel')">Shops</button>
-      <button class="linkbtn" onclick="togglePanel('prodPanel')">Products</button>
+
       <button class="linkbtn" onclick="clearChecked()">Remove checked</button>
     </div>
   </div>
@@ -175,8 +175,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   </div>
 
   <!-- Product management -->
-  <div class="panel hidden" id="prodPanel">
-    <h3>Manage products</h3>
+  <div class="panel" id="prodPanel">
+    <h3>Products</h3>
     <div class="mini-add">
       <input type="text" id="newProd" placeholder="New product (e.g. Bread)">
       <select id="newProdShop"><option value="">Default shop…</option></select>
