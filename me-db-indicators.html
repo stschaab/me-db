@@ -254,6 +254,7 @@ async function loadAll() {
       id: 'lab_' + p.id,
       paramId: p.id,
       name: p.name,
+      category: p.category || '',
       unit: p.unit_si || p.unit || '',
       description: p.ref_note || '',
       formula: null,
@@ -267,9 +268,8 @@ async function loadAll() {
     });
   }
 
-  const labGroups = Object.entries(labCats).sort(([a],[b]) => a.localeCompare(b)).map(([cat, items]) => ({
-    group: 'Lab · ' + cat, color: '#1a1a2e', source: 'Lab measurements', items,
-  }));
+  const allLabItems = Object.values(labCats).flat().sort((a, b) => a.name.localeCompare(b.name));
+  const labGroups = [{ group: 'Lab', color: '#1a1a2e', source: 'Lab measurements', items: allLabItems }];
 
   // ── Hydrate non-lab indicators with live values ───────────────────────────
   const hrv  = hrvRes.data?.[0];
@@ -416,7 +416,7 @@ function rowHtml(item, groupColor) {
   return `
     <tr onclick="toggleExpand('${item.id}')">
       <td>
-        <div class="ind-name">${esc(item.name)}</div>
+        <div class="ind-name">${esc(item.name)}${item.category ? `<span class="ind-cat">${esc(item.category)}</span>` : ''}</div>
         ${item.formula ? `<div class="formula-badge">${esc(item.formula)}</div>` : ''}
       </td>
       <td class="r">
