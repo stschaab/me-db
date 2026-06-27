@@ -501,7 +501,7 @@ function renderProdPanel() {
     return `<div class="mrow">
       <span class="grow">${esc(p.name)}</span>
       <select onchange="setProdShop(${p.id}, this.value)">${opts}</select>
-      <button class="tabbtn" onclick="addProductToList(${p.id})" title="Add to list">🛒</button>
+      <button class="tabbtn" onclick="addProductToList(${p.id})" title="Add to list">🛒${items.some(i=>i.product_id===p.id) ? '<span style="font-size:0.7rem;font-weight:700;color:#e53935;margin-left:2px">1</span>' : ''}</button>
       <button class="tabbtn" onclick="deleteProduct(${p.id})" title="Delete">🗑</button>
     </div>`;
   }).join('');
