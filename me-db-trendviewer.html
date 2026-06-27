@@ -52,6 +52,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 .series-item.active .si-check { background: #1a1a2e; border-color: #1a1a2e; color: white; }
 .si-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .si-name { flex: 1; }
+.si-cat { font-size: 0.62rem; color: #999; background: #f0f0f0; border-radius: 8px; padding: 1px 5px; margin-left: 5px; font-weight: 500; }
 .si-unit { font-size: 0.72rem; color: #bbb; }
 .panel-loading { padding: 20px; text-align: center; color: #aaa; font-size: 0.85rem; }
 
@@ -231,20 +232,14 @@ async function logout() { await db.auth.signOut(); window.location.href = 'me-db
 async function loadLabParameters() {
   const { data } = await db.from('parameters').select('id,name,category,unit_si,unit').order('name');
   if (data?.length) {
-    const cats = {};
-    for (const p of data) {
-      const cat = p.category || 'Other';
-      if (!cats[cat]) cats[cat] = [];
-      cats[cat].push({
-        id: 'lab_' + p.id,
-        label: p.name,
-        unit: p.unit_si || p.unit || '',
-        load: () => loadLabMeasurements(p.id),
-      });
-    }
-    for (const [cat, items] of Object.entries(cats).sort(([a],[b]) => a.localeCompare(b))) {
-      catalog.push({ group: 'Lab · ' + cat, items });
-    }
+    const labItems = data.map(p => ({
+      id: 'lab_' + p.id,
+      label: p.name,
+      unit: p.unit_si || p.unit || '',
+      category: p.category || '',
+      load: () => loadLabMeasurements(p.id),
+    }));
+    catalog.push({ group: 'Lab', items: labItems });
   }
   catalogReady = true;
   renderPanel();
@@ -339,7 +334,7 @@ function renderPanel() {
       html += `<div class="series-item ${active ? 'active' : ''}" onclick="toggleSeries('${item.id}')">
         <div class="si-check">${active ? '✓' : ''}</div>
         <div class="si-dot" style="background:${color}"></div>
-        <span class="si-name">${esc(item.label)}</span>
+        <span class="si-name">${esc(item.label)}${item.category ? `<span class="si-cat">${esc(item.category)}</span>` : ''}</span>
         <span class="si-unit">${esc(item.unit)}</span>
       </div>`;
     }
