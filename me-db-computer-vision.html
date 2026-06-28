@@ -226,7 +226,8 @@
     </div>
     <div class="tip">💡 PC muss durchlaufen (Bildschirmsperre OK) · Startet automatisch nach Reboot · Nur Python + requests + schedule nötig</div>
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="downloadSetup()">📥 Setup-Skript herunterladen (.ps1)</button>
+      <button class="btn btn-primary" onclick="downloadSetup()">📥 Monitoring Agent herunterladen (.ps1)</button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 Kamera-Setup Tool herunterladen (.py)</button>
     </div>
   </div>
 
@@ -837,6 +838,231 @@ function downloadSetup() {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'setup-medb-monitor.ps1';
+  a.click();
+}
+
+// ── Camera Setup Tool download ────────────────────────────────────────────────
+function downloadCameraSetup() {
+  const SB_URL = SUPABASE_URL, SB_KEY = SUPABASE_KEY;
+  const py = `import subprocess, sys, os, json, time, threading, requests
+from requests.auth import HTTPDigestAuth
+
+def _ensure(pkg, imp=None):
+    try:
+        __import__(imp or pkg)
+    except ImportError:
+        print(f'Installiere {pkg}...', flush=True)
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', pkg, '-q'])
+
+_ensure('Pillow', 'PIL')
+_ensure('onvif-zeep', 'onvif')
+
+import tkinter as tk
+from tkinter import ttk, messagebox
+from io import BytesIO
+from PIL import Image, ImageTk
+from onvif import ONVIFCamera
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_cfg = os.path.join(SCRIPT_DIR, 'config.json')
+cfg = json.load(open(_cfg, encoding='utf-8')) if os.path.exists(_cfg) else {}
+SB_URL = cfg.get('supabase_url', '${SB_URL}').rstrip('/')
+SB_KEY = cfg.get('supabase_anon_key', '${SB_KEY}')
+ACCENT, BG = '#1a1a2e', '#f5f5f5'
+
+class App(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title('MeDB \\u00b7 Kamera Setup')
+        self.configure(bg=BG)
+        self.cam = self.ptz = self.media = None
+        self.profile_token = None
+        self.snap_url = self.snap_auth = None
+        self.streaming = False
+        self.functions = []
+        self._build()
+        self._load_functions()
+
+    def _build(self):
+        # Connection bar
+        bar = tk.Frame(self, bg=BG, padx=12, pady=10)
+        bar.pack(fill='x')
+        for col, (label, var_name, width, default, show) in enumerate([
+            ('IP', 'ip_var', 16, '192.168.178.', ''),
+            ('Port', 'port_var', 6, '80', ''),
+            ('Benutzer', 'user_var', 10, 'admin', ''),
+            ('Passwort', 'pass_var', 12, '', '*'),
+        ]):
+            tk.Label(bar, text=label, bg=BG, font=('Segoe UI', 8)).grid(row=0, column=col, sticky='w', padx=(0,6))
+            v = tk.StringVar(value=default)
+            setattr(self, var_name, v)
+            kw = {'show': show} if show else {}
+            tk.Entry(bar, textvariable=v, width=width, **kw).grid(row=1, column=col, padx=(0,6))
+        self.conn_btn = tk.Button(bar, text='Verbinden', bg=ACCENT, fg='white',
+            font=('Segoe UI', 9, 'bold'), relief='flat', padx=12, command=self.connect)
+        self.conn_btn.grid(row=1, column=4)
+        self.status_var = tk.StringVar(value='Nicht verbunden')
+        tk.Label(self, textvariable=self.status_var, bg=BG, fg='#888', font=('Segoe UI', 8)).pack()
+
+        # Middle: canvas + PTZ
+        mid = tk.Frame(self, bg=BG)
+        mid.pack(fill='both', expand=True, padx=12, pady=6)
+        self.canvas = tk.Canvas(mid, width=480, height=360, bg='#222', highlightthickness=0)
+        self.canvas.grid(row=0, column=0, padx=(0,16))
+        self.canvas.create_text(240, 180, text='Kein Bild', fill='#555', font=('Segoe UI', 12))
+
+        ctrl = tk.Frame(mid, bg=BG)
+        ctrl.grid(row=0, column=1, sticky='n')
+        tk.Label(ctrl, text='PTZ', bg=BG, font=('Segoe UI', 9, 'bold'), fg=ACCENT).grid(row=0, column=0, columnspan=3, pady=(0,8))
+        bk = dict(bg=ACCENT, fg='white', font=('Segoe UI', 14), relief='flat', width=3, height=1)
+        tk.Button(ctrl, text='\\u25b2', **bk, command=lambda: self.move(0, 1)).grid(row=1, column=1, pady=2, padx=2)
+        tk.Button(ctrl, text='\\u25c4', **bk, command=lambda: self.move(-1, 0)).grid(row=2, column=0, pady=2, padx=2)
+        tk.Button(ctrl, text='\\u25a0', **bk, command=self.stop_cam).grid(row=2, column=1, pady=2, padx=2)
+        tk.Button(ctrl, text='\\u25ba', **bk, command=lambda: self.move(1, 0)).grid(row=2, column=2, pady=2, padx=2)
+        tk.Button(ctrl, text='\\u25bc', **bk, command=lambda: self.move(0, -1)).grid(row=3, column=1, pady=2, padx=2)
+        zk = dict(bg='#e0e0e0', fg=ACCENT, font=('Segoe UI', 11, 'bold'), relief='flat', width=3, height=1)
+        tk.Label(ctrl, text='Zoom', bg=BG, fg='#666', font=('Segoe UI', 8)).grid(row=4, column=0, columnspan=3, pady=(12,2))
+        tk.Button(ctrl, text='+', **zk, command=lambda: self.move(0, 0, 1)).grid(row=5, column=0, padx=2)
+        tk.Button(ctrl, text='\\u2013', **zk, command=lambda: self.move(0, 0, -1)).grid(row=5, column=2, padx=2)
+        tk.Label(ctrl, text='Geschwindigkeit', bg=BG, fg='#999', font=('Segoe UI', 8)).grid(row=6, column=0, columnspan=3, pady=(12,2))
+        self.speed_var = tk.DoubleVar(value=0.3)
+        tk.Scale(ctrl, variable=self.speed_var, from_=0.1, to=1.0, resolution=0.1,
+            orient='horizontal', bg=BG, highlightthickness=0, length=120).grid(row=7, column=0, columnspan=3)
+
+        # Save bar
+        save = tk.Frame(self, bg='white', pady=14)
+        save.pack(fill='x', padx=12, pady=(0,12))
+        tk.Label(save, text='Monitoring Function', bg='white', fg='#666',
+            font=('Segoe UI', 8, 'bold')).pack(anchor='w', padx=12)
+        self.fn_var = tk.StringVar()
+        self.fn_combo = ttk.Combobox(save, textvariable=self.fn_var, state='readonly', width=44)
+        self.fn_combo.pack(anchor='w', padx=12, pady=(2,8))
+        tk.Button(save, text='\\U0001f4cd  Position als Preset speichern \\u2192 Supabase',
+            bg='#4caf50', fg='white', font=('Segoe UI', 10, 'bold'),
+            relief='flat', padx=16, pady=8, command=self.save_preset).pack(anchor='w', padx=12)
+        self.result_var = tk.StringVar()
+        tk.Label(save, textvariable=self.result_var, bg='white', font=('Segoe UI', 9),
+            fg='#2e7d32').pack(anchor='w', padx=12, pady=(6,0))
+
+    def _load_functions(self):
+        def _f():
+            try:
+                r = requests.get(f'{SB_URL}/rest/v1/monitoring_functions',
+                    params={'select': 'id,name,ptz_preset', 'order': 'name'},
+                    headers={'apikey': SB_KEY}, timeout=10)
+                self.functions = r.json() if r.ok else []
+                names = [f['name'] for f in self.functions]
+                self.after(0, lambda: self.fn_combo.configure(values=names))
+                if names:
+                    self.after(0, lambda: self.fn_var.set(names[0]))
+            except Exception as e:
+                print(f'Supabase: {e}')
+        threading.Thread(target=_f, daemon=True).start()
+
+    def connect(self):
+        self.conn_btn.config(state='disabled')
+        self.status_var.set('Verbinde\\u2026')
+        ip = self.ip_var.get().strip()
+        port = int(self.port_var.get().strip() or '80')
+        user = self.user_var.get().strip()
+        pw = self.pass_var.get()
+        def _c():
+            try:
+                self.cam = ONVIFCamera(ip, port, user, pw)
+                self.media = self.cam.create_media_service()
+                self.ptz = self.cam.create_ptz_service()
+                self.profile_token = self.media.GetProfiles()[0].token
+                self.snap_url = f'http://{ip}/onvif/snapshot'
+                self.snap_auth = HTTPDigestAuth(user, pw)
+                self.streaming = True
+                self.after(0, lambda: self.status_var.set(f'\\u2705 Verbunden \\u2022 {ip}'))
+                self._snap_loop()
+            except Exception as e:
+                self.after(0, lambda: self.status_var.set(f'\\u274c {e}'))
+            self.after(0, lambda: self.conn_btn.config(state='normal'))
+        threading.Thread(target=_c, daemon=True).start()
+
+    def _snap_loop(self):
+        def _fetch():
+            if not self.streaming:
+                return
+            try:
+                r = requests.get(self.snap_url, auth=self.snap_auth, timeout=5)
+                img = Image.open(BytesIO(r.content))
+                img.thumbnail((480, 360))
+                photo = ImageTk.PhotoImage(img)
+                def _up():
+                    self.canvas.delete('all')
+                    self.canvas.create_image(0, 0, anchor='nw', image=photo)
+                    self.canvas._photo = photo
+                self.after(0, _up)
+            except:
+                pass
+            if self.streaming:
+                self.after(2000, lambda: threading.Thread(target=_fetch, daemon=True).start())
+        threading.Thread(target=_fetch, daemon=True).start()
+
+    def move(self, pan, tilt, zoom=0):
+        if not self.ptz:
+            return
+        s = self.speed_var.get()
+        def _m():
+            try:
+                req = self.ptz.create_type('ContinuousMove')
+                req.ProfileToken = self.profile_token
+                req.Velocity = {'PanTilt': {'x': pan * s, 'y': tilt * s}, 'Zoom': {'x': zoom * s}}
+                self.ptz.ContinuousMove(req)
+                time.sleep(0.4)
+                self.ptz.Stop({'ProfileToken': self.profile_token, 'PanTilt': True, 'Zoom': True})
+            except Exception as e:
+                self.after(0, lambda: self.status_var.set(f'PTZ: {e}'))
+        threading.Thread(target=_m, daemon=True).start()
+
+    def stop_cam(self):
+        if self.ptz:
+            threading.Thread(target=lambda: self.ptz.Stop(
+                {'ProfileToken': self.profile_token, 'PanTilt': True, 'Zoom': True}
+            ), daemon=True).start()
+
+    def save_preset(self):
+        if not self.ptz:
+            messagebox.showwarning('Nicht verbunden', 'Erst Kamera verbinden.')
+            return
+        fn = next((f for f in self.functions if f['name'] == self.fn_var.get()), None)
+        if not fn:
+            messagebox.showerror('Fehler', 'Monitoring Function w\\u00e4hlen.')
+            return
+        def _s():
+            try:
+                resp = self.ptz.SetPreset({'ProfileToken': self.profile_token,
+                    'PresetName': f'MeDB-{fn["name"]}'})
+                num = int(str(resp.PresetToken))
+                r = requests.patch(f'{SB_URL}/rest/v1/monitoring_functions',
+                    params={'id': f'eq.{fn["id"]}'},
+                    headers={'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}',
+                             'Content-Type': 'application/json', 'Prefer': 'return=minimal'},
+                    json={'ptz_preset': num}, timeout=10)
+                r.raise_for_status()
+                self.after(0, lambda: self.result_var.set(
+                    f'\\u2705 Preset {num} f\\u00fcr \\u201e{fn["name"]}\\u201c gespeichert'))
+                self.after(0, self._load_functions)
+            except Exception as e:
+                self.after(0, lambda: self.result_var.set(f'\\u274c {e}'))
+        threading.Thread(target=_s, daemon=True).start()
+
+    def on_close(self):
+        self.streaming = False
+        self.destroy()
+
+if __name__ == '__main__':
+    app = App()
+    app.protocol('WM_DELETE_WINDOW', app.on_close)
+    app.mainloop()
+`;
+  const blob = new Blob(['﻿' + py], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'medb-camera-setup.py';
   a.click();
 }
 
