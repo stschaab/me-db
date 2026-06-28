@@ -174,6 +174,13 @@
           <option value="Wärmezähler">Wärmezähler (MWh)</option>
         </select>
       </div>
+      <div class="fg full">
+        <label>Modell (Genauigkeit)</label>
+        <select id="manModel">
+          <option value="claude-sonnet-4-6">Sonnet 4.6 — genauer, ~0,01 € / Foto (empfohlen)</option>
+          <option value="claude-haiku-4-5-20251001">Haiku 4.5 — schnell, ~0,001 € / Foto</option>
+        </select>
+      </div>
     </div>
 
     <div style="margin-top:16px">
@@ -190,9 +197,13 @@
     </div>
 
     <div id="readResult" style="display:none;margin-top:14px;padding:14px 18px;background:#f0f9f0;border-radius:8px;border-left:3px solid #4caf50">
-      <div style="font-size:0.78rem;color:#888;margin-bottom:2px">Abgelesener Wert</div>
-      <div id="readValue" style="font-size:1.8rem;font-weight:700;color:#1a1a2e"></div>
-      <div id="readRaw" style="font-size:0.75rem;color:#aaa;margin-top:4px"></div>
+      <div style="font-size:0.78rem;color:#888;margin-bottom:6px">Abgelesener Wert — bitte prüfen und ggf. korrigieren:</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <input id="readValue" type="number" step="0.001" style="font-size:1.5rem;font-weight:700;width:180px;border:2px solid #4caf50;border-radius:8px;padding:6px 10px;background:white">
+        <span id="readUnit" style="font-size:1rem;color:#666"></span>
+        <button class="btn btn-primary" id="saveBtn" onclick="saveReading()" style="background:#4caf50">💾 Speichern</button>
+      </div>
+      <div id="readRaw" style="font-size:0.75rem;color:#aaa;margin-top:8px"></div>
     </div>
   </div>
 
@@ -291,9 +302,9 @@ function onPhotoSelected() {
 async function readMeter() {
   if (!currentImageB64) return;
   const meterType = document.getElementById('manMeterType').value;
-  const agentName = document.getElementById('manAgentName').value.trim() || 'Manuell';
-  const btn = document.getElementById('readBtn');
-  const status = document.getElementById('readStatus');
+  const model     = document.getElementById('manModel').value;
+  const btn       = document.getElementById('readBtn');
+  const status    = document.getElementById('readStatus');
 
   btn.disabled = true;
   status.textContent = '⏳ Claude liest ab…';
@@ -302,7 +313,7 @@ async function readMeter() {
     const resp = await fetch(WORKER_URL + '/read-meter', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image_b64: currentImageB64, media_type: currentMediaType, meter_type: meterType })
+      body: JSON.stringify({ image_b64: currentImageB64, media_type: currentMediaType, meter_type: meterType, model })
     });
     const result = await resp.json();
 
@@ -312,28 +323,42 @@ async function readMeter() {
       return;
     }
 
-    // Save to Supabase
     const unit = unitMap[meterType] || 'm3';
-    const { error } = await db.from('meter_readings').insert({
-      agent_name: agentName,
-      meter_type: meterType,
-      value: result.value,
-      unit,
-      raw_response: result.raw,
-      captured_at: new Date().toISOString()
-    });
-
-    if (error) { status.textContent = '❌ Supabase Fehler: ' + error.message; btn.disabled = false; return; }
-
-    document.getElementById('readValue').textContent = result.value.toFixed(3) + ' ' + unit;
-    document.getElementById('readRaw').textContent = 'Claude: "' + result.raw + '"';
+    document.getElementById('readValue').value = result.value.toFixed(3);
+    document.getElementById('readUnit').textContent = unit;
+    document.getElementById('readRaw').textContent = 'Claude las: "' + result.raw + '" — bitte prüfen, dann Speichern klicken.';
     document.getElementById('readResult').style.display = 'block';
-    status.textContent = '✅ Gespeichert';
-    loadReadings();
+    status.textContent = '✅ Abgelesen — bitte Wert prüfen!';
   } catch (e) {
     status.textContent = '❌ ' + e.message;
   }
   btn.disabled = false;
+}
+
+async function saveReading() {
+  const meterType = document.getElementById('manMeterType').value;
+  const agentName = document.getElementById('manAgentName').value.trim() || 'Manuell';
+  const value     = parseFloat(document.getElementById('readValue').value);
+  const unit      = unitMap[meterType] || 'm3';
+  const raw       = document.getElementById('readRaw').textContent;
+  const saveBtn   = document.getElementById('saveBtn');
+
+  if (isNaN(value)) { alert('Bitte einen gültigen Wert eingeben.'); return; }
+  saveBtn.disabled = true;
+  saveBtn.textContent = '⏳…';
+
+  const { error } = await db.from('meter_readings').insert({
+    agent_name: agentName, meter_type: meterType,
+    value, unit, raw_response: raw,
+    captured_at: new Date().toISOString()
+  });
+
+  if (error) { alert('Fehler: ' + error.message); saveBtn.disabled = false; saveBtn.textContent = '💾 Speichern'; return; }
+
+  saveBtn.textContent = '✅ Gespeichert';
+  document.getElementById('readStatus').textContent = '✅ Gespeichert';
+  loadReadings();
+  setTimeout(() => { saveBtn.textContent = '💾 Speichern'; saveBtn.disabled = false; }, 3000);
 }
 
 function toggleSql() {
