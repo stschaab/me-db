@@ -162,6 +162,97 @@ td { padding: 10px 12px; vertical-align: middle; }
   <!-- Content -->
   <div id="content"><div class="empty">Loading…</div></div>
 
+  <!-- Calc Indicators CRUD -->
+  <div style="max-width:960px;margin:18px auto 0;padding:0 16px 32px">
+    <details id="calcCrud" style="background:white;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.08)">
+      <summary style="padding:16px 20px;font-size:0.9rem;font-weight:700;cursor:pointer;color:#1a1a2e;list-style:none;display:flex;align-items:center;gap:8px">
+        ⚙️ Calc Indicators verwalten
+        <span id="calcCount" style="font-size:0.75rem;font-weight:400;color:#999;margin-left:4px"></span>
+      </summary>
+      <div style="padding:0 20px 20px">
+        <div id="calcList" style="margin-bottom:16px"></div>
+        <button onclick="openCalcForm()" style="background:#1a1a2e;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:0.84rem;font-weight:600;cursor:pointer">+ Neuer Calc Indicator</button>
+        <div id="calcForm" style="display:none;margin-top:14px;background:#f9f9fb;border:1.5px solid #e0e0e0;border-radius:10px;padding:16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:0.72rem;font-weight:700;color:#666;text-transform:uppercase">Name</label>
+              <input id="cName" type="text" placeholder="z.B. Gasverbrauch Keller" style="border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:0.85rem">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:0.72rem;font-weight:700;color:#666;text-transform:uppercase">Einheit</label>
+              <input id="cUnit" type="text" placeholder="m3/h" style="border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:0.85rem">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:0.72rem;font-weight:700;color:#666;text-transform:uppercase">Formel-Typ</label>
+              <select id="cFormula" onchange="onFormulaChange()" style="border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:0.85rem">
+                <option value="delta_rate">delta_rate — Δwert / Δzeit (z.B. m³/h)</option>
+                <option value="difference">difference — A₂ - A₁ (Δwert absolut)</option>
+                <option value="ratio">ratio — A / (B × k) × 100 (z.B. PV Wirkungsgrad %)</option>
+                <option value="sum">sum — A + B × k</option>
+              </select>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:0.72rem;font-weight:700;color:#666;text-transform:uppercase">Zeitausrichtung</label>
+              <select id="cAlign" style="border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:0.85rem">
+                <option value="consecutive">consecutive — letzte 2 Werte</option>
+                <option value="same_date">same_date — selbes Datum</option>
+              </select>
+            </div>
+            <div style="grid-column:1/-1;font-size:0.75rem;font-weight:700;color:#1a1a2e;margin-top:6px">Input A (Pflicht)</div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:0.72rem;font-weight:700;color:#666;text-transform:uppercase">Tabelle A</label>
+              <select id="cTableA" style="border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:0.85rem">
+                <option value="meter_readings">meter_readings</option>
+                <option value="pv_daily">pv_daily</option>
+                <option value="dwd_radiation_daily">dwd_radiation_daily</option>
+                <option value="activities">activities</option>
+              </select>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:0.72rem;font-weight:700;color:#666;text-transform:uppercase">Feld A</label>
+              <input id="cFieldA" type="text" placeholder="value" value="value" style="border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:0.85rem">
+            </div>
+            <div style="grid-column:1/-1;display:flex;flex-direction:column;gap:3px">
+              <label style="font-size:0.72rem;font-weight:700;color:#666;text-transform:uppercase">Filter A (JSON) — z.B. {"agent_name":"Gaszähler Keller"}</label>
+              <input id="cFilterA" type="text" placeholder="{}" value="{}" style="border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:0.85rem;font-family:monospace">
+            </div>
+            <div id="inputBSection" style="grid-column:1/-1;display:none">
+              <div style="font-size:0.75rem;font-weight:700;color:#1a1a2e;margin:6px 0">Input B (optional)</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div style="display:flex;flex-direction:column;gap:3px">
+                  <label style="font-size:0.72rem;font-weight:700;color:#666;text-transform:uppercase">Tabelle B</label>
+                  <select id="cTableB" style="border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:0.85rem">
+                    <option value="">– keine –</option>
+                    <option value="meter_readings">meter_readings</option>
+                    <option value="pv_daily">pv_daily</option>
+                    <option value="dwd_radiation_daily">dwd_radiation_daily</option>
+                    <option value="activities">activities</option>
+                  </select>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:3px">
+                  <label style="font-size:0.72rem;font-weight:700;color:#666;text-transform:uppercase">Feld B</label>
+                  <input id="cFieldB" type="text" placeholder="value" value="value" style="border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:0.85rem">
+                </div>
+                <div style="display:flex;flex-direction:column;gap:3px">
+                  <label style="font-size:0.72rem;font-weight:700;color:#666;text-transform:uppercase">Filter B (JSON)</label>
+                  <input id="cFilterB" type="text" placeholder="{}" value="{}" style="border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:0.85rem;font-family:monospace">
+                </div>
+                <div style="display:flex;flex-direction:column;gap:3px">
+                  <label style="font-size:0.72rem;font-weight:700;color:#666;text-transform:uppercase">Multiplikator B (k)</label>
+                  <input id="cMultB" type="number" step="any" placeholder="1.0" value="1.0" style="border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:0.85rem">
+                </div>
+              </div>
+            </div>
+            <div style="grid-column:1/-1;display:flex;gap:10px;margin-top:6px">
+              <button onclick="saveCalcIndicator()" style="background:#1a1a2e;color:white;border:none;border-radius:8px;padding:8px 18px;font-size:0.84rem;font-weight:600;cursor:pointer">Speichern</button>
+              <button onclick="closeCalcForm()" style="background:#eee;color:#333;border:none;border-radius:8px;padding:8px 14px;font-size:0.84rem;cursor:pointer">Abbrechen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+
 </div>
 
 <script>
@@ -222,7 +313,7 @@ async function logout() { await db.auth.signOut(); window.location.href = 'me-db
 
 // ── Load all data ─────────────────────────────────────────────────────────────
 async function loadAll() {
-  const [paramsRes, measRes, hrvRes, actRes, pvRes, dwdRes, meterRes] = await Promise.all([
+  const [paramsRes, measRes, hrvRes, actRes, pvRes, dwdRes, meterRes, calcRes] = await Promise.all([
     db.from('parameters').select('id,name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si,ref_note').order('name'),
     db.from('measurements').select('parameter_id,measured_at,value,value_si,unit').order('measured_at', { ascending: false }),
     db.from('hrv_measurements').select('measured_at,rmssd,sdnn,pnn50,mean_hr').order('measured_at', { ascending: false }).limit(1),
@@ -230,6 +321,7 @@ async function loadAll() {
     db.from('pv_daily').select('date,pv_generation_kwh,grid_export_kwh,grid_import_kwh,direct_consumption_kwh,battery_charge_kwh').order('date', { ascending: false }).limit(1),
     db.from('dwd_radiation_daily').select('date,radiation_kwh_m2').order('date', { ascending: false }).limit(1),
     db.from('meter_readings').select('agent_name,meter_type,value,unit,captured_at').order('captured_at', { ascending: false }),
+    db.from('calc_results').select('name,value,unit,period_end,calc_indicator_id').order('period_end', { ascending: false }),
   ]);
 
   // ── Process lab measurements ──────────────────────────────────────────────
@@ -331,7 +423,33 @@ async function loadAll() {
     ? [{ group: 'Zähler', color: '#00796b', source: 'Computer Vision', items: meterItems }]
     : [];
 
-  allGroups = [...labGroups, ...extraGroups, ...meterGroup];
+  // ── Calc results group ────────────────────────────────────────────────────
+  const calcLatest = {};
+  for (const r of (calcRes.data || [])) {
+    if (!calcLatest[r.name]) calcLatest[r.name] = r;
+  }
+  const calcItems = Object.values(calcLatest).map(r => {
+    const safeId = r.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+    return {
+      id: 'calc_' + safeId,
+      name: r.name,
+      category: 'Berechnet',
+      unit: r.unit || '',
+      description: '',
+      formula: null,
+      ref_low: null, ref_high: null,
+      latestVal: r.value != null ? +r.value : null,
+      latestDate: r.period_end ? r.period_end.substring(0, 10) : null,
+      count: null, status: null,
+      trendId: 'calc_' + safeId,
+      source: 'Calc Engine · auto',
+    };
+  });
+  const calcGroup = calcItems.length
+    ? [{ group: 'Berechnet', color: '#7b1fa2', source: 'Calc Engine', items: calcItems }]
+    : [];
+
+  allGroups = [...labGroups, ...extraGroups, ...meterGroup, ...calcGroup];
   buildCategoryChips();
   applyFilter();
   updateSummary();
@@ -477,6 +595,100 @@ function toggleExpand(id) {
 }
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+// ── Calc Indicators CRUD ──────────────────────────────────────────────────────
+let editingCalcId = null;
+
+async function loadCalcIndicators() {
+  const { data } = await db.from('calc_indicators').select('*').order('created_at');
+  const list = document.getElementById('calcList');
+  const count = document.getElementById('calcCount');
+  if (!data?.length) { list.innerHTML = '<p style="color:#999;font-size:0.83rem">Noch keine Calc Indicators definiert.</p>'; count.textContent = ''; return; }
+  count.textContent = `(${data.length})`;
+  list.innerHTML = data.map(d => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;margin-bottom:6px;background:#f5f5f8;border-radius:8px;font-size:0.83rem">
+      <div>
+        <span style="font-weight:700;color:#1a1a2e">${esc(d.name)}</span>
+        <span style="margin-left:8px;color:#666">${esc(d.unit)}</span>
+        <span style="margin-left:8px;padding:2px 7px;background:${d.active?'#e8f5e9':'#fce4ec'};color:${d.active?'#2e7d32':'#c62828'};border-radius:4px;font-size:0.73rem">${d.active?'aktiv':'inaktiv'}</span>
+        <span style="margin-left:6px;color:#999;font-size:0.78rem">${esc(d.formula_type)} · ${esc(d.time_alignment)}</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="editCalcIndicator('${d.id}')" style="background:#e8eaf6;border:none;border-radius:6px;padding:4px 10px;font-size:0.78rem;cursor:pointer">Bearbeiten</button>
+        <button onclick="deleteCalcIndicator('${d.id}')" style="background:#fce4ec;border:none;border-radius:6px;padding:4px 10px;font-size:0.78rem;cursor:pointer;color:#c62828">Löschen</button>
+      </div>
+    </div>`).join('');
+}
+
+function openCalcForm(def) {
+  editingCalcId = def?.id || null;
+  const f = id => document.getElementById(id);
+  f('cName').value = def?.name || '';
+  f('cUnit').value = def?.unit || '';
+  f('cFormula').value = def?.formula_type || 'delta_rate';
+  f('cAlign').value = def?.time_alignment || 'consecutive';
+  f('cTableA').value = def?.input_a_table || 'meter_readings';
+  f('cFieldA').value = def?.input_a_field || 'value';
+  f('cFilterA').value = def?.input_a_filter ? JSON.stringify(def.input_a_filter) : '{}';
+  f('cTableB').value = def?.input_b_table || '';
+  f('cFieldB').value = def?.input_b_field || 'value';
+  f('cFilterB').value = def?.input_b_filter ? JSON.stringify(def.input_b_filter) : '{}';
+  f('cMultB').value = def?.input_b_multiplier ?? 1.0;
+  document.getElementById('calcForm').style.display = 'block';
+  onFormulaChange();
+  document.getElementById('calcCrud').open = true;
+}
+
+function closeCalcForm() {
+  editingCalcId = null;
+  document.getElementById('calcForm').style.display = 'none';
+}
+
+function onFormulaChange() {
+  const ft = document.getElementById('cFormula').value;
+  const needsB = ft === 'ratio' || ft === 'sum';
+  document.getElementById('inputBSection').style.display = needsB ? 'block' : 'none';
+}
+
+async function editCalcIndicator(id) {
+  const { data } = await db.from('calc_indicators').select('*').eq('id', id).single();
+  if (data) openCalcForm(data);
+}
+
+async function deleteCalcIndicator(id) {
+  if (!confirm('Calc Indicator wirklich löschen?')) return;
+  await db.from('calc_indicators').delete().eq('id', id);
+  loadCalcIndicators();
+}
+
+async function saveCalcIndicator() {
+  const val = id => document.getElementById(id).value.trim();
+  let filterA, filterB;
+  try { filterA = JSON.parse(val('cFilterA') || '{}'); } catch { alert('Filter A ist kein gültiges JSON'); return; }
+  try { filterB = JSON.parse(val('cFilterB') || '{}'); } catch { alert('Filter B ist kein gültiges JSON'); return; }
+  if (!val('cName') || !val('cUnit')) { alert('Name und Einheit sind Pflichtfelder'); return; }
+  const ft = val('cFormula');
+  const payload = {
+    name: val('cName'), unit: val('cUnit'), output_name: val('cName'),
+    formula_type: ft, time_alignment: val('cAlign'),
+    input_a_table: val('cTableA'), input_a_field: val('cFieldA') || 'value',
+    input_a_filter: filterA, input_a_time_field: 'captured_at',
+    input_b_table: val('cTableB') || null, input_b_field: val('cFieldB') || 'value',
+    input_b_filter: filterB, input_b_multiplier: parseFloat(val('cMultB')) || 1.0,
+    active: true
+  };
+  if (['pv_daily','dwd_radiation_daily'].includes(payload.input_a_table)) payload.input_a_time_field = 'date';
+  if (['pv_daily','dwd_radiation_daily'].includes(payload.input_b_table)) payload.input_b_time_field = 'date';
+  if (editingCalcId) {
+    await db.from('calc_indicators').update(payload).eq('id', editingCalcId);
+  } else {
+    await db.from('calc_indicators').insert([payload]);
+  }
+  closeCalcForm();
+  loadCalcIndicators();
+}
+
+window.addEventListener('load', loadCalcIndicators);
 </script>
 </body>
 </html>
