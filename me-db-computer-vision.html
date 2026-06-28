@@ -9,7 +9,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a2e; }
     nav { background: #1a1a2e; color: white; padding: 0 20px; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 100; gap: 12px; }
-    .nav-brand { font-weight: 700; font-size: 1.05rem; }
+    .nav-brand { font-weight: 700; font-size: 1.05rem; color: white; text-decoration: none; }
     .nav-crumb { font-size: 0.78rem; opacity: 0.6; flex: 1; }
     .ham-btn { background: none; border: none; color: white; font-size: 1.4rem; cursor: pointer; padding: 6px; }
     .ham-menu { display: none; position: fixed; top: 52px; right: 0; background: white; width: 220px; box-shadow: -2px 0 12px rgba(0,0,0,0.15); z-index: 200; border-radius: 0 0 0 12px; max-height: calc(100vh - 52px); overflow-y: auto; }
@@ -54,7 +54,7 @@
 <body>
 
 <nav>
-  <span class="nav-brand">MeDB</span>
+  <a class="nav-brand" href="me-db-dashboard.html">MeDB</a>
   <span class="nav-crumb">› System › Computer Vision</span>
   <button class="ham-btn" onclick="document.getElementById('ham').classList.toggle('open')">☰</button>
 </nav>
@@ -256,8 +256,9 @@ db.auth.getSession().then(({ data }) => {
 });
 
 async function loadReadings() {
-  const { data } = await db.from('meter_readings').select('*').order('captured_at', { ascending: false }).limit(50);
+  const { data, error } = await db.from('meter_readings').select('*').order('captured_at', { ascending: false }).limit(50);
   const el = document.getElementById('readings');
+  if (error) { el.innerHTML = `<div class="empty">Fehler: ${esc(error.message)}</div>`; return; }
   if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Ablesungen vorhanden.</div>'; return; }
   el.innerHTML = `
     <table>
@@ -289,6 +290,9 @@ function editReading(id, currentValue, unit) {
 }
 
 async function ensureSession() {
+  const { data: { session } } = await db.auth.getSession();
+  if (session) return true;
+  // Session gone — try refresh once
   const { data, error } = await db.auth.refreshSession();
   if (error || !data.session) { window.location.href = 'me-db-login.html'; return false; }
   return true;
