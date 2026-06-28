@@ -194,14 +194,8 @@
           <input id="fPtz" type="number" min="1" max="255" placeholder="leer = kein PTZ">
         </div>
         <div class="fg">
-          <label>Intervall</label>
-          <select id="fInterval">
-            <option value="30">Alle 30 Min.</option>
-            <option value="60" selected>Stündlich</option>
-            <option value="120">Alle 2 Std.</option>
-            <option value="360">Alle 6 Std.</option>
-            <option value="1440">Täglich</option>
-          </select>
+          <label>Intervall (Minuten)</label>
+          <input id="fInterval" type="number" min="1" value="60" placeholder="z.B. 60">
         </div>
         <div class="fg" style="padding-top:18px">
           <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:0.88rem;cursor:pointer">
