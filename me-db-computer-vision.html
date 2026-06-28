@@ -212,17 +212,10 @@
   <div class="card">
     <div class="card-hdr"><div class="card-title">📸 Manuelle Ablesung (Handy-Kamera)</div></div>
     <div class="form-grid">
-      <div class="fg">
-        <label>Name / Agent</label>
-        <input id="manAgentName" type="text" value="Wasserzähler Keller">
-      </div>
-      <div class="fg">
-        <label>Zählertyp</label>
-        <select id="manMeterType">
-          <option value="Wasserzähler">Wasserzähler (m³)</option>
-          <option value="Gaszähler">Gaszähler (m³)</option>
-          <option value="Stromzähler">Stromzähler (kWh)</option>
-          <option value="Wärmezähler">Wärmezähler (MWh)</option>
+      <div class="fg full">
+        <label>Monitoring Function</label>
+        <select id="manFnId" onchange="onManFnChange()">
+          <option value="">– Zähler wählen –</option>
         </select>
       </div>
       <div class="fg full">
@@ -376,15 +369,18 @@ async function deleteCam() {
 // ── Monitoring Functions ───────────────────────────────────────────────────────
 let editFnId = null;
 
+let allFunctions = [];
+
 async function loadFunctions() {
   const { data, error } = await db.from('monitoring_functions')
     .select('*, camera:camera_id(number,name)').order('name');
+  allFunctions = data || [];
   const el = document.getElementById('fnList');
   if (error) { el.innerHTML = `<div class="empty">Fehler: ${esc(error.message)}</div>`; return; }
-  if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Monitoring Functions.</div>'; return; }
+  if (!allFunctions.length) { el.innerHTML = '<div class="empty">Noch keine Monitoring Functions.</div>'; return; }
   el.innerHTML = `<table>
     <thead><tr><th>Name</th><th>Kamera</th><th>Typ</th><th>PTZ</th><th>Intervall</th><th>Aktiv</th><th></th></tr></thead>
-    <tbody>${data.map(f => `<tr>
+    <tbody>${allFunctions.map(f => `<tr>
       <td><strong>${esc(f.name)}</strong></td>
       <td>${f.camera ? `<span class="cam-badge">#${f.camera.number}</span>${esc(f.camera.name)}` : '<span style="color:#ccc">–</span>'}</td>
       <td style="font-size:0.82rem">${esc(f.meter_type)} <span style="color:#aaa">${esc(f.unit)}</span></td>
@@ -393,6 +389,13 @@ async function loadFunctions() {
       <td><label class="toggle"><input type="checkbox" ${f.active ? 'checked' : ''} onchange="toggleFn('${f.id}',this.checked)"><span class="slider"></span></label></td>
       <td><button class="icon-btn" onclick="openFnForm('${f.id}')" title="Bearbeiten">✏️</button></td>
     </tr>`).join('')}</tbody></table>`;
+  // Populate manual reading dropdown
+  const sel = document.getElementById('manFnId');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">– Zähler wählen –</option>' +
+    allFunctions.map(f => `<option value="${f.id}">${esc(f.name)} · ${esc(f.meter_type)}</option>`).join('');
+  if (prev) sel.value = prev;
+  if (!sel.value && allFunctions.length) { sel.value = allFunctions[0].id; onManFnChange(); }
 }
 
 function openFnForm(id) {
@@ -505,6 +508,24 @@ async function deleteReading(id) {
 const unitMap = { Wasserzähler:'m3', Gaszähler:'m3', Stromzähler:'kWh', Wärmezähler:'MWh' };
 let currentImageB64 = null, currentMediaType = 'image/jpeg', currentFile = null;
 
+function onManFnChange() {
+  const fn = allFunctions.find(f => f.id === document.getElementById('manFnId').value);
+  if (!fn) return;
+  // Show selected meter info below dropdown
+  let info = document.getElementById('manFnInfo');
+  if (!info) {
+    info = document.createElement('div');
+    info.id = 'manFnInfo';
+    info.style.cssText = 'font-size:0.8rem;color:#888;margin-top:4px';
+    document.getElementById('manFnId').parentNode.appendChild(info);
+  }
+  info.textContent = fn.meter_type + ' · ' + fn.unit;
+}
+
+function getManFn() {
+  return allFunctions.find(f => f.id === document.getElementById('manFnId').value) || null;
+}
+
 function onPhotoSelected() {
   const file = document.getElementById('meterPhoto').files[0];
   if (!file) return;
@@ -538,7 +559,9 @@ async function uploadMeterPhoto(agentName, file) {
 }
 async function readMeter() {
   if (!currentImageB64) return;
-  const meterType = document.getElementById('manMeterType').value;
+  const fn = getManFn();
+  if (!fn) { alert('Bitte eine Monitoring Function wählen.'); return; }
+  const meterType = fn.meter_type;
   const model     = document.getElementById('manModel').value;
   const btn = document.getElementById('readBtn'), status = document.getElementById('readStatus');
   btn.disabled = true; status.textContent = '⏳ Claude liest ab…';
@@ -551,7 +574,7 @@ async function readMeter() {
     if (!result.success) { status.textContent = '❌ ' + (result.error || 'Fehler'); btn.disabled = false; return; }
     const unit = unitMap[meterType] || 'm3';
     document.getElementById('readValue').value = result.value.toFixed(3);
-    document.getElementById('readUnit').textContent = unit;
+    document.getElementById('readUnit').textContent = fn.unit || unit;
     document.getElementById('readRaw').textContent = 'Claude: "' + result.raw + '" — prüfen, dann Speichern.';
     document.getElementById('readResult').style.display = 'block';
     status.textContent = '✅ Abgelesen';
@@ -559,17 +582,17 @@ async function readMeter() {
   btn.disabled = false;
 }
 async function saveReading() {
-  const meterType = document.getElementById('manMeterType').value;
-  const agentName = document.getElementById('manAgentName').value.trim() || 'Manuell';
+  const fn = getManFn();
+  if (!fn) { alert('Bitte eine Monitoring Function wählen.'); return; }
   const value = parseFloat(document.getElementById('readValue').value);
-  const unit  = unitMap[meterType] || 'm3';
   if (isNaN(value)) { alert('Bitte gültigen Wert eingeben.'); return; }
   if (!await ensureSession()) return;
   const btn = document.getElementById('saveBtn');
   btn.disabled = true; btn.textContent = '⏳…';
-  const imagePath = currentFile ? await uploadMeterPhoto(agentName, currentFile) : null;
+  const imagePath = currentFile ? await uploadMeterPhoto(fn.name, currentFile) : null;
   const { error } = await db.from('meter_readings').insert({
-    agent_name: agentName, meter_type: meterType, value, unit,
+    agent_name: fn.name, meter_type: fn.meter_type, value, unit: fn.unit,
+    monitoring_function_id: fn.id,
     raw_response: document.getElementById('readRaw').textContent,
     image_path: imagePath,
     captured_at: new Date().toISOString()
