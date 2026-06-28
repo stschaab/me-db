@@ -415,6 +415,26 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <text x="172" y="1457" text-anchor="middle" fill="#e8b8a4" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Live preview · SetPreset → Supabase</text>
       </g>
 
+      <!-- Mobile Phone -->
+      <g>
+        <rect x="620" y="1355" width="185" height="90" rx="12" fill="#1e1040" stroke="#3d2d80"/>
+        <text x="712" y="1381" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">📱 Smartphone</text>
+        <text x="712" y="1397" text-anchor="middle" fill="#b8aedb" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">Browser → CV Page</text>
+        <line x1="638" y1="1406" x2="787" y2="1406" stroke="#3d2d80"/>
+        <text x="712" y="1421" text-anchor="middle" fill="#ccc6e6" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">Foto aufnehmen · manuell</text>
+        <text x="712" y="1435" text-anchor="middle" fill="#ccc6e6" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">korrigieren → is_example</text>
+      </g>
+
+      <!-- Mobile → CV Page arrow -->
+      <g stroke="#8a8fa3" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+        <path d="M712,1355 L712,1275" stroke="#7c5fcf" stroke-dasharray="5 3"/>
+      </g>
+      <!-- Mobile → Worker /read-meter (manual photo upload) -->
+      <g stroke="#7c5fcf" stroke-width="1.5" fill="none" stroke-dasharray="5 3" marker-end="url(#arrow)">
+        <path d="M805,1390 C 950,1390 1150,850 1430,590"/>
+      </g>
+      <text x="880" y="1360" fill="#7c5fcf" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">POST /read-meter</text>
+
       <!-- Download arrows (from MeDB CV page to both tools) -->
       <g stroke="#8a8fa3" stroke-width="1.5" fill="none" stroke-dasharray="4 3" marker-end="url(#arrow)">
         <path d="M712,1275 C 712,1310 550,1320 450,1320"/>
@@ -443,6 +463,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="row"><div class="sw" style="background:#2a2a40"></div>DWD (radiation data)</div>
   <div class="row"><div class="sw" style="background:#1a3a1a"></div>Monitoring Agent (NB)</div>
   <div class="row"><div class="sw" style="background:#2a1810"></div>Camera Setup Tool (einmalig)</div>
+  <div class="row"><div class="sw" style="background:#1e1040"></div>Smartphone (manuelles Foto)</div>
   <div class="hint">Scroll/pinch to zoom · drag to pan · buttons bottom-right</div>
 </div>
 
