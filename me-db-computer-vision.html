@@ -16,11 +16,13 @@
     .ham-menu.open { display: block; }
     .ham-menu a { display: block; padding: 11px 20px; text-decoration: none; color: #1a1a2e; font-size: 0.88rem; border-bottom: 1px solid #f0f0f0; }
     .ham-menu a:hover { background: #f5f5f5; }
-    main { max-width: 920px; margin: 0 auto; padding: 24px 16px; }
+    main { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
     h1 { font-size: 1.4rem; margin-bottom: 4px; }
     .subtitle { color: #777; font-size: 0.85rem; margin-bottom: 22px; }
     .card { background: white; border-radius: 12px; padding: 22px; box-shadow: 0 1px 6px rgba(0,0,0,0.08); margin-bottom: 18px; }
     .card-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .card-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    /* FORM */
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
     .fg { display: flex; flex-direction: column; gap: 4px; }
@@ -28,27 +30,40 @@
     label { font-size: 0.74rem; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.03em; }
     input, select { border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 8px 12px; font-size: 0.88rem; outline: none; transition: border 0.15s; width: 100%; }
     input:focus, select:focus { border-color: #1a1a2e; }
-    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer; border: none; transition: background 0.15s; }
+    /* BUTTONS */
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 8px; font-size: 0.86rem; font-weight: 600; cursor: pointer; border: none; transition: background 0.15s; }
     .btn-primary { background: #1a1a2e; color: white; }
     .btn-primary:hover { background: #2d2d50; }
     .btn-outline { background: white; color: #1a1a2e; border: 1.5px solid #1a1a2e; }
     .btn-outline:hover { background: #f5f5f5; }
+    .btn-sm { padding: 5px 11px; font-size: 0.78rem; border-radius: 6px; }
+    .btn-danger { background: #ffebee; color: #c62828; border: none; }
+    .btn-danger:hover { background: #ffcdd2; }
     .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
-    .tip { background: #fffbea; border-left: 3px solid #f0a500; padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.82rem; color: #666; margin-top: 14px; line-height: 1.5; }
-    .tip a { color: #1a1a2e; font-weight: 600; }
+    /* TABLE */
     table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
     th { text-align: left; padding: 8px 12px; border-bottom: 2px solid #f0f0f0; font-size: 0.72rem; text-transform: uppercase; color: #999; font-weight: 700; }
-    td { padding: 10px 12px; border-bottom: 1px solid #f5f5f5; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
-    .empty { text-align: center; padding: 36px; color: #ccc; font-size: 0.88rem; line-height: 1.8; }
-    pre.sql { background: #f8f8f8; border-radius: 8px; padding: 14px 16px; font-family: monospace; font-size: 0.76rem; color: #333; white-space: pre-wrap; overflow-x: auto; position: relative; }
-    .copy-btn { position: absolute; top: 8px; right: 8px; font-size: 0.72rem; padding: 3px 10px; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; }
-    .copy-btn:hover { background: #f0f0f0; }
-    .steps { counter-reset: step; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
-    .steps li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.86rem; line-height: 1.5; }
-    .steps li::before { counter-increment: step; content: counter(step); min-width: 24px; height: 24px; border-radius: 50%; background: #1a1a2e; color: white; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
-    code { background: #f0f0f0; border-radius: 4px; padding: 1px 5px; font-size: 0.82rem; font-family: monospace; }
-    .val-badge { font-weight: 700; color: #1a1a2e; }
+    /* TOGGLE */
+    .toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background: #ccc; border-radius: 20px; transition: 0.2s; }
+    .slider:before { position: absolute; content: ''; height: 14px; width: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.2s; }
+    input:checked + .slider { background: #4caf50; }
+    input:checked + .slider:before { transform: translateX(16px); }
+    /* INLINE FORM */
+    .fn-form { background: #f9f9fb; border: 1.5px solid #e0e0e0; border-radius: 10px; padding: 18px; margin-top: 14px; display: none; }
+    .fn-form.open { display: block; }
+    /* STATUS / TIP */
+    .empty { text-align: center; padding: 28px; color: #ccc; font-size: 0.88rem; }
+    .tip { background: #fffbea; border-left: 3px solid #f0a500; padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.82rem; color: #666; margin-top: 14px; line-height: 1.5; }
+    .tip a { color: #1a1a2e; font-weight: 600; }
+    .badge { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 8px; background: #e8f5e9; color: #2e7d32; }
+    .badge.off { background: #f5f5f5; color: #aaa; }
+    /* PHOTO */
+    pre.sql { background: #f8f8f8; border-radius: 8px; padding: 14px 16px; font-family: monospace; font-size: 0.76rem; color: #333; white-space: pre-wrap; }
+    .val-badge { font-weight: 700; }
   </style>
 </head>
 <body>
@@ -75,95 +90,111 @@
 
 <main>
   <h1>🎥 Computer Vision</h1>
-  <p class="subtitle">Automatische Zählerablesung per ONVIF-Kamera + Claude Vision (Haiku) · Stündlich, vollautomatisch, kein Cloud-Zugriff auf dein LAN nötig</p>
+  <p class="subtitle">ONVIF-Kamera + Claude Vision · Automatische Zählerablesung · Monitoring Functions verwalten</p>
 
-  <!-- HOW IT WORKS -->
+  <!-- MONITORING FUNCTIONS -->
   <div class="card">
-    <div class="card-title">⚡ So funktioniert es</div>
-    <ol class="steps">
-      <li>ONVIF-Kamera richtet sich auf deinen Zähler (Wasser, Strom, Gas)</li>
-      <li>Python-Agent läuft auf deinem PC im Heimnetz, fragt stündlich die Kamera ab (lokaler HTTP-Snapshot)</li>
-      <li>Foto wird als Base64 an Claude Haiku (Vision) geschickt → liest den Zählerstand ab</li>
-      <li>Wert wird in Supabase gespeichert → hier im Dashboard sichtbar &amp; im Trend Viewer</li>
-    </ol>
-    <div class="tip">
-      💡 Der PC muss <strong>durchlaufen</strong> (Bildschirmsperre reicht, kein Shutdown) ·
-      Anthropic API Key nötig: <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys ·
-      Kosten: ~0,001 € / Ablesung mit Claude Haiku
+    <div class="card-title-row">
+      <div class="card-title" style="margin-bottom:0">📋 Monitoring Functions</div>
+      <button class="btn btn-primary btn-sm" onclick="openForm()">+ Neue Function</button>
+    </div>
+    <div id="fnList"><div class="empty">Noch keine Monitoring Functions angelegt.</div></div>
+
+    <!-- Inline Create/Edit Form -->
+    <div class="fn-form" id="fnForm">
+      <div style="font-size:0.85rem;font-weight:700;margin-bottom:14px" id="fnFormTitle">Neue Monitoring Function</div>
+      <div class="form-grid">
+        <div class="fg">
+          <label>Name</label>
+          <input id="fName" type="text" placeholder="z.B. Wasserzähler Keller">
+        </div>
+        <div class="fg">
+          <label>Zählertyp</label>
+          <select id="fMeterType" onchange="syncUnit()">
+            <option value="Wasserzähler">Wasserzähler</option>
+            <option value="Gaszähler">Gaszähler</option>
+            <option value="Stromzähler">Stromzähler</option>
+            <option value="Wärmezähler">Wärmezähler</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Einheit</label>
+          <input id="fUnit" type="text" value="m3">
+        </div>
+        <div class="fg">
+          <label>Ablesintervall</label>
+          <select id="fInterval">
+            <option value="30">Alle 30 Min.</option>
+            <option value="60" selected>Stündlich</option>
+            <option value="120">Alle 2 Std.</option>
+            <option value="360">Alle 6 Std.</option>
+            <option value="1440">Täglich</option>
+          </select>
+        </div>
+        <div class="fg full">
+          <label>Kamera Snapshot-URL</label>
+          <input id="fCameraUrl" type="url" placeholder="http://192.168.1.100/onvif/snapshot">
+        </div>
+        <div class="fg">
+          <label>Kamera Benutzername</label>
+          <input id="fCameraUser" type="text" value="admin">
+        </div>
+        <div class="fg">
+          <label>Kamera Passwort</label>
+          <input id="fCameraPass" type="password">
+        </div>
+        <div class="fg">
+          <label>PTZ Preset (optional)</label>
+          <input id="fPtz" type="number" min="1" max="255" placeholder="leer = keine PTZ-Bewegung">
+        </div>
+        <div class="fg" style="align-items:flex-start;padding-top:20px">
+          <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:0.88rem;cursor:pointer">
+            <input id="fActive" type="checkbox" checked style="width:auto">
+            Aktiv
+          </label>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveFunction()">💾 Speichern</button>
+        <button class="btn btn-outline" onclick="closeForm()">Abbrechen</button>
+        <button class="btn btn-danger btn-sm" id="deleteFnBtn" style="display:none;margin-left:auto" onclick="deleteFunction()">🗑️ Löschen</button>
+      </div>
     </div>
   </div>
 
-  <!-- SETUP FORM -->
+  <!-- SETUP AGENT -->
   <div class="card">
-    <div class="card-title">🔧 Agenten konfigurieren &amp; Skript herunterladen</div>
+    <div class="card-title">⚙️ Agent einrichten (einmalig pro PC)</div>
     <p style="font-size:0.83rem;color:#888;margin-bottom:16px">
-      Formular ausfüllen → PowerShell-Skript herunterladen → auf dem Ziel-PC als Administrator ausführen.<br>
-      Das Skript installiert Python-Pakete, schreibt den Agenten und richtet den Windows Task Scheduler ein.
+      Das Script installiert einen dauerhaft laufenden Python-Dienst. Alle Monitoring Functions werden direkt aus Supabase geladen —
+      neue Functions werden beim nächsten Neustart des Agents automatisch übernommen.
     </p>
-
     <div class="form-grid">
-      <div class="fg">
-        <label>Agent Name</label>
-        <input id="agentName" type="text" value="Wasserzähler Keller" placeholder="z.B. Wasserzähler Keller">
-      </div>
-      <div class="fg">
-        <label>Zählertyp</label>
-        <select id="meterType">
-          <option value="Wasserzähler">Wasserzähler (m³)</option>
-          <option value="Stromzähler">Stromzähler (kWh)</option>
-          <option value="Gaszähler">Gaszähler (m³)</option>
-          <option value="Wärmezähler">Wärmezähler (MWh)</option>
-        </select>
-      </div>
-      <div class="fg full">
-        <label>Kamera Snapshot-URL (ONVIF)</label>
-        <input id="cameraUrl" type="url" placeholder="http://192.168.1.100/onvif/snapshot">
-      </div>
-      <div class="fg">
-        <label>Kamera Benutzername</label>
-        <input id="cameraUser" type="text" placeholder="admin" value="admin">
-      </div>
-      <div class="fg">
-        <label>Kamera Passwort</label>
-        <input id="cameraPass" type="password" placeholder="">
-      </div>
       <div class="fg full">
         <label>Anthropic API Key</label>
-        <input id="anthropicKey" type="password" placeholder="sk-ant-api03-...">
+        <input id="setupApiKey" type="password" placeholder="sk-ant-api03-...">
       </div>
-      <div class="fg">
-        <label>Ablesintervall</label>
-        <select id="interval">
-          <option value="30">Alle 30 Minuten</option>
-          <option value="60" selected>Stündlich</option>
-          <option value="120">Alle 2 Stunden</option>
-          <option value="360">Alle 6 Stunden</option>
-          <option value="1440">Täglich (07:00)</option>
-        </select>
-      </div>
-      <div class="fg">
+      <div class="fg full">
         <label>Installationsordner</label>
-        <input id="installDir" type="text" value="C:\MeDB-Agents">
+        <input id="setupDir" type="text" value="C:\MeDB-Agents">
       </div>
     </div>
-
+    <div class="tip">
+      💡 Anthropic API Key: <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys ·
+      PC muss durchlaufen (Bildschirmsperre OK) · Agent startet automatisch nach Reboot
+    </div>
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="downloadScript()">📥 Setup-Skript herunterladen (.ps1)</button>
-      <button class="btn btn-outline" onclick="toggleSql()">🗄️ Supabase SQL anzeigen</button>
+      <button class="btn btn-primary" onclick="downloadSetup()">📥 Setup-Skript herunterladen (.ps1)</button>
     </div>
   </div>
 
   <!-- MANUAL READING -->
   <div class="card">
     <div class="card-title">📸 Manuelle Ablesung (Handy-Kamera)</div>
-    <p style="font-size:0.83rem;color:#888;margin-bottom:16px">
-      Foto mit dem Handy aufnehmen → Claude liest den Zählerstand automatisch ab → Wert wird gespeichert.
-    </p>
-
     <div class="form-grid">
       <div class="fg">
         <label>Agent / Zählername</label>
-        <input id="manAgentName" type="text" value="Wasserzähler Keller" placeholder="z.B. Wasserzähler Keller">
+        <input id="manAgentName" type="text" value="Wasserzähler Keller">
       </div>
       <div class="fg">
         <label>Zählertyp</label>
@@ -175,74 +206,46 @@
         </select>
       </div>
       <div class="fg full">
-        <label>Modell (Genauigkeit)</label>
+        <label>Modell</label>
         <select id="manModel">
-          <option value="claude-sonnet-4-6">Sonnet 4.6 — genauer, ~0,01 € / Foto (empfohlen)</option>
-          <option value="claude-haiku-4-5-20251001">Haiku 4.5 — schnell, ~0,001 € / Foto</option>
+          <option value="claude-sonnet-4-6">Sonnet 4.6 — genauer, ~0,01 € (empfohlen)</option>
+          <option value="claude-haiku-4-5-20251001">Haiku 4.5 — schnell, ~0,001 €</option>
         </select>
       </div>
     </div>
-
-    <div style="margin-top:16px">
+    <div style="margin-top:14px">
       <input type="file" id="meterPhoto" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelected()">
       <button class="btn btn-primary" onclick="document.getElementById('meterPhoto').click()">📷 Foto aufnehmen / auswählen</button>
     </div>
-
-    <div id="photoPreview" style="display:none;margin-top:16px">
-      <img id="previewImg" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid #e0e0e0;display:block">
-      <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn btn-primary" id="readBtn" onclick="readMeter()">🔍 Ablesen &amp; Speichern</button>
+    <div id="photoPreview" style="display:none;margin-top:14px">
+      <img id="previewImg" style="max-width:100%;max-height:280px;border-radius:8px;border:1px solid #e0e0e0;display:block">
+      <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-primary" id="readBtn" onclick="readMeter()">🔍 Ablesen</button>
         <span id="readStatus" style="font-size:0.88rem;color:#888"></span>
       </div>
     </div>
-
     <div id="readResult" style="display:none;margin-top:14px;padding:14px 18px;background:#f0f9f0;border-radius:8px;border-left:3px solid #4caf50">
-      <div style="font-size:0.78rem;color:#888;margin-bottom:6px">Abgelesener Wert — bitte prüfen und ggf. korrigieren:</div>
+      <div style="font-size:0.78rem;color:#888;margin-bottom:6px">Abgelesener Wert — prüfen &amp; ggf. korrigieren:</div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <input id="readValue" type="number" step="0.001" style="font-size:1.5rem;font-weight:700;width:180px;border:2px solid #4caf50;border-radius:8px;padding:6px 10px;background:white">
-        <span id="readUnit" style="font-size:1rem;color:#666"></span>
+        <input id="readValue" type="number" step="0.001" style="font-size:1.4rem;font-weight:700;width:170px;border:2px solid #4caf50;border-radius:8px;padding:6px 10px">
+        <span id="readUnit" style="color:#666"></span>
         <button class="btn btn-primary" id="saveBtn" onclick="saveReading()" style="background:#4caf50">💾 Speichern</button>
       </div>
       <div id="readRaw" style="font-size:0.75rem;color:#aaa;margin-top:8px"></div>
     </div>
   </div>
 
-  <!-- SQL BLOCK -->
-  <div class="card" id="sqlCard" style="display:none">
-    <div class="card-title">🗄️ Supabase Tabelle (bereits erstellt)</div>
-    <p style="font-size:0.83rem;color:#888;margin-bottom:12px">
-      Die Tabelle <code>meter_readings</code> wurde bereits angelegt. Falls du sie manuell neu erstellen musst:
-    </p>
-    <div style="position:relative">
-      <button class="copy-btn" id="copyBtn" onclick="copySQL()">📋 Kopieren</button>
-      <pre class="sql" id="sqlText">CREATE TABLE IF NOT EXISTS meter_readings (
-  id           uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  agent_name   text NOT NULL,
-  meter_type   text NOT NULL DEFAULT 'Wasserzähler',
-  value        numeric NOT NULL,
-  unit         text NOT NULL DEFAULT 'm3',
-  raw_response text,
-  captured_at  timestamptz NOT NULL DEFAULT now(),
-  created_at   timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_meter_readings_agent_date
-  ON meter_readings (agent_name, captured_at DESC);
-ALTER TABLE meter_readings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "anon_insert" ON meter_readings FOR INSERT TO anon        WITH CHECK (true);
-CREATE POLICY "auth_all"    ON meter_readings FOR ALL    TO authenticated USING (true) WITH CHECK (true);</pre>
-    </div>
-  </div>
-
   <!-- READINGS -->
   <div class="card">
     <div class="card-title">📊 Letzte Ablesungen</div>
-    <div id="readings"><div class="empty">Noch keine Ablesungen vorhanden.<br>Setup-Skript herunterladen, ausführen — dann erscheinen hier die Werte.</div></div>
+    <div id="readings"><div class="empty">Noch keine Ablesungen vorhanden.</div></div>
   </div>
 </main>
 
 <script>
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const WORKER_URL  = 'https://health-db-ai.st-schaab.workers.dev';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 document.addEventListener('click', e => {
@@ -252,53 +255,162 @@ document.addEventListener('click', e => {
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  loadFunctions();
   loadReadings();
 });
 
-async function loadReadings() {
-  const { data, error } = await db.from('meter_readings').select('*').order('captured_at', { ascending: false }).limit(50);
-  const el = document.getElementById('readings');
-  if (error) { el.innerHTML = `<div class="empty">Fehler: ${esc(error.message)}</div>`; return; }
-  if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Ablesungen vorhanden.</div>'; return; }
-  el.innerHTML = `
-    <table>
-      <thead><tr><th>Zeitstempel</th><th>Agent</th><th>Typ</th><th>Wert</th><th></th></tr></thead>
-      <tbody>${data.map(r => `
-        <tr id="row_${r.id}">
-          <td>${new Date(r.captured_at).toLocaleString('de-DE')}</td>
-          <td>${esc(r.agent_name)}</td>
-          <td>${esc(r.meter_type)}</td>
-          <td id="val_${r.id}"><span class="val-badge">${(+r.value).toFixed(3)}</span> <span style="color:#888;font-size:0.8rem">${esc(r.unit)}</span></td>
-          <td style="white-space:nowrap">
-            <button onclick="editReading('${r.id}','${r.value}','${esc(r.unit)}')" style="border:none;background:none;cursor:pointer;font-size:1rem;padding:2px 6px" title="Bearbeiten">✏️</button>
-            <button onclick="deleteReading('${r.id}')" style="border:none;background:none;cursor:pointer;font-size:1rem;padding:2px 6px" title="Löschen">🗑️</button>
-          </td>
-        </tr>`).join('')}
-      </tbody>
-    </table>`;
-}
-
-function editReading(id, currentValue, unit) {
-  const cell = document.getElementById('val_' + id);
-  cell.innerHTML = `
-    <input type="number" step="0.001" value="${(+currentValue).toFixed(3)}"
-      id="edit_${id}" style="width:110px;border:1.5px solid #1a1a2e;border-radius:6px;padding:4px 8px;font-size:0.88rem">
-    <span style="color:#888;font-size:0.8rem">${esc(unit)}</span>
-    <button onclick="saveEdit('${id}','${esc(unit)}')" style="border:none;background:#1a1a2e;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.78rem;margin-left:4px">✓</button>
-    <button onclick="loadReadings()" style="border:none;background:#eee;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:0.78rem">✕</button>`;
-  document.getElementById('edit_' + id).focus();
-}
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 async function ensureSession() {
   const { data: { session } } = await db.auth.getSession();
   if (session) return true;
-  // Session gone — try refresh once
   const { data, error } = await db.auth.refreshSession();
   if (error || !data.session) { window.location.href = 'me-db-login.html'; return false; }
   return true;
 }
 
-async function saveEdit(id, unit) {
+// ── Monitoring Functions CRUD ─────────────────────────────────────────────────
+let editId = null;
+
+async function loadFunctions() {
+  const { data, error } = await db.from('monitoring_functions').select('*').order('name');
+  const el = document.getElementById('fnList');
+  if (error) { el.innerHTML = `<div class="empty">Fehler: ${esc(error.message)}</div>`; return; }
+  if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Monitoring Functions. Klicke "+ Neue Function".</div>'; return; }
+
+  el.innerHTML = `<table>
+    <thead><tr><th>Name</th><th>Typ</th><th>Kamera</th><th>PTZ</th><th>Intervall</th><th>Aktiv</th><th></th></tr></thead>
+    <tbody>${data.map(f => `
+      <tr>
+        <td><strong>${esc(f.name)}</strong></td>
+        <td>${esc(f.meter_type)} <span style="color:#aaa;font-size:0.78rem">${esc(f.unit)}</span></td>
+        <td style="font-size:0.78rem;color:#888;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.camera_url)}</td>
+        <td style="color:#888;font-size:0.82rem">${f.ptz_preset ?? '–'}</td>
+        <td style="color:#888;font-size:0.82rem">${f.interval_min} min</td>
+        <td>
+          <label class="toggle"><input type="checkbox" ${f.active ? 'checked' : ''} onchange="toggleActive('${f.id}', this.checked)"><span class="slider"></span></label>
+        </td>
+        <td style="white-space:nowrap">
+          <button onclick="openForm('${f.id}')" style="border:none;background:none;cursor:pointer;font-size:1rem;padding:2px 6px" title="Bearbeiten">✏️</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function openForm(id) {
+  editId = id || null;
+  const form = document.getElementById('fnForm');
+  const title = document.getElementById('fnFormTitle');
+  const delBtn = document.getElementById('deleteFnBtn');
+
+  if (id) {
+    title.textContent = 'Monitoring Function bearbeiten';
+    delBtn.style.display = 'inline-flex';
+    db.from('monitoring_functions').select('*').eq('id', id).single().then(({ data: f }) => {
+      if (!f) return;
+      document.getElementById('fName').value       = f.name;
+      document.getElementById('fMeterType').value  = f.meter_type;
+      document.getElementById('fUnit').value        = f.unit;
+      document.getElementById('fInterval').value    = f.interval_min;
+      document.getElementById('fCameraUrl').value   = f.camera_url;
+      document.getElementById('fCameraUser').value  = f.camera_user;
+      document.getElementById('fCameraPass').value  = f.camera_pass;
+      document.getElementById('fPtz').value         = f.ptz_preset ?? '';
+      document.getElementById('fActive').checked    = f.active;
+    });
+  } else {
+    title.textContent = 'Neue Monitoring Function';
+    delBtn.style.display = 'none';
+    ['fName','fCameraUrl','fCameraPass','fPtz'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('fCameraUser').value = 'admin';
+    document.getElementById('fActive').checked = true;
+    syncUnit();
+  }
+  form.classList.add('open');
+  form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeForm() {
+  document.getElementById('fnForm').classList.remove('open');
+  editId = null;
+}
+
+function syncUnit() {
+  const map = { Wasserzähler: 'm3', Gaszähler: 'm3', Stromzähler: 'kWh', Wärmezähler: 'MWh' };
+  document.getElementById('fUnit').value = map[document.getElementById('fMeterType').value] || 'm3';
+}
+
+async function saveFunction() {
+  if (!await ensureSession()) return;
+  const payload = {
+    name:         document.getElementById('fName').value.trim(),
+    meter_type:   document.getElementById('fMeterType').value,
+    unit:         document.getElementById('fUnit').value.trim(),
+    interval_min: parseInt(document.getElementById('fInterval').value),
+    camera_url:   document.getElementById('fCameraUrl').value.trim(),
+    camera_user:  document.getElementById('fCameraUser').value.trim() || 'admin',
+    camera_pass:  document.getElementById('fCameraPass').value,
+    ptz_preset:   document.getElementById('fPtz').value ? parseInt(document.getElementById('fPtz').value) : null,
+    active:       document.getElementById('fActive').checked,
+    updated_at:   new Date().toISOString(),
+  };
+  if (!payload.name || !payload.camera_url) { alert('Name und Kamera-URL sind Pflichtfelder.'); return; }
+
+  const { error } = editId
+    ? await db.from('monitoring_functions').update(payload).eq('id', editId)
+    : await db.from('monitoring_functions').insert(payload);
+
+  if (error) { alert('Fehler: ' + error.message); return; }
+  closeForm();
+  loadFunctions();
+}
+
+async function toggleActive(id, active) {
+  if (!await ensureSession()) return;
+  await db.from('monitoring_functions').update({ active }).eq('id', id);
+}
+
+async function deleteFunction() {
+  if (!editId || !confirm('Monitoring Function löschen?')) return;
+  if (!await ensureSession()) return;
+  await db.from('monitoring_functions').delete().eq('id', editId);
+  closeForm();
+  loadFunctions();
+}
+
+// ── Readings ──────────────────────────────────────────────────────────────────
+async function loadReadings() {
+  const { data, error } = await db.from('meter_readings').select('*').order('captured_at', { ascending: false }).limit(50);
+  const el = document.getElementById('readings');
+  if (error) { el.innerHTML = `<div class="empty">Fehler: ${esc(error.message)}</div>`; return; }
+  if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Ablesungen vorhanden.</div>'; return; }
+  el.innerHTML = `<table>
+    <thead><tr><th>Zeitstempel</th><th>Name</th><th>Typ</th><th>Wert</th><th></th></tr></thead>
+    <tbody>${data.map(r => `
+      <tr id="row_${r.id}">
+        <td>${new Date(r.captured_at).toLocaleString('de-DE')}</td>
+        <td>${esc(r.agent_name)}</td>
+        <td>${esc(r.meter_type)}</td>
+        <td id="val_${r.id}"><span class="val-badge">${(+r.value).toFixed(3)}</span> <span style="color:#888;font-size:0.8rem">${esc(r.unit)}</span></td>
+        <td style="white-space:nowrap">
+          <button onclick="editReading('${r.id}','${r.value}','${esc(r.unit)}')" style="border:none;background:none;cursor:pointer;font-size:1rem;padding:2px 5px" title="Bearbeiten">✏️</button>
+          <button onclick="deleteReading('${r.id}')" style="border:none;background:none;cursor:pointer;font-size:1rem;padding:2px 5px" title="Löschen">🗑️</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function editReading(id, value, unit) {
+  document.getElementById('val_' + id).innerHTML = `
+    <input type="number" step="0.001" value="${(+value).toFixed(3)}" id="edit_${id}"
+      style="width:110px;border:1.5px solid #1a1a2e;border-radius:6px;padding:4px 8px;font-size:0.88rem">
+    <span style="color:#888;font-size:0.8rem">${esc(unit)}</span>
+    <button onclick="saveEdit('${id}')" style="border:none;background:#1a1a2e;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.78rem;margin-left:4px">✓</button>
+    <button onclick="loadReadings()" style="border:none;background:#eee;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:0.78rem">✕</button>`;
+  document.getElementById('edit_' + id).focus();
+}
+
+async function saveEdit(id) {
   const val = parseFloat(document.getElementById('edit_' + id).value);
   if (isNaN(val)) return;
   if (!await ensureSession()) return;
@@ -315,14 +427,9 @@ async function deleteReading(id) {
   document.getElementById('row_' + id)?.remove();
 }
 
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-// ── Manual photo reading ───────────────────────────────────────────────────────
-const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
+// ── Manual photo reading ──────────────────────────────────────────────────────
 const unitMap = { Wasserzähler: 'm3', Gaszähler: 'm3', Stromzähler: 'kWh', Wärmezähler: 'MWh' };
-
-let currentImageB64 = null;
-let currentMediaType = 'image/jpeg';
+let currentImageB64 = null, currentMediaType = 'image/jpeg';
 
 function onPhotoSelected() {
   const file = document.getElementById('meterPhoto').files[0];
@@ -330,9 +437,8 @@ function onPhotoSelected() {
   currentMediaType = file.type || 'image/jpeg';
   const reader = new FileReader();
   reader.onload = e => {
-    const dataUrl = e.target.result;
-    currentImageB64 = dataUrl.split(',')[1];
-    document.getElementById('previewImg').src = dataUrl;
+    currentImageB64 = e.target.result.split(',')[1];
+    document.getElementById('previewImg').src = e.target.result;
     document.getElementById('photoPreview').style.display = 'block';
     document.getElementById('readResult').style.display = 'none';
     document.getElementById('readStatus').textContent = '';
@@ -346,33 +452,21 @@ async function readMeter() {
   const model     = document.getElementById('manModel').value;
   const btn       = document.getElementById('readBtn');
   const status    = document.getElementById('readStatus');
-
-  btn.disabled = true;
-  status.textContent = '⏳ Claude liest ab…';
-
+  btn.disabled = true; status.textContent = '⏳ Claude liest ab…';
   try {
     const resp = await fetch(WORKER_URL + '/read-meter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image_b64: currentImageB64, media_type: currentMediaType, meter_type: meterType, model })
     });
     const result = await resp.json();
-
-    if (!result.success) {
-      status.textContent = '❌ ' + (result.error || 'Fehler beim Ablesen');
-      btn.disabled = false;
-      return;
-    }
-
+    if (!result.success) { status.textContent = '❌ ' + (result.error || 'Fehler'); btn.disabled = false; return; }
     const unit = unitMap[meterType] || 'm3';
     document.getElementById('readValue').value = result.value.toFixed(3);
     document.getElementById('readUnit').textContent = unit;
-    document.getElementById('readRaw').textContent = 'Claude las: "' + result.raw + '" — bitte prüfen, dann Speichern klicken.';
+    document.getElementById('readRaw').textContent = 'Claude las: "' + result.raw + '" — bitte prüfen, dann Speichern.';
     document.getElementById('readResult').style.display = 'block';
-    status.textContent = '✅ Abgelesen — bitte Wert prüfen!';
-  } catch (e) {
-    status.textContent = '❌ ' + e.message;
-  }
+    status.textContent = '✅ Abgelesen';
+  } catch (e) { status.textContent = '❌ ' + e.message; }
   btn.disabled = false;
 }
 
@@ -383,206 +477,181 @@ async function saveReading() {
   const unit      = unitMap[meterType] || 'm3';
   const raw       = document.getElementById('readRaw').textContent;
   const saveBtn   = document.getElementById('saveBtn');
-
-  if (isNaN(value)) { alert('Bitte einen gültigen Wert eingeben.'); return; }
+  if (isNaN(value)) { alert('Bitte gültigen Wert eingeben.'); return; }
   if (!await ensureSession()) return;
-  saveBtn.disabled = true;
-  saveBtn.textContent = '⏳…';
-
+  saveBtn.disabled = true; saveBtn.textContent = '⏳…';
   const { error } = await db.from('meter_readings').insert({
-    agent_name: agentName, meter_type: meterType,
-    value, unit, raw_response: raw,
+    agent_name: agentName, meter_type: meterType, value, unit, raw_response: raw,
     captured_at: new Date().toISOString()
   });
-
   if (error) { alert('Fehler: ' + error.message); saveBtn.disabled = false; saveBtn.textContent = '💾 Speichern'; return; }
-
   saveBtn.textContent = '✅ Gespeichert';
-  document.getElementById('readStatus').textContent = '✅ Gespeichert';
   loadReadings();
   setTimeout(() => { saveBtn.textContent = '💾 Speichern'; saveBtn.disabled = false; }, 3000);
 }
 
-function toggleSql() {
-  const c = document.getElementById('sqlCard');
-  c.style.display = c.style.display === 'none' ? 'block' : 'none';
-}
+// ── Setup Script Generator ────────────────────────────────────────────────────
+function downloadSetup() {
+  const apiKey     = document.getElementById('setupApiKey').value.trim();
+  const installDir = document.getElementById('setupDir').value.trim() || 'C:\\MeDB-Agents';
+  if (!apiKey) { alert('Bitte Anthropic API Key eingeben.'); return; }
 
-function copySQL() {
-  navigator.clipboard.writeText(document.getElementById('sqlText').textContent);
-  const btn = document.getElementById('copyBtn');
-  btn.textContent = '✅ Kopiert!';
-  setTimeout(() => btn.textContent = '📋 Kopieren', 2000);
-}
+  const config = JSON.stringify({ anthropic_key: apiKey, supabase_url: SUPABASE_URL, supabase_anon_key: SUPABASE_KEY }, null, 2);
 
-function downloadScript() {
-  const agentName  = document.getElementById('agentName').value.trim()   || 'MeDB-Agent';
-  const meterType  = document.getElementById('meterType').value;
-  const cameraUrl  = document.getElementById('cameraUrl').value.trim();
-  const cameraUser = document.getElementById('cameraUser').value.trim()   || 'admin';
-  const cameraPass = document.getElementById('cameraPass').value;
-  const apiKey     = document.getElementById('anthropicKey').value.trim();
-  const interval   = parseInt(document.getElementById('interval').value);
-  const installDir = document.getElementById('installDir').value.trim()   || 'C:\\MeDB-Agents';
-
-  if (!cameraUrl) { alert('Bitte Kamera Snapshot-URL eingeben.'); return; }
-  if (!apiKey)    { alert('Bitte Anthropic API Key eingeben.'); return; }
-
-  const unitMap = { Wasserzähler: 'm3', Gaszähler: 'm3', Stromzähler: 'kWh', Wärmezähler: 'MWh' };
-  const unit = unitMap[meterType] || 'm3';
-  const taskName = 'MeDB-' + agentName.replace(/[^a-zA-Z0-9_-]/g, '-');
-
-  // Config JSON
-  const config = JSON.stringify({
-    agent_name: agentName,
-    meter_type: meterType,
-    unit,
-    camera_url: cameraUrl,
-    camera_user: cameraUser,
-    camera_pass: cameraPass,
-    anthropic_key: apiKey,
-    supabase_url: SUPABASE_URL,
-    supabase_anon_key: SUPABASE_KEY
-  }, null, 2);
-
-  // Python agent (lines array avoids template literal escaping issues)
   const py = [
-    'import sys, os, json, base64, requests',
+    'import sys, os, json, base64, requests, time',
     'from datetime import datetime, timezone',
     '',
     'script_dir = os.path.dirname(os.path.abspath(__file__))',
     "with open(os.path.join(script_dir, 'config.json'), encoding='utf-8') as f:",
     '    cfg = json.load(f)',
     '',
-    '# 1. Snapshot von ONVIF-Kamera',
-    'try:',
-    "    r = requests.get(cfg['camera_url'], auth=(cfg['camera_user'], cfg['camera_pass']), timeout=15)",
+    'def load_functions():',
+    "    url = cfg['supabase_url'].rstrip('/') + '/rest/v1/monitoring_functions?active=eq.true&order=name'",
+    "    h = {'apikey': cfg['supabase_anon_key'], 'Content-Type': 'application/json'}",
+    '    r = requests.get(url, headers=h, timeout=10)',
     '    r.raise_for_status()',
-    '    img_b64 = base64.b64encode(r.content).decode()',
-    'except Exception as e:',
-    "    print('ERROR camera: ' + str(e), flush=True)",
-    '    sys.exit(1)',
+    '    return r.json()',
     '',
-    '# 2. Claude Vision (Haiku) liest Zählerstand ab',
-    'try:',
-    '    import anthropic',
-    "    client = anthropic.Anthropic(api_key=cfg['anthropic_key'])",
-    '    msg = client.messages.create(',
-    "        model='claude-haiku-4-5-20251001',",
-    '        max_tokens=50,',
-    "        messages=[{'role': 'user', 'content': [",
-    "            {'type': 'image', 'source': {'type': 'base64', 'media_type': 'image/jpeg', 'data': img_b64}},",
-    "            {'type': 'text', 'text': 'Read the meter display value. Reply with ONLY the numeric reading, e.g. 1234.567 — no unit, no explanation.'}",
-    '        ]}]',
-    '    )',
-    '    raw = msg.content[0].text.strip()',
-    "    value = float(raw.replace(',', '.').replace(' ', ''))",
-    'except Exception as e:',
-    "    print('ERROR vision: ' + str(e), flush=True)",
-    '    sys.exit(1)',
+    'def move_to_preset(fn):',
+    '    try:',
+    "        base = fn['camera_url'].rsplit('/', 1)[0]",
+    "        requests.get(base + '/onvif/PTZ/GotoPreset?preset=' + str(fn['ptz_preset']),",
+    "                     auth=(fn['camera_user'], fn['camera_pass']), timeout=5)",
+    '        time.sleep(3)',
+    '    except Exception as e:',
+    "        print('PTZ warning: ' + str(e), flush=True)",
     '',
-    '# 3. In Supabase speichern',
-    'try:',
-    "    sb_url = cfg['supabase_url'].rstrip('/') + '/rest/v1/meter_readings'",
-    '    headers = {',
-    "        'apikey': cfg['supabase_anon_key'],",
-    "        'Authorization': 'Bearer ' + cfg['supabase_anon_key'],",
-    "        'Content-Type': 'application/json',",
-    "        'Prefer': 'return=minimal'",
-    '    }',
-    '    payload = {',
-    "        'agent_name': cfg['agent_name'],",
-    "        'meter_type': cfg['meter_type'],",
-    "        'value': value,",
-    "        'unit': cfg['unit'],",
-    "        'raw_response': raw,",
-    "        'captured_at': datetime.now(timezone.utc).isoformat()",
-    '    }',
-    '    resp = requests.post(sb_url, headers=headers, json=payload, timeout=10)',
-    '    resp.raise_for_status()',
+    'def run_function(fn):',
     "    ts = datetime.now().strftime('%Y-%m-%d %H:%M')",
-    "    print('OK ' + ts + ': ' + str(value) + ' ' + cfg['unit'], flush=True)",
-    'except Exception as e:',
-    "    print('ERROR supabase: ' + str(e), flush=True)",
-    '    sys.exit(1)',
+    "    print('[' + ts + '] Running: ' + fn['name'], flush=True)",
+    '    try:',
+    "        if fn.get('ptz_preset') is not None:",
+    '            move_to_preset(fn)',
+    "        r = requests.get(fn['camera_url'], auth=(fn['camera_user'], fn['camera_pass']), timeout=15)",
+    '        r.raise_for_status()',
+    '        img_b64 = base64.b64encode(r.content).decode()',
+    '        import anthropic',
+    "        client = anthropic.Anthropic(api_key=cfg['anthropic_key'])",
+    '        msg = client.messages.create(',
+    "            model='claude-haiku-4-5-20251001', max_tokens=50,",
+    "            messages=[{'role': 'user', 'content': [",
+    "                {'type': 'image', 'source': {'type': 'base64', 'media_type': 'image/jpeg', 'data': img_b64}},",
+    "                {'type': 'text', 'text': 'Read the ' + fn['meter_type'] + ' meter. Reply ONLY with the numeric value, e.g. 1234.567'}",
+    '            ]}]',
+    '        )',
+    '        raw = msg.content[0].text.strip()',
+    "        value = float(raw.replace(',', '.').replace(' ', ''))",
+    "        sb_url = cfg['supabase_url'].rstrip('/') + '/rest/v1/meter_readings'",
+    "        h = {'apikey': cfg['supabase_anon_key'], 'Authorization': 'Bearer ' + cfg['supabase_anon_key'],",
+    "             'Content-Type': 'application/json', 'Prefer': 'return=minimal'}",
+    "        payload = {'agent_name': fn['name'], 'meter_type': fn['meter_type'],",
+    "                   'value': value, 'unit': fn['unit'], 'raw_response': raw,",
+    "                   'captured_at': datetime.now(timezone.utc).isoformat()}",
+    '        requests.post(sb_url, headers=h, json=payload, timeout=10).raise_for_status()',
+    "        print('[' + ts + '] OK: ' + str(value) + ' ' + fn['unit'], flush=True)",
+    '    except Exception as e:',
+    "        print('[' + ts + '] ERROR ' + fn['name'] + ': ' + str(e), flush=True)",
+    '',
+    'def main():',
+    "    print('MeDB Monitoring Agent starting...', flush=True)",
+    '    try:',
+    '        import schedule',
+    '    except ImportError:',
+    "        print('Installing schedule...', flush=True)",
+    '        import subprocess',
+    "        subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'schedule', '--quiet'])",
+    '        import schedule',
+    '    functions = load_functions()',
+    "    print('Loaded ' + str(len(functions)) + ' monitoring function(s)', flush=True)",
+    '    if not functions:',
+    "        print('No active functions. Add one in MeDB Computer Vision, then restart agent.', flush=True)",
+    '        time.sleep(3600)',
+    '        return',
+    '    for fn in functions:',
+    '        run_function(fn)',
+    '        schedule.every(fn[\'interval_min\']).minutes.do(run_function, fn)',
+    "        print('Scheduled: ' + fn['name'] + ' every ' + str(fn['interval_min']) + ' min', flush=True)",
+    '    while True:',
+    '        schedule.run_pending()',
+    '        time.sleep(30)',
+    '',
+    "if __name__ == '__main__':",
+    '    main()',
   ].join('\r\n');
 
-  // PS1 setup script
   const ps1 = [
-    '# MeDB Computer Vision Agent Setup',
-    '# Agent:     ' + agentName,
-    '# Erstellt:  ' + new Date().toLocaleString('de-DE'),
+    '# MeDB Monitoring Agent Setup',
+    '# Erstellt: ' + new Date().toLocaleString('de-DE'),
     '#',
-    '# Ausfuehren als Administrator:',
+    '# Als Administrator ausfuehren:',
     '#   Set-ExecutionPolicy Bypass -Scope Process -Force',
-    '#   .\\setup-medb-agent.ps1',
+    '#   .\\setup-medb-monitor.ps1',
     '',
     '$ErrorActionPreference = "Stop"',
-    '$AgentName  = "' + agentName + '"',
     '$InstallDir = "' + installDir + '"',
-    '$TaskName   = "' + taskName + '"',
-    '$IntervalMin = ' + interval,
+    '$TaskName   = "MeDB-Monitor-Agent"',
     '',
     'Write-Host ""',
-    'Write-Host "=== MeDB Agent Setup: $AgentName ===" -ForegroundColor Cyan',
-    'Write-Host ""',
+    'Write-Host "=== MeDB Monitoring Agent Setup ===" -ForegroundColor Cyan',
     '',
-    '# 1. Python pruefen',
-    'try { python --version | Out-Null; Write-Host "OK  Python gefunden" -ForegroundColor Green }',
-    'catch { Write-Error "Python nicht gefunden. Bitte von https://python.org installieren."; exit 1 }',
+    '# 1. Python',
+    'try { python --version | Out-Null; Write-Host "OK  Python" -ForegroundColor Green }',
+    'catch { Write-Error "Python nicht gefunden. https://python.org installieren."; exit 1 }',
     '',
-    '# 2. Pakete installieren',
-    'Write-Host "... Python-Pakete installieren (anthropic, requests)"',
-    'python -m pip install anthropic requests --quiet',
+    '# 2. Pakete',
+    'Write-Host "... Python-Pakete installieren"',
+    'python -m pip install anthropic requests schedule --quiet',
     'Write-Host "OK  Pakete installiert" -ForegroundColor Green',
     '',
-    '# 3. Ordner anlegen',
+    '# 3. Ordner',
     'New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null',
     'Write-Host "OK  Ordner: $InstallDir" -ForegroundColor Green',
     '',
-    '# 4. config.json schreiben',
+    '# 4. config.json',
     '$cfg = @\'',
     config,
     '\'@',
     'Set-Content -Path "$InstallDir\\config.json" -Value $cfg -Encoding UTF8',
     'Write-Host "OK  config.json" -ForegroundColor Green',
     '',
-    '# 5. Python-Agent schreiben',
+    '# 5. Python Agent',
     '$py = @\'',
     py,
     '\'@',
-    'Set-Content -Path "$InstallDir\\medb-meter-agent.py" -Value $py -Encoding UTF8',
-    'Write-Host "OK  medb-meter-agent.py" -ForegroundColor Green',
+    'Set-Content -Path "$InstallDir\\medb-monitor-agent.py" -Value $py -Encoding UTF8',
+    'Write-Host "OK  medb-monitor-agent.py" -ForegroundColor Green',
     '',
-    '# 6. Windows Task Scheduler einrichten',
+    '# 6. Task Scheduler (startet bei Anmeldung, laeuft dauerhaft)',
     '$action   = New-ScheduledTaskAction -Execute "python" \\',
-    '              -Argument "`"$InstallDir\\medb-meter-agent.py`"" \\',
+    '              -Argument "`"$InstallDir\\medb-monitor-agent.py`"" \\',
     '              -WorkingDirectory $InstallDir',
-    '$trigger  = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) \\',
-    '              -RepetitionInterval (New-TimeSpan -Minutes $IntervalMin)',
+    '$trigger  = New-ScheduledTaskTrigger -AtLogOn',
     '$settings = New-ScheduledTaskSettingsSet \\',
     '              -RunOnlyIfNetworkAvailable \\',
     '              -StartWhenAvailable \\',
-    '              -ExecutionTimeLimit (New-TimeSpan -Minutes 5)',
+    '              -RestartCount 5 \\',
+    '              -RestartInterval (New-TimeSpan -Minutes 2) \\',
+    '              -ExecutionTimeLimit ([TimeSpan]::Zero)',
     'Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger \\',
     '  -Settings $settings -RunLevel Highest -Force | Out-Null',
-    'Write-Host "OK  Task Scheduler: $TaskName (alle $IntervalMin Min.)" -ForegroundColor Green',
+    'Write-Host "OK  Task Scheduler: $TaskName (bei Anmeldung, Restart bei Absturz)" -ForegroundColor Green',
     '',
-    '# 7. Test-Lauf',
+    '# 7. Sofort starten',
     'Write-Host ""',
-    'Write-Host "--- Test-Lauf ---" -ForegroundColor Yellow',
-    'python "$InstallDir\\medb-meter-agent.py"',
+    'Write-Host "--- Agent wird gestartet ---" -ForegroundColor Yellow',
+    'Start-Process "python" -ArgumentList "`"$InstallDir\\medb-monitor-agent.py`"" -WorkingDirectory $InstallDir -WindowStyle Normal',
     'Write-Host ""',
     'Write-Host "=== Setup abgeschlossen! ===" -ForegroundColor Green',
-    'Write-Host "Naechste automatische Ablesung in $IntervalMin Minuten."',
-    'Write-Host "Logs: Task Scheduler > Task-Planungsbibliothek > $TaskName > Verlauf"',
+    'Write-Host "Agent laeuft im Hintergrund und startet nach Reboot automatisch."',
+    'Write-Host "Neue Monitoring Functions werden nach Agent-Neustart uebernommen."',
     'Write-Host ""',
   ].join('\r\n');
 
   const blob = new Blob(['﻿' + ps1], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'setup-medb-agent.ps1';
+  a.download = 'setup-medb-monitor.ps1';
   a.click();
 }
 </script>
