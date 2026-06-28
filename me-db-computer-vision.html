@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeDB · Computer Vision</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a2e; }
+    nav { background: #1a1a2e; color: white; padding: 0 20px; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 100; gap: 12px; }
+    .nav-brand { font-weight: 700; font-size: 1.05rem; }
+    .nav-crumb { font-size: 0.78rem; opacity: 0.6; flex: 1; }
+    .ham-btn { background: none; border: none; color: white; font-size: 1.4rem; cursor: pointer; padding: 6px; }
+    .ham-menu { display: none; position: fixed; top: 52px; right: 0; background: white; width: 220px; box-shadow: -2px 0 12px rgba(0,0,0,0.15); z-index: 200; border-radius: 0 0 0 12px; max-height: calc(100vh - 52px); overflow-y: auto; }
+    .ham-menu.open { display: block; }
+    .ham-menu a { display: block; padding: 11px 20px; text-decoration: none; color: #1a1a2e; font-size: 0.88rem; border-bottom: 1px solid #f0f0f0; }
+    .ham-menu a:hover { background: #f5f5f5; }
+    main { max-width: 920px; margin: 0 auto; padding: 24px 16px; }
+    h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    .subtitle { color: #777; font-size: 0.85rem; margin-bottom: 22px; }
+    .card { background: white; border-radius: 12px; padding: 22px; box-shadow: 0 1px 6px rgba(0,0,0,0.08); margin-bottom: 18px; }
+    .card-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+    .fg { display: flex; flex-direction: column; gap: 4px; }
+    .fg.full { grid-column: 1 / -1; }
+    label { font-size: 0.74rem; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.03em; }
+    input, select { border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 8px 12px; font-size: 0.88rem; outline: none; transition: border 0.15s; width: 100%; }
+    input:focus, select:focus { border-color: #1a1a2e; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer; border: none; transition: background 0.15s; }
+    .btn-primary { background: #1a1a2e; color: white; }
+    .btn-primary:hover { background: #2d2d50; }
+    .btn-outline { background: white; color: #1a1a2e; border: 1.5px solid #1a1a2e; }
+    .btn-outline:hover { background: #f5f5f5; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    .tip { background: #fffbea; border-left: 3px solid #f0a500; padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.82rem; color: #666; margin-top: 14px; line-height: 1.5; }
+    .tip a { color: #1a1a2e; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    th { text-align: left; padding: 8px 12px; border-bottom: 2px solid #f0f0f0; font-size: 0.72rem; text-transform: uppercase; color: #999; font-weight: 700; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f5f5f5; }
+    tr:last-child td { border-bottom: none; }
+    .empty { text-align: center; padding: 36px; color: #ccc; font-size: 0.88rem; line-height: 1.8; }
+    pre.sql { background: #f8f8f8; border-radius: 8px; padding: 14px 16px; font-family: monospace; font-size: 0.76rem; color: #333; white-space: pre-wrap; overflow-x: auto; position: relative; }
+    .copy-btn { position: absolute; top: 8px; right: 8px; font-size: 0.72rem; padding: 3px 10px; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; }
+    .copy-btn:hover { background: #f0f0f0; }
+    .steps { counter-reset: step; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .steps li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.86rem; line-height: 1.5; }
+    .steps li::before { counter-increment: step; content: counter(step); min-width: 24px; height: 24px; border-radius: 50%; background: #1a1a2e; color: white; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    code { background: #f0f0f0; border-radius: 4px; padding: 1px 5px; font-size: 0.82rem; font-family: monospace; }
+    .val-badge { font-weight: 700; color: #1a1a2e; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-brand">MeDB</span>
+  <span class="nav-crumb">› System › Computer Vision</span>
+  <button class="ham-btn" onclick="document.getElementById('ham').classList.toggle('open')">☰</button>
+</nav>
+<div class="ham-menu" id="ham">
+  <a href="me-db-dashboard.html">🏠 Dashboard</a>
+  <a href="me-db-indicators.html">🗃️ Indicators</a>
+  <a href="me-db-trendviewer.html">📈 Trend Viewer</a>
+  <a href="me-db-lab-dashboard.html">🧪 Lab</a>
+  <a href="me-db-hrv.html">❤️ HRV</a>
+  <a href="me-db-sports.html">🏃 Sport</a>
+  <a href="me-db-pv.html">☀️ PV</a>
+  <a href="me-db-computer-vision.html" style="font-weight:700">🎥 Computer Vision</a>
+  <a href="me-db-supplements.html">💊 Supplements</a>
+  <a href="me-db-tasks.html">✅ Tasks</a>
+  <a href="me-db-chat.html">💬 KI-Chat</a>
+  <a href="me-db-setup.html">⚙️ Setup</a>
+</div>
+
+<main>
+  <h1>🎥 Computer Vision</h1>
+  <p class="subtitle">Automatische Zählerablesung per ONVIF-Kamera + Claude Vision (Haiku) · Stündlich, vollautomatisch, kein Cloud-Zugriff auf dein LAN nötig</p>
+
+  <!-- HOW IT WORKS -->
+  <div class="card">
+    <div class="card-title">⚡ So funktioniert es</div>
+    <ol class="steps">
+      <li>ONVIF-Kamera richtet sich auf deinen Zähler (Wasser, Strom, Gas)</li>
+      <li>Python-Agent läuft auf deinem PC im Heimnetz, fragt stündlich die Kamera ab (lokaler HTTP-Snapshot)</li>
+      <li>Foto wird als Base64 an Claude Haiku (Vision) geschickt → liest den Zählerstand ab</li>
+      <li>Wert wird in Supabase gespeichert → hier im Dashboard sichtbar &amp; im Trend Viewer</li>
+    </ol>
+    <div class="tip">
+      💡 Der PC muss <strong>durchlaufen</strong> (Bildschirmsperre reicht, kein Shutdown) ·
+      Anthropic API Key nötig: <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys ·
+      Kosten: ~0,001 € / Ablesung mit Claude Haiku
+    </div>
+  </div>
+
+  <!-- SETUP FORM -->
+  <div class="card">
+    <div class="card-title">🔧 Agenten konfigurieren &amp; Skript herunterladen</div>
+    <p style="font-size:0.83rem;color:#888;margin-bottom:16px">
+      Formular ausfüllen → PowerShell-Skript herunterladen → auf dem Ziel-PC als Administrator ausführen.<br>
+      Das Skript installiert Python-Pakete, schreibt den Agenten und richtet den Windows Task Scheduler ein.
+    </p>
+
+    <div class="form-grid">
+      <div class="fg">
+        <label>Agent Name</label>
+        <input id="agentName" type="text" value="Wasserzähler Keller" placeholder="z.B. Wasserzähler Keller">
+      </div>
+      <div class="fg">
+        <label>Zählertyp</label>
+        <select id="meterType">
+          <option value="Wasserzähler">Wasserzähler (m³)</option>
+          <option value="Stromzähler">Stromzähler (kWh)</option>
+          <option value="Gaszähler">Gaszähler (m³)</option>
+          <option value="Wärmezähler">Wärmezähler (MWh)</option>
+        </select>
+      </div>
+      <div class="fg full">
+        <label>Kamera Snapshot-URL (ONVIF)</label>
+        <input id="cameraUrl" type="url" placeholder="http://192.168.1.100/onvif/snapshot">
+      </div>
+      <div class="fg">
+        <label>Kamera Benutzername</label>
+        <input id="cameraUser" type="text" placeholder="admin" value="admin">
+      </div>
+      <div class="fg">
+        <label>Kamera Passwort</label>
+        <input id="cameraPass" type="password" placeholder="">
+      </div>
+      <div class="fg full">
+        <label>Anthropic API Key</label>
+        <input id="anthropicKey" type="password" placeholder="sk-ant-api03-...">
+      </div>
+      <div class="fg">
+        <label>Ablesintervall</label>
+        <select id="interval">
+          <option value="30">Alle 30 Minuten</option>
+          <option value="60" selected>Stündlich</option>
+          <option value="120">Alle 2 Stunden</option>
+          <option value="360">Alle 6 Stunden</option>
+          <option value="1440">Täglich (07:00)</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Installationsordner</label>
+        <input id="installDir" type="text" value="C:\MeDB-Agents">
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="downloadScript()">📥 Setup-Skript herunterladen (.ps1)</button>
+      <button class="btn btn-outline" onclick="toggleSql()">🗄️ Supabase SQL anzeigen</button>
+    </div>
+  </div>
+
+  <!-- SQL BLOCK -->
+  <div class="card" id="sqlCard" style="display:none">
+    <div class="card-title">🗄️ Supabase Tabelle (bereits erstellt)</div>
+    <p style="font-size:0.83rem;color:#888;margin-bottom:12px">
+      Die Tabelle <code>meter_readings</code> wurde bereits angelegt. Falls du sie manuell neu erstellen musst:
+    </p>
+    <div style="position:relative">
+      <button class="copy-btn" id="copyBtn" onclick="copySQL()">📋 Kopieren</button>
+      <pre class="sql" id="sqlText">CREATE TABLE IF NOT EXISTS meter_readings (
+  id           uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  agent_name   text NOT NULL,
+  meter_type   text NOT NULL DEFAULT 'Wasserzähler',
+  value        numeric NOT NULL,
+  unit         text NOT NULL DEFAULT 'm3',
+  raw_response text,
+  captured_at  timestamptz NOT NULL DEFAULT now(),
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_meter_readings_agent_date
+  ON meter_readings (agent_name, captured_at DESC);
+ALTER TABLE meter_readings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon_insert" ON meter_readings FOR INSERT TO anon        WITH CHECK (true);
+CREATE POLICY "auth_all"    ON meter_readings FOR ALL    TO authenticated USING (true) WITH CHECK (true);</pre>
+    </div>
+  </div>
+
+  <!-- READINGS -->
+  <div class="card">
+    <div class="card-title">📊 Letzte Ablesungen</div>
+    <div id="readings"><div class="empty">Noch keine Ablesungen vorhanden.<br>Setup-Skript herunterladen, ausführen — dann erscheinen hier die Werte.</div></div>
+  </div>
+</main>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#ham') && !e.target.closest('.ham-btn'))
+    document.getElementById('ham').classList.remove('open');
+});
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  loadReadings();
+});
+
+async function loadReadings() {
+  const { data } = await db.from('meter_readings').select('*').order('captured_at', { ascending: false }).limit(50);
+  const el = document.getElementById('readings');
+  if (!data?.length) return;
+  el.innerHTML = `
+    <table>
+      <thead><tr><th>Zeitstempel</th><th>Agent</th><th>Typ</th><th>Wert</th><th>Claude-Antwort</th></tr></thead>
+      <tbody>${data.map(r => `
+        <tr>
+          <td>${new Date(r.captured_at).toLocaleString('de-DE')}</td>
+          <td>${esc(r.agent_name)}</td>
+          <td>${esc(r.meter_type)}</td>
+          <td><span class="val-badge">${(+r.value).toFixed(3)}</span> <span style="color:#888;font-size:0.8rem">${esc(r.unit)}</span></td>
+          <td style="color:#aaa;font-size:0.78rem">${esc(r.raw_response || '')}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function toggleSql() {
+  const c = document.getElementById('sqlCard');
+  c.style.display = c.style.display === 'none' ? 'block' : 'none';
+}
+
+function copySQL() {
+  navigator.clipboard.writeText(document.getElementById('sqlText').textContent);
+  const btn = document.getElementById('copyBtn');
+  btn.textContent = '✅ Kopiert!';
+  setTimeout(() => btn.textContent = '📋 Kopieren', 2000);
+}
+
+function downloadScript() {
+  const agentName  = document.getElementById('agentName').value.trim()   || 'MeDB-Agent';
+  const meterType  = document.getElementById('meterType').value;
+  const cameraUrl  = document.getElementById('cameraUrl').value.trim();
+  const cameraUser = document.getElementById('cameraUser').value.trim()   || 'admin';
+  const cameraPass = document.getElementById('cameraPass').value;
+  const apiKey     = document.getElementById('anthropicKey').value.trim();
+  const interval   = parseInt(document.getElementById('interval').value);
+  const installDir = document.getElementById('installDir').value.trim()   || 'C:\\MeDB-Agents';
+
+  if (!cameraUrl) { alert('Bitte Kamera Snapshot-URL eingeben.'); return; }
+  if (!apiKey)    { alert('Bitte Anthropic API Key eingeben.'); return; }
+
+  const unitMap = { Wasserzähler: 'm3', Gaszähler: 'm3', Stromzähler: 'kWh', Wärmezähler: 'MWh' };
+  const unit = unitMap[meterType] || 'm3';
+  const taskName = 'MeDB-' + agentName.replace(/[^a-zA-Z0-9_-]/g, '-');
+
+  // Config JSON
+  const config = JSON.stringify({
+    agent_name: agentName,
+    meter_type: meterType,
+    unit,
+    camera_url: cameraUrl,
+    camera_user: cameraUser,
+    camera_pass: cameraPass,
+    anthropic_key: apiKey,
+    supabase_url: SUPABASE_URL,
+    supabase_anon_key: SUPABASE_KEY
+  }, null, 2);
+
+  // Python agent (lines array avoids template literal escaping issues)
+  const py = [
+    'import sys, os, json, base64, requests',
+    'from datetime import datetime, timezone',
+    '',
+    'script_dir = os.path.dirname(os.path.abspath(__file__))',
+    "with open(os.path.join(script_dir, 'config.json'), encoding='utf-8') as f:",
+    '    cfg = json.load(f)',
+    '',
+    '# 1. Snapshot von ONVIF-Kamera',
+    'try:',
+    "    r = requests.get(cfg['camera_url'], auth=(cfg['camera_user'], cfg['camera_pass']), timeout=15)",
+    '    r.raise_for_status()',
+    '    img_b64 = base64.b64encode(r.content).decode()',
+    'except Exception as e:',
+    "    print('ERROR camera: ' + str(e), flush=True)",
+    '    sys.exit(1)',
+    '',
+    '# 2. Claude Vision (Haiku) liest Zählerstand ab',
+    'try:',
+    '    import anthropic',
+    "    client = anthropic.Anthropic(api_key=cfg['anthropic_key'])",
+    '    msg = client.messages.create(',
+    "        model='claude-haiku-4-5-20251001',",
+    '        max_tokens=50,',
+    "        messages=[{'role': 'user', 'content': [",
+    "            {'type': 'image', 'source': {'type': 'base64', 'media_type': 'image/jpeg', 'data': img_b64}},",
+    "            {'type': 'text', 'text': 'Read the meter display value. Reply with ONLY the numeric reading, e.g. 1234.567 — no unit, no explanation.'}",
+    '        ]}]',
+    '    )',
+    '    raw = msg.content[0].text.strip()',
+    "    value = float(raw.replace(',', '.').replace(' ', ''))",
+    'except Exception as e:',
+    "    print('ERROR vision: ' + str(e), flush=True)",
+    '    sys.exit(1)',
+    '',
+    '# 3. In Supabase speichern',
+    'try:',
+    "    sb_url = cfg['supabase_url'].rstrip('/') + '/rest/v1/meter_readings'",
+    '    headers = {',
+    "        'apikey': cfg['supabase_anon_key'],",
+    "        'Authorization': 'Bearer ' + cfg['supabase_anon_key'],",
+    "        'Content-Type': 'application/json',",
+    "        'Prefer': 'return=minimal'",
+    '    }',
+    '    payload = {',
+    "        'agent_name': cfg['agent_name'],",
+    "        'meter_type': cfg['meter_type'],",
+    "        'value': value,",
+    "        'unit': cfg['unit'],",
+    "        'raw_response': raw,",
+    "        'captured_at': datetime.now(timezone.utc).isoformat()",
+    '    }',
+    '    resp = requests.post(sb_url, headers=headers, json=payload, timeout=10)',
+    '    resp.raise_for_status()',
+    "    ts = datetime.now().strftime('%Y-%m-%d %H:%M')",
+    "    print('OK ' + ts + ': ' + str(value) + ' ' + cfg['unit'], flush=True)",
+    'except Exception as e:',
+    "    print('ERROR supabase: ' + str(e), flush=True)",
+    '    sys.exit(1)',
+  ].join('\r\n');
+
+  // PS1 setup script
+  const ps1 = [
+    '# MeDB Computer Vision Agent Setup',
+    '# Agent:     ' + agentName,
+    '# Erstellt:  ' + new Date().toLocaleString('de-DE'),
+    '#',
+    '# Ausfuehren als Administrator:',
+    '#   Set-ExecutionPolicy Bypass -Scope Process -Force',
+    '#   .\\setup-medb-agent.ps1',
+    '',
+    '$ErrorActionPreference = "Stop"',
+    '$AgentName  = "' + agentName + '"',
+    '$InstallDir = "' + installDir + '"',
+    '$TaskName   = "' + taskName + '"',
+    '$IntervalMin = ' + interval,
+    '',
+    'Write-Host ""',
+    'Write-Host "=== MeDB Agent Setup: $AgentName ===" -ForegroundColor Cyan',
+    'Write-Host ""',
+    '',
+    '# 1. Python pruefen',
+    'try { python --version | Out-Null; Write-Host "OK  Python gefunden" -ForegroundColor Green }',
+    'catch { Write-Error "Python nicht gefunden. Bitte von https://python.org installieren."; exit 1 }',
+    '',
+    '# 2. Pakete installieren',
+    'Write-Host "... Python-Pakete installieren (anthropic, requests)"',
+    'python -m pip install anthropic requests --quiet',
+    'Write-Host "OK  Pakete installiert" -ForegroundColor Green',
+    '',
+    '# 3. Ordner anlegen',
+    'New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null',
+    'Write-Host "OK  Ordner: $InstallDir" -ForegroundColor Green',
+    '',
+    '# 4. config.json schreiben',
+    '$cfg = @\'',
+    config,
+    '\'@',
+    'Set-Content -Path "$InstallDir\\config.json" -Value $cfg -Encoding UTF8',
+    'Write-Host "OK  config.json" -ForegroundColor Green',
+    '',
+    '# 5. Python-Agent schreiben',
+    '$py = @\'',
+    py,
+    '\'@',
+    'Set-Content -Path "$InstallDir\\medb-meter-agent.py" -Value $py -Encoding UTF8',
+    'Write-Host "OK  medb-meter-agent.py" -ForegroundColor Green',
+    '',
+    '# 6. Windows Task Scheduler einrichten',
+    '$action   = New-ScheduledTaskAction -Execute "python" \\',
+    '              -Argument "`"$InstallDir\\medb-meter-agent.py`"" \\',
+    '              -WorkingDirectory $InstallDir',
+    '$trigger  = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) \\',
+    '              -RepetitionInterval (New-TimeSpan -Minutes $IntervalMin)',
+    '$settings = New-ScheduledTaskSettingsSet \\',
+    '              -RunOnlyIfNetworkAvailable \\',
+    '              -StartWhenAvailable \\',
+    '              -ExecutionTimeLimit (New-TimeSpan -Minutes 5)',
+    'Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger \\',
+    '  -Settings $settings -RunLevel Highest -Force | Out-Null',
+    'Write-Host "OK  Task Scheduler: $TaskName (alle $IntervalMin Min.)" -ForegroundColor Green',
+    '',
+    '# 7. Test-Lauf',
+    'Write-Host ""',
+    'Write-Host "--- Test-Lauf ---" -ForegroundColor Yellow',
+    'python "$InstallDir\\medb-meter-agent.py"',
+    'Write-Host ""',
+    'Write-Host "=== Setup abgeschlossen! ===" -ForegroundColor Green',
+    'Write-Host "Naechste automatische Ablesung in $IntervalMin Minuten."',
+    'Write-Host "Logs: Task Scheduler > Task-Planungsbibliothek > $TaskName > Verlauf"',
+    'Write-Host ""',
+  ].join('\r\n');
+
+  const blob = new Blob(['﻿' + ps1], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'setup-medb-agent.ps1';
+  a.click();
+}
+</script>
+</body>
+</html>
