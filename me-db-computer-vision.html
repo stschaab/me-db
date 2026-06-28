@@ -153,6 +153,49 @@
     </div>
   </div>
 
+  <!-- MANUAL READING -->
+  <div class="card">
+    <div class="card-title">📸 Manuelle Ablesung (Handy-Kamera)</div>
+    <p style="font-size:0.83rem;color:#888;margin-bottom:16px">
+      Foto mit dem Handy aufnehmen → Claude liest den Zählerstand automatisch ab → Wert wird gespeichert.
+    </p>
+
+    <div class="form-grid">
+      <div class="fg">
+        <label>Agent / Zählername</label>
+        <input id="manAgentName" type="text" value="Wasserzähler Keller" placeholder="z.B. Wasserzähler Keller">
+      </div>
+      <div class="fg">
+        <label>Zählertyp</label>
+        <select id="manMeterType">
+          <option value="Wasserzähler">Wasserzähler (m³)</option>
+          <option value="Stromzähler">Stromzähler (kWh)</option>
+          <option value="Gaszähler">Gaszähler (m³)</option>
+          <option value="Wärmezähler">Wärmezähler (MWh)</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-top:16px">
+      <input type="file" id="meterPhoto" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelected()">
+      <button class="btn btn-primary" onclick="document.getElementById('meterPhoto').click()">📷 Foto aufnehmen / auswählen</button>
+    </div>
+
+    <div id="photoPreview" style="display:none;margin-top:16px">
+      <img id="previewImg" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid #e0e0e0;display:block">
+      <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-primary" id="readBtn" onclick="readMeter()">🔍 Ablesen &amp; Speichern</button>
+        <span id="readStatus" style="font-size:0.88rem;color:#888"></span>
+      </div>
+    </div>
+
+    <div id="readResult" style="display:none;margin-top:14px;padding:14px 18px;background:#f0f9f0;border-radius:8px;border-left:3px solid #4caf50">
+      <div style="font-size:0.78rem;color:#888;margin-bottom:2px">Abgelesener Wert</div>
+      <div id="readValue" style="font-size:1.8rem;font-weight:700;color:#1a1a2e"></div>
+      <div id="readRaw" style="font-size:0.75rem;color:#aaa;margin-top:4px"></div>
+    </div>
+  </div>
+
   <!-- SQL BLOCK -->
   <div class="card" id="sqlCard" style="display:none">
     <div class="card-title">🗄️ Supabase Tabelle (bereits erstellt)</div>
@@ -221,6 +264,77 @@ async function loadReadings() {
 }
 
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Manual photo reading ───────────────────────────────────────────────────────
+const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
+const unitMap = { Wasserzähler: 'm3', Gaszähler: 'm3', Stromzähler: 'kWh', Wärmezähler: 'MWh' };
+
+let currentImageB64 = null;
+let currentMediaType = 'image/jpeg';
+
+function onPhotoSelected() {
+  const file = document.getElementById('meterPhoto').files[0];
+  if (!file) return;
+  currentMediaType = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    currentImageB64 = dataUrl.split(',')[1];
+    document.getElementById('previewImg').src = dataUrl;
+    document.getElementById('photoPreview').style.display = 'block';
+    document.getElementById('readResult').style.display = 'none';
+    document.getElementById('readStatus').textContent = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function readMeter() {
+  if (!currentImageB64) return;
+  const meterType = document.getElementById('manMeterType').value;
+  const agentName = document.getElementById('manAgentName').value.trim() || 'Manuell';
+  const btn = document.getElementById('readBtn');
+  const status = document.getElementById('readStatus');
+
+  btn.disabled = true;
+  status.textContent = '⏳ Claude liest ab…';
+
+  try {
+    const resp = await fetch(WORKER_URL + '/read-meter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_b64: currentImageB64, media_type: currentMediaType, meter_type: meterType })
+    });
+    const result = await resp.json();
+
+    if (!result.success) {
+      status.textContent = '❌ ' + (result.error || 'Fehler beim Ablesen');
+      btn.disabled = false;
+      return;
+    }
+
+    // Save to Supabase
+    const unit = unitMap[meterType] || 'm3';
+    const { error } = await db.from('meter_readings').insert({
+      agent_name: agentName,
+      meter_type: meterType,
+      value: result.value,
+      unit,
+      raw_response: result.raw,
+      captured_at: new Date().toISOString()
+    });
+
+    if (error) { status.textContent = '❌ Supabase Fehler: ' + error.message; btn.disabled = false; return; }
+
+    document.getElementById('readValue').textContent = result.value.toFixed(3) + ' ' + unit;
+    document.getElementById('readRaw').textContent = 'Claude: "' + result.raw + '"';
+    document.getElementById('readResult').style.display = 'block';
+    status.textContent = '✅ Gespeichert';
+    loadReadings();
+  } catch (e) {
+    status.textContent = '❌ ' + e.message;
+  }
+  btn.disabled = false;
+}
 
 function toggleSql() {
   const c = document.getElementById('sqlCard');
