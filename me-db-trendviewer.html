@@ -221,12 +221,49 @@ let catalogReady = false;
 // ── Auth ─────────────────────────────────────────────────────────────────────
 db.auth.getSession().then(async ({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
-  await loadLabParameters();
-  // ?add=<seriesId> from Indicators page — auto-add series on load
+  await Promise.all([loadLabParameters(), loadMeterCatalog()]);
   const addId = new URLSearchParams(location.search).get('add');
   if (addId) addSeries(addId);
 });
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+// ── Meter readings catalog ────────────────────────────────────────────────────
+async function loadMeterCatalog() {
+  const { data } = await db.from('meter_readings')
+    .select('agent_name,meter_type,unit')
+    .order('agent_name');
+  if (!data?.length) return;
+
+  const seen = {};
+  for (const r of data) {
+    if (!seen[r.agent_name]) seen[r.agent_name] = r;
+  }
+
+  const items = Object.values(seen).map(r => ({
+    id: 'meter_' + r.agent_name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, ''),
+    label: r.agent_name,
+    unit: r.unit || 'm3',
+    category: r.meter_type || '',
+    load: () => loadMeterData(r.agent_name),
+  }));
+
+  catalog.push({ group: 'Zähler', items });
+  renderPanel();
+}
+
+async function loadMeterData(agentName) {
+  const key = 'meter_' + agentName;
+  if (tableCache[key]) return tableCache[key];
+  const { data } = await db.from('meter_readings')
+    .select('captured_at,value')
+    .eq('agent_name', agentName)
+    .order('captured_at', { ascending: true });
+  tableCache[key] = (data || []).map(r => ({
+    x: new Date(r.captured_at).getTime(),
+    y: +r.value,
+  }));
+  return tableCache[key];
+}
 
 // ── Lab parameters ────────────────────────────────────────────────────────────
 async function loadLabParameters() {
