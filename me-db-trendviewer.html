@@ -439,6 +439,7 @@ async function addSeries(id) {
   });
 
   chart.update();
+  adaptTimeUnit();
   renderChips();
   renderPanel();
 }
@@ -500,9 +501,9 @@ function initChart() {
         x: {
           type: 'time',
           time: {
-            unit: 'month',
-            tooltipFormat: 'dd MMM yyyy',
-            displayFormats: { day: 'd MMM', week: 'd MMM', month: 'MMM yy', year: 'yyyy' },
+            unit: 'day',
+            tooltipFormat: 'dd MMM yyyy HH:mm',
+            displayFormats: { hour: 'HH:mm', day: 'd MMM', week: 'd MMM', month: 'MMM yy', year: 'yyyy' },
           },
           adapters: { date: {} },
           grid: { color: '#f0f0f0' },
@@ -550,7 +551,7 @@ function adaptTimeUnit() {
   if (!chart) return;
   const scale = chart.scales.x;
   const days = (scale.max - scale.min) / 86400000;
-  const unit = days > 500 ? 'year' : days > 60 ? 'month' : days > 14 ? 'week' : 'day';
+  const unit = days > 500 ? 'year' : days > 60 ? 'month' : days > 14 ? 'week' : days > 1 ? 'day' : 'hour';
   if (chart.options.scales.x.time.unit !== unit) {
     chart.options.scales.x.time.unit = unit;
     chart.update('none');
