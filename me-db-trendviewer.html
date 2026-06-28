@@ -448,12 +448,18 @@ async function addSeries(id) {
 
   if (!chart) initChart();
 
-  // Each series gets its own hidden y-axis → independent auto-scale
+  // Each series gets its own y-axis → independent auto-scale
   const axisId = safeId(id);
+  const seriesCount = Object.keys(activeSeries).length;
+  const position = seriesCount % 2 === 0 ? 'right' : 'left';
   chart.options.scales[axisId] = {
     type: 'linear',
-    display: false,
+    display: true,
+    position,
     beginAtZero: false,
+    title: { display: true, text: def.unit, color: color, font: { size: 11, weight: '600' } },
+    ticks: { color, font: { size: 10 }, maxTicksLimit: 6 },
+    grid: { drawOnChartArea: position === 'left' },
   };
 
   chart.data.datasets.push({
@@ -551,6 +557,7 @@ function initChart() {
           },
           adapters: { date: {} },
           grid: { color: '#f0f0f0' },
+          title: { display: true, text: 'Datum', color: '#aaa', font: { size: 11 } },
           ticks: { maxRotation: 0, color: '#888', font: { size: 11 } },
         },
       },
