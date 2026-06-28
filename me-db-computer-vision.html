@@ -20,9 +20,8 @@
     h1 { font-size: 1.4rem; margin-bottom: 4px; }
     .subtitle { color: #777; font-size: 0.85rem; margin-bottom: 22px; }
     .card { background: white; border-radius: 12px; padding: 22px; box-shadow: 0 1px 6px rgba(0,0,0,0.08); margin-bottom: 18px; }
-    .card-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-    .card-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-    /* FORM */
+    .card-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .card-title { font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
     .fg { display: flex; flex-direction: column; gap: 4px; }
@@ -30,7 +29,6 @@
     label { font-size: 0.74rem; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.03em; }
     input, select { border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 8px 12px; font-size: 0.88rem; outline: none; transition: border 0.15s; width: 100%; }
     input:focus, select:focus { border-color: #1a1a2e; }
-    /* BUTTONS */
     .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 8px; font-size: 0.86rem; font-weight: 600; cursor: pointer; border: none; transition: background 0.15s; }
     .btn-primary { background: #1a1a2e; color: white; }
     .btn-primary:hover { background: #2d2d50; }
@@ -39,35 +37,28 @@
     .btn-sm { padding: 5px 11px; font-size: 0.78rem; border-radius: 6px; }
     .btn-danger { background: #ffebee; color: #c62828; border: none; }
     .btn-danger:hover { background: #ffcdd2; }
-    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
-    /* TABLE */
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
     th { text-align: left; padding: 8px 12px; border-bottom: 2px solid #f0f0f0; font-size: 0.72rem; text-transform: uppercase; color: #999; font-weight: 700; }
     td { padding: 10px 12px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
-    /* TOGGLE */
     .toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
     .toggle input { opacity: 0; width: 0; height: 0; }
     .slider { position: absolute; cursor: pointer; inset: 0; background: #ccc; border-radius: 20px; transition: 0.2s; }
     .slider:before { position: absolute; content: ''; height: 14px; width: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.2s; }
     input:checked + .slider { background: #4caf50; }
     input:checked + .slider:before { transform: translateX(16px); }
-    /* INLINE FORM */
-    .fn-form { background: #f9f9fb; border: 1.5px solid #e0e0e0; border-radius: 10px; padding: 18px; margin-top: 14px; display: none; }
-    .fn-form.open { display: block; }
-    /* STATUS / TIP */
-    .empty { text-align: center; padding: 28px; color: #ccc; font-size: 0.88rem; }
+    .inline-form { background: #f9f9fb; border: 1.5px solid #e0e0e0; border-radius: 10px; padding: 18px; margin-top: 14px; display: none; }
+    .inline-form.open { display: block; }
+    .inline-form-title { font-size: 0.85rem; font-weight: 700; margin-bottom: 14px; }
+    .empty { text-align: center; padding: 24px; color: #ccc; font-size: 0.87rem; }
     .tip { background: #fffbea; border-left: 3px solid #f0a500; padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 0.82rem; color: #666; margin-top: 14px; line-height: 1.5; }
-    .tip a { color: #1a1a2e; font-weight: 600; }
-    .badge { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 8px; background: #e8f5e9; color: #2e7d32; }
-    .badge.off { background: #f5f5f5; color: #aaa; }
-    /* PHOTO */
-    pre.sql { background: #f8f8f8; border-radius: 8px; padding: 14px 16px; font-family: monospace; font-size: 0.76rem; color: #333; white-space: pre-wrap; }
+    .cam-badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: #e3f2fd; color: #1565c0; margin-right: 4px; }
     .val-badge { font-weight: 700; }
+    .icon-btn { border: none; background: none; cursor: pointer; font-size: 1rem; padding: 2px 5px; }
   </style>
 </head>
 <body>
-
 <nav>
   <a class="nav-brand" href="me-db-dashboard.html">MeDB</a>
   <span class="nav-crumb">› System › Computer Vision</span>
@@ -85,28 +76,77 @@
   <a href="me-db-supplements.html">💊 Supplements</a>
   <a href="me-db-tasks.html">✅ Tasks</a>
   <a href="me-db-chat.html">💬 KI-Chat</a>
-  <a href="me-db-setup.html">⚙️ Setup</a>
 </div>
 
 <main>
   <h1>🎥 Computer Vision</h1>
-  <p class="subtitle">ONVIF-Kamera + Claude Vision · Automatische Zählerablesung · Monitoring Functions verwalten</p>
+  <p class="subtitle">ONVIF-Kameras · Monitoring Functions · Automatische Zählerablesung via Claude Vision</p>
+
+  <!-- CAMERAS -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">📷 Kameras</div>
+      <button class="btn btn-primary btn-sm" onclick="openCamForm()">+ Neue Kamera</button>
+    </div>
+    <div id="camList"><div class="empty">Noch keine Kameras angelegt.</div></div>
+    <div class="inline-form" id="camForm">
+      <div class="inline-form-title" id="camFormTitle">Neue Kamera</div>
+      <div class="form-grid">
+        <div class="fg">
+          <label>Nr.</label>
+          <input id="cNum" type="number" min="1" placeholder="1">
+        </div>
+        <div class="fg">
+          <label>Name / Standort</label>
+          <input id="cName" type="text" placeholder="z.B. Keller">
+        </div>
+        <div class="fg full">
+          <label>Modell</label>
+          <input id="cModel" type="text" placeholder="z.B. Reolink Argus PT">
+        </div>
+        <div class="fg full">
+          <label>Snapshot-URL</label>
+          <input id="cUrl" type="url" placeholder="http://192.168.1.x/onvif/snapshot">
+        </div>
+        <div class="fg">
+          <label>Benutzername</label>
+          <input id="cUser" type="text" value="admin">
+        </div>
+        <div class="fg">
+          <label>Passwort</label>
+          <input id="cPass" type="password">
+        </div>
+        <div class="fg" style="padding-top:18px">
+          <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:0.88rem;cursor:pointer">
+            <input id="cActive" type="checkbox" checked style="width:auto"> Aktiv
+          </label>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveCam()">💾 Speichern</button>
+        <button class="btn btn-outline" onclick="closeCamForm()">Abbrechen</button>
+        <button class="btn btn-danger btn-sm" id="delCamBtn" style="display:none;margin-left:auto" onclick="deleteCam()">🗑️ Löschen</button>
+      </div>
+    </div>
+  </div>
 
   <!-- MONITORING FUNCTIONS -->
   <div class="card">
-    <div class="card-title-row">
-      <div class="card-title" style="margin-bottom:0">📋 Monitoring Functions</div>
-      <button class="btn btn-primary btn-sm" onclick="openForm()">+ Neue Function</button>
+    <div class="card-hdr">
+      <div class="card-title">📋 Monitoring Functions</div>
+      <button class="btn btn-primary btn-sm" onclick="openFnForm()">+ Neue Function</button>
     </div>
     <div id="fnList"><div class="empty">Noch keine Monitoring Functions angelegt.</div></div>
-
-    <!-- Inline Create/Edit Form -->
-    <div class="fn-form" id="fnForm">
-      <div style="font-size:0.85rem;font-weight:700;margin-bottom:14px" id="fnFormTitle">Neue Monitoring Function</div>
+    <div class="inline-form" id="fnForm">
+      <div class="inline-form-title" id="fnFormTitle">Neue Monitoring Function</div>
       <div class="form-grid">
         <div class="fg">
           <label>Name</label>
-          <input id="fName" type="text" placeholder="z.B. Wasserzähler Keller">
+          <input id="fName" type="text" placeholder="z.B. Wasserzähler">
+        </div>
+        <div class="fg">
+          <label>Kamera</label>
+          <select id="fCamId"><option value="">– Kamera wählen –</option></select>
         </div>
         <div class="fg">
           <label>Zählertyp</label>
@@ -122,7 +162,11 @@
           <input id="fUnit" type="text" value="m3">
         </div>
         <div class="fg">
-          <label>Ablesintervall</label>
+          <label>PTZ Preset (optional)</label>
+          <input id="fPtz" type="number" min="1" max="255" placeholder="leer = kein PTZ">
+        </div>
+        <div class="fg">
+          <label>Intervall</label>
           <select id="fInterval">
             <option value="30">Alle 30 Min.</option>
             <option value="60" selected>Stündlich</option>
@@ -131,43 +175,26 @@
             <option value="1440">Täglich</option>
           </select>
         </div>
-        <div class="fg full">
-          <label>Kamera Snapshot-URL</label>
-          <input id="fCameraUrl" type="url" placeholder="http://192.168.1.100/onvif/snapshot">
-        </div>
-        <div class="fg">
-          <label>Kamera Benutzername</label>
-          <input id="fCameraUser" type="text" value="admin">
-        </div>
-        <div class="fg">
-          <label>Kamera Passwort</label>
-          <input id="fCameraPass" type="password">
-        </div>
-        <div class="fg">
-          <label>PTZ Preset (optional)</label>
-          <input id="fPtz" type="number" min="1" max="255" placeholder="leer = keine PTZ-Bewegung">
-        </div>
-        <div class="fg" style="align-items:flex-start;padding-top:20px">
+        <div class="fg" style="padding-top:18px">
           <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:0.88rem;cursor:pointer">
-            <input id="fActive" type="checkbox" checked style="width:auto">
-            Aktiv
+            <input id="fActive" type="checkbox" checked style="width:auto"> Aktiv
           </label>
         </div>
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="saveFunction()">💾 Speichern</button>
-        <button class="btn btn-outline" onclick="closeForm()">Abbrechen</button>
-        <button class="btn btn-danger btn-sm" id="deleteFnBtn" style="display:none;margin-left:auto" onclick="deleteFunction()">🗑️ Löschen</button>
+        <button class="btn btn-primary" onclick="saveFn()">💾 Speichern</button>
+        <button class="btn btn-outline" onclick="closeFnForm()">Abbrechen</button>
+        <button class="btn btn-danger btn-sm" id="delFnBtn" style="display:none;margin-left:auto" onclick="deleteFn()">🗑️ Löschen</button>
       </div>
     </div>
   </div>
 
-  <!-- SETUP AGENT -->
+  <!-- SETUP -->
   <div class="card">
-    <div class="card-title">⚙️ Agent einrichten (einmalig pro PC)</div>
-    <p style="font-size:0.83rem;color:#888;margin-bottom:16px">
-      Das Script installiert einen dauerhaft laufenden Python-Dienst. Kein API-Key nötig —
-      die KI-Ablesung läuft über den Cloudflare Worker, der den Anthropic Key bereits sicher gespeichert hat.
+    <div class="card-hdr"><div class="card-title">⚙️ Agent einrichten (einmalig pro PC)</div></div>
+    <p style="font-size:0.83rem;color:#888;margin-bottom:14px">
+      Dauerhaft laufender Python-Dienst. Lädt alle aktiven Monitoring Functions + Kamera-Credentials aus Supabase.
+      KI-Ablesung über Cloudflare Worker — kein API Key lokal nötig.
     </p>
     <div class="form-grid">
       <div class="fg full">
@@ -175,9 +202,7 @@
         <input id="setupDir" type="text" value="C:\MeDB-Agents">
       </div>
     </div>
-    <div class="tip">
-      💡 Nur Python nötig · PC muss durchlaufen (Bildschirmsperre OK) · Agent startet automatisch nach Reboot
-    </div>
+    <div class="tip">💡 PC muss durchlaufen (Bildschirmsperre OK) · Startet automatisch nach Reboot · Nur Python + requests + schedule nötig</div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="downloadSetup()">📥 Setup-Skript herunterladen (.ps1)</button>
     </div>
@@ -185,26 +210,26 @@
 
   <!-- MANUAL READING -->
   <div class="card">
-    <div class="card-title">📸 Manuelle Ablesung (Handy-Kamera)</div>
+    <div class="card-hdr"><div class="card-title">📸 Manuelle Ablesung (Handy-Kamera)</div></div>
     <div class="form-grid">
       <div class="fg">
-        <label>Agent / Zählername</label>
+        <label>Name / Agent</label>
         <input id="manAgentName" type="text" value="Wasserzähler Keller">
       </div>
       <div class="fg">
         <label>Zählertyp</label>
         <select id="manMeterType">
           <option value="Wasserzähler">Wasserzähler (m³)</option>
-          <option value="Stromzähler">Stromzähler (kWh)</option>
           <option value="Gaszähler">Gaszähler (m³)</option>
+          <option value="Stromzähler">Stromzähler (kWh)</option>
           <option value="Wärmezähler">Wärmezähler (MWh)</option>
         </select>
       </div>
       <div class="fg full">
         <label>Modell</label>
         <select id="manModel">
-          <option value="claude-sonnet-4-6">Sonnet 4.6 — genauer, ~0,01 € (empfohlen)</option>
-          <option value="claude-haiku-4-5-20251001">Haiku 4.5 — schnell, ~0,001 €</option>
+          <option value="claude-sonnet-4-6">Sonnet 4.6 — genauer (empfohlen)</option>
+          <option value="claude-haiku-4-5-20251001">Haiku 4.5 — schnell</option>
         </select>
       </div>
     </div>
@@ -213,7 +238,7 @@
       <button class="btn btn-primary" onclick="document.getElementById('meterPhoto').click()">📷 Foto aufnehmen / auswählen</button>
     </div>
     <div id="photoPreview" style="display:none;margin-top:14px">
-      <img id="previewImg" style="max-width:100%;max-height:280px;border-radius:8px;border:1px solid #e0e0e0;display:block">
+      <img id="previewImg" style="max-width:100%;max-height:260px;border-radius:8px;border:1px solid #e0e0e0;display:block">
       <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-primary" id="readBtn" onclick="readMeter()">🔍 Ablesen</button>
         <span id="readStatus" style="font-size:0.88rem;color:#888"></span>
@@ -232,8 +257,8 @@
 
   <!-- READINGS -->
   <div class="card">
-    <div class="card-title">📊 Letzte Ablesungen</div>
-    <div id="readings"><div class="empty">Noch keine Ablesungen vorhanden.</div></div>
+    <div class="card-hdr"><div class="card-title">📊 Letzte Ablesungen</div></div>
+    <div id="readings"><div class="empty">Noch keine Ablesungen.</div></div>
   </div>
 </main>
 
@@ -250,12 +275,10 @@ document.addEventListener('click', e => {
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
-  loadFunctions();
-  loadReadings();
+  loadCams(); loadFunctions(); loadReadings();
 });
 
 function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
 async function ensureSession() {
   const { data: { session } } = await db.auth.getSession();
   if (session) return true;
@@ -264,113 +287,174 @@ async function ensureSession() {
   return true;
 }
 
-// ── Monitoring Functions CRUD ─────────────────────────────────────────────────
-let editId = null;
+// ── Cameras ───────────────────────────────────────────────────────────────────
+let cams = [];
+let editCamId = null;
 
-async function loadFunctions() {
-  const { data, error } = await db.from('monitoring_functions').select('*').order('name');
-  const el = document.getElementById('fnList');
+async function loadCams() {
+  const { data, error } = await db.from('cameras').select('*').order('number');
+  cams = data || [];
+  const el = document.getElementById('camList');
   if (error) { el.innerHTML = `<div class="empty">Fehler: ${esc(error.message)}</div>`; return; }
-  if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Monitoring Functions. Klicke "+ Neue Function".</div>'; return; }
-
+  if (!cams.length) { el.innerHTML = '<div class="empty">Noch keine Kameras. "+ Neue Kamera" klicken.</div>'; return; }
   el.innerHTML = `<table>
-    <thead><tr><th>Name</th><th>Typ</th><th>Kamera</th><th>PTZ</th><th>Intervall</th><th>Aktiv</th><th></th></tr></thead>
-    <tbody>${data.map(f => `
-      <tr>
-        <td><strong>${esc(f.name)}</strong></td>
-        <td>${esc(f.meter_type)} <span style="color:#aaa;font-size:0.78rem">${esc(f.unit)}</span></td>
-        <td style="font-size:0.78rem;color:#888;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.camera_url)}</td>
-        <td style="color:#888;font-size:0.82rem">${f.ptz_preset ?? '–'}</td>
-        <td style="color:#888;font-size:0.82rem">${f.interval_min} min</td>
-        <td>
-          <label class="toggle"><input type="checkbox" ${f.active ? 'checked' : ''} onchange="toggleActive('${f.id}', this.checked)"><span class="slider"></span></label>
-        </td>
-        <td style="white-space:nowrap">
-          <button onclick="openForm('${f.id}')" style="border:none;background:none;cursor:pointer;font-size:1rem;padding:2px 6px" title="Bearbeiten">✏️</button>
-        </td>
-      </tr>`).join('')}
-    </tbody></table>`;
+    <thead><tr><th>Nr.</th><th>Name</th><th>Modell</th><th>URL</th><th>Aktiv</th><th></th></tr></thead>
+    <tbody>${cams.map(c => `<tr>
+      <td><strong>#${c.number}</strong></td>
+      <td>${esc(c.name)}</td>
+      <td style="color:#888;font-size:0.82rem">${esc(c.model || '–')}</td>
+      <td style="color:#888;font-size:0.78rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.camera_url)}</td>
+      <td><label class="toggle"><input type="checkbox" ${c.active ? 'checked' : ''} onchange="toggleCam('${c.id}',this.checked)"><span class="slider"></span></label></td>
+      <td><button class="icon-btn" onclick="openCamForm('${c.id}')" title="Bearbeiten">✏️</button></td>
+    </tr>`).join('')}</tbody></table>`;
+  refreshCamDropdown();
 }
 
-function openForm(id) {
-  editId = id || null;
-  const form = document.getElementById('fnForm');
-  const title = document.getElementById('fnFormTitle');
-  const delBtn = document.getElementById('deleteFnBtn');
+function refreshCamDropdown() {
+  const sel = document.getElementById('fCamId');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">– Kamera wählen –</option>' +
+    cams.map(c => `<option value="${c.id}">#${c.number} ${esc(c.name)}</option>`).join('');
+  if (prev) sel.value = prev;
+}
 
+function openCamForm(id) {
+  editCamId = id || null;
+  document.getElementById('camFormTitle').textContent = id ? 'Kamera bearbeiten' : 'Neue Kamera';
+  document.getElementById('delCamBtn').style.display = id ? 'inline-flex' : 'none';
   if (id) {
-    title.textContent = 'Monitoring Function bearbeiten';
-    delBtn.style.display = 'inline-flex';
-    db.from('monitoring_functions').select('*').eq('id', id).single().then(({ data: f }) => {
-      if (!f) return;
-      document.getElementById('fName').value       = f.name;
-      document.getElementById('fMeterType').value  = f.meter_type;
-      document.getElementById('fUnit').value        = f.unit;
-      document.getElementById('fInterval').value    = f.interval_min;
-      document.getElementById('fCameraUrl').value   = f.camera_url;
-      document.getElementById('fCameraUser').value  = f.camera_user;
-      document.getElementById('fCameraPass').value  = f.camera_pass;
-      document.getElementById('fPtz').value         = f.ptz_preset ?? '';
-      document.getElementById('fActive').checked    = f.active;
-    });
+    const c = cams.find(x => x.id === id);
+    if (c) {
+      document.getElementById('cNum').value   = c.number;
+      document.getElementById('cName').value  = c.name;
+      document.getElementById('cModel').value = c.model || '';
+      document.getElementById('cUrl').value   = c.camera_url;
+      document.getElementById('cUser').value  = c.camera_user;
+      document.getElementById('cPass').value  = c.camera_pass;
+      document.getElementById('cActive').checked = c.active;
+    }
   } else {
-    title.textContent = 'Neue Monitoring Function';
-    delBtn.style.display = 'none';
-    ['fName','fCameraUrl','fCameraPass','fPtz'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('fCameraUser').value = 'admin';
-    document.getElementById('fActive').checked = true;
-    syncUnit();
+    ['cNum','cName','cModel','cUrl','cPass'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('cUser').value = 'admin';
+    document.getElementById('cActive').checked = true;
   }
+  const form = document.getElementById('camForm');
   form.classList.add('open');
   form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+function closeCamForm() { document.getElementById('camForm').classList.remove('open'); editCamId = null; }
 
-function closeForm() {
-  document.getElementById('fnForm').classList.remove('open');
-  editId = null;
+async function saveCam() {
+  if (!await ensureSession()) return;
+  const payload = {
+    number: parseInt(document.getElementById('cNum').value) || 1,
+    name: document.getElementById('cName').value.trim(),
+    model: document.getElementById('cModel').value.trim() || null,
+    camera_url: document.getElementById('cUrl').value.trim(),
+    camera_user: document.getElementById('cUser').value.trim() || 'admin',
+    camera_pass: document.getElementById('cPass').value,
+    active: document.getElementById('cActive').checked,
+  };
+  if (!payload.name || !payload.camera_url) { alert('Name und URL sind Pflicht.'); return; }
+  const { error } = editCamId
+    ? await db.from('cameras').update(payload).eq('id', editCamId)
+    : await db.from('cameras').insert(payload);
+  if (error) { alert('Fehler: ' + error.message); return; }
+  closeCamForm(); loadCams();
+}
+async function toggleCam(id, active) {
+  if (!await ensureSession()) return;
+  await db.from('cameras').update({ active }).eq('id', id);
+}
+async function deleteCam() {
+  if (!editCamId || !confirm('Kamera löschen? Zugehörige Monitoring Functions verlieren den Kamerabezug.')) return;
+  if (!await ensureSession()) return;
+  await db.from('cameras').delete().eq('id', editCamId);
+  closeCamForm(); loadCams();
 }
 
+// ── Monitoring Functions ───────────────────────────────────────────────────────
+let editFnId = null;
+
+async function loadFunctions() {
+  const { data, error } = await db.from('monitoring_functions')
+    .select('*, camera:camera_id(number,name)').order('name');
+  const el = document.getElementById('fnList');
+  if (error) { el.innerHTML = `<div class="empty">Fehler: ${esc(error.message)}</div>`; return; }
+  if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Monitoring Functions.</div>'; return; }
+  el.innerHTML = `<table>
+    <thead><tr><th>Name</th><th>Kamera</th><th>Typ</th><th>PTZ</th><th>Intervall</th><th>Aktiv</th><th></th></tr></thead>
+    <tbody>${data.map(f => `<tr>
+      <td><strong>${esc(f.name)}</strong></td>
+      <td>${f.camera ? `<span class="cam-badge">#${f.camera.number}</span>${esc(f.camera.name)}` : '<span style="color:#ccc">–</span>'}</td>
+      <td style="font-size:0.82rem">${esc(f.meter_type)} <span style="color:#aaa">${esc(f.unit)}</span></td>
+      <td style="color:#888;font-size:0.82rem">${f.ptz_preset ?? '–'}</td>
+      <td style="color:#888;font-size:0.82rem">${f.interval_min} min</td>
+      <td><label class="toggle"><input type="checkbox" ${f.active ? 'checked' : ''} onchange="toggleFn('${f.id}',this.checked)"><span class="slider"></span></label></td>
+      <td><button class="icon-btn" onclick="openFnForm('${f.id}')" title="Bearbeiten">✏️</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+function openFnForm(id) {
+  editFnId = id || null;
+  refreshCamDropdown();
+  document.getElementById('fnFormTitle').textContent = id ? 'Monitoring Function bearbeiten' : 'Neue Monitoring Function';
+  document.getElementById('delFnBtn').style.display = id ? 'inline-flex' : 'none';
+  if (id) {
+    db.from('monitoring_functions').select('*').eq('id', id).single().then(({ data: f }) => {
+      if (!f) return;
+      document.getElementById('fName').value      = f.name;
+      document.getElementById('fCamId').value     = f.camera_id || '';
+      document.getElementById('fMeterType').value = f.meter_type;
+      document.getElementById('fUnit').value      = f.unit;
+      document.getElementById('fPtz').value       = f.ptz_preset ?? '';
+      document.getElementById('fInterval').value  = f.interval_min;
+      document.getElementById('fActive').checked  = f.active;
+    });
+  } else {
+    ['fName','fPtz'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('fCamId').value = '';
+    document.getElementById('fActive').checked = true;
+    syncUnit();
+  }
+  const form = document.getElementById('fnForm');
+  form.classList.add('open');
+  form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function closeFnForm() { document.getElementById('fnForm').classList.remove('open'); editFnId = null; }
 function syncUnit() {
-  const map = { Wasserzähler: 'm3', Gaszähler: 'm3', Stromzähler: 'kWh', Wärmezähler: 'MWh' };
+  const map = { Wasserzähler:'m3', Gaszähler:'m3', Stromzähler:'kWh', Wärmezähler:'MWh' };
   document.getElementById('fUnit').value = map[document.getElementById('fMeterType').value] || 'm3';
 }
 
-async function saveFunction() {
+async function saveFn() {
   if (!await ensureSession()) return;
   const payload = {
     name:         document.getElementById('fName').value.trim(),
+    camera_id:    document.getElementById('fCamId').value || null,
     meter_type:   document.getElementById('fMeterType').value,
     unit:         document.getElementById('fUnit').value.trim(),
     interval_min: parseInt(document.getElementById('fInterval').value),
-    camera_url:   document.getElementById('fCameraUrl').value.trim(),
-    camera_user:  document.getElementById('fCameraUser').value.trim() || 'admin',
-    camera_pass:  document.getElementById('fCameraPass').value,
     ptz_preset:   document.getElementById('fPtz').value ? parseInt(document.getElementById('fPtz').value) : null,
     active:       document.getElementById('fActive').checked,
     updated_at:   new Date().toISOString(),
   };
-  if (!payload.name || !payload.camera_url) { alert('Name und Kamera-URL sind Pflichtfelder.'); return; }
-
-  const { error } = editId
-    ? await db.from('monitoring_functions').update(payload).eq('id', editId)
+  if (!payload.name) { alert('Name ist Pflicht.'); return; }
+  const { error } = editFnId
+    ? await db.from('monitoring_functions').update(payload).eq('id', editFnId)
     : await db.from('monitoring_functions').insert(payload);
-
   if (error) { alert('Fehler: ' + error.message); return; }
-  closeForm();
-  loadFunctions();
+  closeFnForm(); loadFunctions();
 }
-
-async function toggleActive(id, active) {
+async function toggleFn(id, active) {
   if (!await ensureSession()) return;
   await db.from('monitoring_functions').update({ active }).eq('id', id);
 }
-
-async function deleteFunction() {
-  if (!editId || !confirm('Monitoring Function löschen?')) return;
+async function deleteFn() {
+  if (!editFnId || !confirm('Monitoring Function löschen?')) return;
   if (!await ensureSession()) return;
-  await db.from('monitoring_functions').delete().eq('id', editId);
-  closeForm();
-  loadFunctions();
+  await db.from('monitoring_functions').delete().eq('id', editFnId);
+  closeFnForm(); loadFunctions();
 }
 
 // ── Readings ──────────────────────────────────────────────────────────────────
@@ -378,21 +462,19 @@ async function loadReadings() {
   const { data, error } = await db.from('meter_readings').select('*').order('captured_at', { ascending: false }).limit(50);
   const el = document.getElementById('readings');
   if (error) { el.innerHTML = `<div class="empty">Fehler: ${esc(error.message)}</div>`; return; }
-  if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Ablesungen vorhanden.</div>'; return; }
+  if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Ablesungen.</div>'; return; }
   el.innerHTML = `<table>
     <thead><tr><th>Zeitstempel</th><th>Name</th><th>Typ</th><th>Wert</th><th></th></tr></thead>
-    <tbody>${data.map(r => `
-      <tr id="row_${r.id}">
-        <td>${new Date(r.captured_at).toLocaleString('de-DE')}</td>
-        <td>${esc(r.agent_name)}</td>
-        <td>${esc(r.meter_type)}</td>
-        <td id="val_${r.id}"><span class="val-badge">${(+r.value).toFixed(3)}</span> <span style="color:#888;font-size:0.8rem">${esc(r.unit)}</span></td>
-        <td style="white-space:nowrap">
-          <button onclick="editReading('${r.id}','${r.value}','${esc(r.unit)}')" style="border:none;background:none;cursor:pointer;font-size:1rem;padding:2px 5px" title="Bearbeiten">✏️</button>
-          <button onclick="deleteReading('${r.id}')" style="border:none;background:none;cursor:pointer;font-size:1rem;padding:2px 5px" title="Löschen">🗑️</button>
-        </td>
-      </tr>`).join('')}
-    </tbody></table>`;
+    <tbody>${data.map(r => `<tr id="row_${r.id}">
+      <td>${new Date(r.captured_at).toLocaleString('de-DE')}</td>
+      <td>${esc(r.agent_name)}</td>
+      <td>${esc(r.meter_type)}</td>
+      <td id="val_${r.id}"><span class="val-badge">${(+r.value).toFixed(3)}</span> <span style="color:#888;font-size:0.8rem">${esc(r.unit)}</span></td>
+      <td style="white-space:nowrap">
+        <button class="icon-btn" onclick="editReading('${r.id}','${r.value}','${esc(r.unit)}')" title="Bearbeiten">✏️</button>
+        <button class="icon-btn" onclick="deleteReading('${r.id}')" title="Löschen">🗑️</button>
+      </td>
+    </tr>`).join('')}</tbody></table>`;
 }
 
 function editReading(id, value, unit) {
@@ -404,7 +486,6 @@ function editReading(id, value, unit) {
     <button onclick="loadReadings()" style="border:none;background:#eee;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:0.78rem">✕</button>`;
   document.getElementById('edit_' + id).focus();
 }
-
 async function saveEdit(id) {
   const val = parseFloat(document.getElementById('edit_' + id).value);
   if (isNaN(val)) return;
@@ -413,17 +494,15 @@ async function saveEdit(id) {
   if (error) { alert('Fehler: ' + error.message); return; }
   loadReadings();
 }
-
 async function deleteReading(id) {
   if (!confirm('Ablesung löschen?')) return;
   if (!await ensureSession()) return;
-  const { error } = await db.from('meter_readings').delete().eq('id', id);
-  if (error) { alert('Fehler: ' + error.message); return; }
+  await db.from('meter_readings').delete().eq('id', id);
   document.getElementById('row_' + id)?.remove();
 }
 
-// ── Manual photo reading ──────────────────────────────────────────────────────
-const unitMap = { Wasserzähler: 'm3', Gaszähler: 'm3', Stromzähler: 'kWh', Wärmezähler: 'MWh' };
+// ── Manual photo ──────────────────────────────────────────────────────────────
+const unitMap = { Wasserzähler:'m3', Gaszähler:'m3', Stromzähler:'kWh', Wärmezähler:'MWh' };
 let currentImageB64 = null, currentMediaType = 'image/jpeg';
 
 function onPhotoSelected() {
@@ -440,13 +519,11 @@ function onPhotoSelected() {
   };
   reader.readAsDataURL(file);
 }
-
 async function readMeter() {
   if (!currentImageB64) return;
   const meterType = document.getElementById('manMeterType').value;
   const model     = document.getElementById('manModel').value;
-  const btn       = document.getElementById('readBtn');
-  const status    = document.getElementById('readStatus');
+  const btn = document.getElementById('readBtn'), status = document.getElementById('readStatus');
   btn.disabled = true; status.textContent = '⏳ Claude liest ab…';
   try {
     const resp = await fetch(WORKER_URL + '/read-meter', {
@@ -458,42 +535,36 @@ async function readMeter() {
     const unit = unitMap[meterType] || 'm3';
     document.getElementById('readValue').value = result.value.toFixed(3);
     document.getElementById('readUnit').textContent = unit;
-    document.getElementById('readRaw').textContent = 'Claude las: "' + result.raw + '" — bitte prüfen, dann Speichern.';
+    document.getElementById('readRaw').textContent = 'Claude: "' + result.raw + '" — prüfen, dann Speichern.';
     document.getElementById('readResult').style.display = 'block';
     status.textContent = '✅ Abgelesen';
   } catch (e) { status.textContent = '❌ ' + e.message; }
   btn.disabled = false;
 }
-
 async function saveReading() {
   const meterType = document.getElementById('manMeterType').value;
   const agentName = document.getElementById('manAgentName').value.trim() || 'Manuell';
-  const value     = parseFloat(document.getElementById('readValue').value);
-  const unit      = unitMap[meterType] || 'm3';
-  const raw       = document.getElementById('readRaw').textContent;
-  const saveBtn   = document.getElementById('saveBtn');
+  const value = parseFloat(document.getElementById('readValue').value);
+  const unit  = unitMap[meterType] || 'm3';
   if (isNaN(value)) { alert('Bitte gültigen Wert eingeben.'); return; }
   if (!await ensureSession()) return;
-  saveBtn.disabled = true; saveBtn.textContent = '⏳…';
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = '⏳…';
   const { error } = await db.from('meter_readings').insert({
-    agent_name: agentName, meter_type: meterType, value, unit, raw_response: raw,
+    agent_name: agentName, meter_type: meterType, value, unit,
+    raw_response: document.getElementById('readRaw').textContent,
     captured_at: new Date().toISOString()
   });
-  if (error) { alert('Fehler: ' + error.message); saveBtn.disabled = false; saveBtn.textContent = '💾 Speichern'; return; }
-  saveBtn.textContent = '✅ Gespeichert';
+  if (error) { alert('Fehler: ' + error.message); btn.disabled = false; btn.textContent = '💾 Speichern'; return; }
+  btn.textContent = '✅ Gespeichert';
   loadReadings();
-  setTimeout(() => { saveBtn.textContent = '💾 Speichern'; saveBtn.disabled = false; }, 3000);
+  setTimeout(() => { btn.textContent = '💾 Speichern'; btn.disabled = false; }, 3000);
 }
 
-// ── Setup Script Generator ────────────────────────────────────────────────────
+// ── Setup Script ──────────────────────────────────────────────────────────────
 function downloadSetup() {
   const installDir = document.getElementById('setupDir').value.trim() || 'C:\\MeDB-Agents';
-
-  const config = JSON.stringify({
-    worker_url: WORKER_URL,
-    supabase_url: SUPABASE_URL,
-    supabase_anon_key: SUPABASE_KEY
-  }, null, 2);
+  const config = JSON.stringify({ worker_url: WORKER_URL, supabase_url: SUPABASE_URL, supabase_anon_key: SUPABASE_KEY }, null, 2);
 
   const py = [
     'import sys, os, json, base64, requests, time',
@@ -504,28 +575,33 @@ function downloadSetup() {
     '    cfg = json.load(f)',
     '',
     'def load_functions():',
-    "    url = cfg['supabase_url'].rstrip('/') + '/rest/v1/monitoring_functions?active=eq.true&order=name'",
+    "    url = cfg['supabase_url'].rstrip('/') + '/rest/v1/monitoring_functions'",
+    "    url += '?active=eq.true&select=*,camera:camera_id(*)&order=name'",
     "    h = {'apikey': cfg['supabase_anon_key']}",
     '    r = requests.get(url, headers=h, timeout=10)',
     '    r.raise_for_status()',
     '    return r.json()',
     '',
-    'def move_to_preset(fn):',
+    'def move_to_preset(camera, preset):',
     '    try:',
-    "        base = fn['camera_url'].rsplit('/', 1)[0]",
-    "        requests.get(base + '/onvif/PTZ/GotoPreset?preset=' + str(fn['ptz_preset']),",
-    "                     auth=(fn['camera_user'], fn['camera_pass']), timeout=5)",
+    "        base = camera['camera_url'].rsplit('/', 1)[0]",
+    "        requests.get(base + '/onvif/PTZ/GotoPreset?preset=' + str(preset),",
+    "                     auth=(camera['camera_user'], camera['camera_pass']), timeout=5)",
     '        time.sleep(3)',
     '    except Exception as e:',
-    "        print('PTZ warning: ' + str(e), flush=True)",
+    "        print('  PTZ warning: ' + str(e), flush=True)",
     '',
     'def run_function(fn):',
-    "    ts = datetime.now().strftime('%Y-%m-%d %H:%M')",
-    "    print('[' + ts + '] Running: ' + fn['name'], flush=True)",
+    "    ts  = datetime.now().strftime('%Y-%m-%d %H:%M')",
+    "    cam = fn.get('camera')",
+    '    if not cam:',
+    "        print('[' + ts + '] SKIP ' + fn['name'] + ': no camera assigned', flush=True)",
+    '        return',
+    "    print('[' + ts + '] Running: #' + str(cam['number']) + ' ' + cam['name'] + ' → ' + fn['name'], flush=True)",
     '    try:',
     "        if fn.get('ptz_preset') is not None:",
-    '            move_to_preset(fn)',
-    "        r = requests.get(fn['camera_url'], auth=(fn['camera_user'], fn['camera_pass']), timeout=15)",
+    "            move_to_preset(cam, fn['ptz_preset'])",
+    "        r = requests.get(cam['camera_url'], auth=(cam['camera_user'], cam['camera_pass']), timeout=15)",
     '        r.raise_for_status()',
     '        img_b64 = base64.b64encode(r.content).decode()',
     "        resp = requests.post(cfg['worker_url'] + '/read-meter',",
@@ -534,37 +610,31 @@ function downloadSetup() {
     '        result = resp.json()',
     "        if not result.get('success'):",
     "            raise Exception(result.get('error', 'Vision failed'))",
-    "        value = result['value']",
-    "        raw   = result['raw']",
+    "        value, raw = result['value'], result['raw']",
     "        sb_url = cfg['supabase_url'].rstrip('/') + '/rest/v1/meter_readings'",
     "        h = {'apikey': cfg['supabase_anon_key'], 'Authorization': 'Bearer ' + cfg['supabase_anon_key'],",
     "             'Content-Type': 'application/json', 'Prefer': 'return=minimal'}",
     "        payload = {'agent_name': fn['name'], 'meter_type': fn['meter_type'],",
     "                   'value': value, 'unit': fn['unit'], 'raw_response': raw,",
+    "                   'monitoring_function_id': fn['id'],",
     "                   'captured_at': datetime.now(timezone.utc).isoformat()}",
     '        requests.post(sb_url, headers=h, json=payload, timeout=10).raise_for_status()',
-    "        print('[' + ts + '] OK: ' + str(value) + ' ' + fn['unit'], flush=True)",
+    "        print('  OK: ' + str(value) + ' ' + fn['unit'], flush=True)",
     '    except Exception as e:',
-    "        print('[' + ts + '] ERROR ' + fn['name'] + ': ' + str(e), flush=True)",
+    "        print('  ERROR: ' + str(e), flush=True)",
     '',
     'def main():',
     "    print('MeDB Monitoring Agent starting...', flush=True)",
-    '    try:',
-    '        import schedule',
-    '    except ImportError:',
-    "        print('Installing schedule...', flush=True)",
-    '        import subprocess',
-    "        subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'schedule', '--quiet'])",
-    '        import schedule',
+    '    import schedule',
     '    functions = load_functions()',
-    "    print('Loaded ' + str(len(functions)) + ' monitoring function(s)', flush=True)",
+    "    print('Loaded ' + str(len(functions)) + ' active monitoring function(s)', flush=True)",
     '    if not functions:',
-    "        print('No active functions. Add one in MeDB Computer Vision, then restart agent.', flush=True)",
+    "        print('No active functions found. Add in MeDB → Computer Vision, then restart.', flush=True)",
     '        time.sleep(3600)',
     '        return',
     '    for fn in functions:',
     '        run_function(fn)',
-    '        schedule.every(fn[\'interval_min\']).minutes.do(run_function, fn)',
+    "        schedule.every(fn['interval_min']).minutes.do(run_function, fn)",
     "        print('Scheduled: ' + fn['name'] + ' every ' + str(fn['interval_min']) + ' min', flush=True)",
     '    while True:',
     '        schedule.run_pending()',
@@ -575,71 +645,39 @@ function downloadSetup() {
   ].join('\r\n');
 
   const ps1 = [
-    '# MeDB Monitoring Agent Setup',
-    '# Erstellt: ' + new Date().toLocaleString('de-DE'),
-    '#',
-    '# Als Administrator ausfuehren:',
-    '#   Set-ExecutionPolicy Bypass -Scope Process -Force',
-    '#   .\\setup-medb-monitor.ps1',
+    '# MeDB Monitoring Agent Setup — ' + new Date().toLocaleString('de-DE'),
+    '# Als Administrator ausfuehren: Set-ExecutionPolicy Bypass -Scope Process -Force',
     '',
-    '$ErrorActionPreference = "Stop"',
     '$InstallDir = "' + installDir + '"',
     '$TaskName   = "MeDB-Monitor-Agent"',
+    '$ErrorActionPreference = "Stop"',
     '',
-    'Write-Host ""',
-    'Write-Host "=== MeDB Monitoring Agent Setup ===" -ForegroundColor Cyan',
-    '',
-    '# 1. Python',
+    'Write-Host "=== MeDB Monitoring Agent ===" -ForegroundColor Cyan',
     'try { python --version | Out-Null; Write-Host "OK  Python" -ForegroundColor Green }',
-    'catch { Write-Error "Python nicht gefunden. https://python.org installieren."; exit 1 }',
-    '',
-    '# 2. Pakete',
-    'Write-Host "... Python-Pakete installieren"',
+    'catch { Write-Error "Python nicht gefunden. https://python.org"; exit 1 }',
     'python -m pip install requests schedule --quiet',
-    'Write-Host "OK  Pakete installiert" -ForegroundColor Green',
-    '',
-    '# 3. Ordner',
+    'Write-Host "OK  Pakete (requests, schedule)" -ForegroundColor Green',
     'New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null',
     'Write-Host "OK  Ordner: $InstallDir" -ForegroundColor Green',
-    '',
-    '# 4. config.json',
     '$cfg = @\'',
     config,
     '\'@',
-    'Set-Content -Path "$InstallDir\\config.json" -Value $cfg -Encoding UTF8',
+    'Set-Content "$InstallDir\\config.json" -Value $cfg -Encoding UTF8',
     'Write-Host "OK  config.json" -ForegroundColor Green',
-    '',
-    '# 5. Python Agent',
     '$py = @\'',
     py,
     '\'@',
-    'Set-Content -Path "$InstallDir\\medb-monitor-agent.py" -Value $py -Encoding UTF8',
+    'Set-Content "$InstallDir\\medb-monitor-agent.py" -Value $py -Encoding UTF8',
     'Write-Host "OK  medb-monitor-agent.py" -ForegroundColor Green',
-    '',
-    '# 6. Task Scheduler (startet bei Anmeldung, laeuft dauerhaft)',
-    '$action   = New-ScheduledTaskAction -Execute "python" \\',
-    '              -Argument "`"$InstallDir\\medb-monitor-agent.py`"" \\',
-    '              -WorkingDirectory $InstallDir',
+    '$action   = New-ScheduledTaskAction -Execute "python" -Argument "`"$InstallDir\\medb-monitor-agent.py`"" -WorkingDirectory $InstallDir',
     '$trigger  = New-ScheduledTaskTrigger -AtLogOn',
-    '$settings = New-ScheduledTaskSettingsSet \\',
-    '              -RunOnlyIfNetworkAvailable \\',
-    '              -StartWhenAvailable \\',
-    '              -RestartCount 5 \\',
-    '              -RestartInterval (New-TimeSpan -Minutes 2) \\',
-    '              -ExecutionTimeLimit ([TimeSpan]::Zero)',
-    'Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger \\',
-    '  -Settings $settings -RunLevel Highest -Force | Out-Null',
-    'Write-Host "OK  Task Scheduler: $TaskName (bei Anmeldung, Restart bei Absturz)" -ForegroundColor Green',
-    '',
-    '# 7. Sofort starten',
+    '$settings = New-ScheduledTaskSettingsSet -RunOnlyIfNetworkAvailable -StartWhenAvailable -RestartCount 5 -RestartInterval (New-TimeSpan -Minutes 2) -ExecutionTimeLimit ([TimeSpan]::Zero)',
+    'Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -RunLevel Highest -Force | Out-Null',
+    'Write-Host "OK  Task Scheduler: $TaskName" -ForegroundColor Green',
+    'Start-Process "python" -ArgumentList "`"$InstallDir\\medb-monitor-agent.py`"" -WorkingDirectory $InstallDir',
     'Write-Host ""',
-    'Write-Host "--- Agent wird gestartet ---" -ForegroundColor Yellow',
-    'Start-Process "python" -ArgumentList "`"$InstallDir\\medb-monitor-agent.py`"" -WorkingDirectory $InstallDir -WindowStyle Normal',
-    'Write-Host ""',
-    'Write-Host "=== Setup abgeschlossen! ===" -ForegroundColor Green',
-    'Write-Host "Agent laeuft im Hintergrund und startet nach Reboot automatisch."',
+    'Write-Host "=== Fertig! Agent laeuft. ===" -ForegroundColor Green',
     'Write-Host "Neue Monitoring Functions werden nach Agent-Neustart uebernommen."',
-    'Write-Host ""',
   ].join('\r\n');
 
   const blob = new Blob(['﻿' + ps1], { type: 'text/plain;charset=utf-8' });
