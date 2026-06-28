@@ -288,9 +288,16 @@ function editReading(id, currentValue, unit) {
   document.getElementById('edit_' + id).focus();
 }
 
+async function ensureSession() {
+  const { data, error } = await db.auth.refreshSession();
+  if (error || !data.session) { window.location.href = 'me-db-login.html'; return false; }
+  return true;
+}
+
 async function saveEdit(id, unit) {
   const val = parseFloat(document.getElementById('edit_' + id).value);
   if (isNaN(val)) return;
+  if (!await ensureSession()) return;
   const { error } = await db.from('meter_readings').update({ value: val }).eq('id', id);
   if (error) { alert('Fehler: ' + error.message); return; }
   loadReadings();
@@ -298,6 +305,7 @@ async function saveEdit(id, unit) {
 
 async function deleteReading(id) {
   if (!confirm('Ablesung löschen?')) return;
+  if (!await ensureSession()) return;
   const { error } = await db.from('meter_readings').delete().eq('id', id);
   if (error) { alert('Fehler: ' + error.message); return; }
   document.getElementById('row_' + id)?.remove();
@@ -373,6 +381,7 @@ async function saveReading() {
   const saveBtn   = document.getElementById('saveBtn');
 
   if (isNaN(value)) { alert('Bitte einen gültigen Wert eingeben.'); return; }
+  if (!await ensureSession()) return;
   saveBtn.disabled = true;
   saveBtn.textContent = '⏳…';
 
