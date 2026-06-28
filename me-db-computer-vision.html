@@ -56,6 +56,12 @@
     .cam-badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: #e3f2fd; color: #1565c0; margin-right: 4px; }
     .val-badge { font-weight: 700; }
     .icon-btn { border: none; background: none; cursor: pointer; font-size: 1rem; padding: 2px 5px; }
+    .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+    .status-ok   { background: #4caf50; }
+    .status-warn { background: #ff9800; }
+    .status-late { background: #f44336; }
+    .status-none { background: #ccc; }
+    .next-badge  { font-size: 0.75rem; color: #888; }
     .reading-row { cursor: pointer; }
     .reading-row:hover td { background: #f9f9fb; }
     /* Detail modal */
@@ -270,6 +276,15 @@
     </div>
   </div>
 
+  <!-- AGENT STATUS -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">🤖 Agent Status</div>
+      <span id="agentRefreshInfo" style="font-size:0.75rem;color:#aaa"></span>
+    </div>
+    <div id="agentStatus"><div class="empty">Laden…</div></div>
+  </div>
+
   <!-- READINGS -->
   <div class="card">
     <div class="card-hdr"><div class="card-title">📊 Letzte Ablesungen</div></div>
@@ -290,7 +305,8 @@ document.addEventListener('click', e => {
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
-  loadCams(); loadFunctions(); loadReadings();
+  loadCams(); loadFunctions(); loadReadings(); loadAgentStatus();
+  setInterval(() => { loadAgentStatus(); loadReadings(); }, 60000);
 });
 
 function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -520,6 +536,64 @@ async function saveEdit(id) {
   if (error) { alert('Fehler: ' + error.message); return; }
   loadReadings();
 }
+async function loadAgentStatus() {
+  const { data: fns } = await db.from('monitoring_functions').select('id,name,meter_type,interval_min,active').eq('active', true).order('name');
+  if (!fns?.length) { document.getElementById('agentStatus').innerHTML = '<div class="empty">Keine aktiven Monitoring Functions.</div>'; return; }
+  // Latest reading per function
+  const ids = fns.map(f => f.id);
+  const { data: latest } = await db.from('meter_readings')
+    .select('monitoring_function_id, value, unit, captured_at')
+    .in('monitoring_function_id', ids)
+    .order('captured_at', { ascending: false });
+  // Build map: fn_id → latest reading
+  const lastMap = {};
+  (latest || []).forEach(r => { if (!lastMap[r.monitoring_function_id]) lastMap[r.monitoring_function_id] = r; });
+
+  const now = Date.now();
+  function relTime(ms) {
+    const diff = now - ms;
+    if (diff < 60000) return 'gerade eben';
+    if (diff < 3600000) return 'vor ' + Math.floor(diff / 60000) + ' min';
+    if (diff < 86400000) return 'vor ' + Math.floor(diff / 3600000) + ' h';
+    return 'vor ' + Math.floor(diff / 86400000) + ' d';
+  }
+  function nextTime(lastMs, intervalMin) {
+    const nextMs = lastMs + intervalMin * 60000;
+    const diff = nextMs - now;
+    if (diff <= 0) return null;
+    if (diff < 3600000) return 'in ' + Math.floor(diff / 60000) + ' min';
+    return 'in ' + Math.floor(diff / 3600000) + ' h ' + Math.floor((diff % 3600000) / 60000) + ' min';
+  }
+
+  const rows = fns.map(f => {
+    const r = lastMap[f.id];
+    if (!r) {
+      return `<tr>
+        <td><span class="status-dot status-none"></span>${esc(f.name)}</td>
+        <td style="color:#ccc;font-size:0.82rem">noch keine Ablesung</td>
+        <td></td>
+        <td style="color:#aaa;font-size:0.82rem">alle ${f.interval_min} min</td>
+      </tr>`;
+    }
+    const lastMs = new Date(r.captured_at).getTime();
+    const overdueMs = f.interval_min * 60000 * 1.5;
+    const diff = now - lastMs;
+    const dotClass = diff > overdueMs ? 'status-late' : diff > f.interval_min * 60000 ? 'status-warn' : 'status-ok';
+    const nextStr = nextTime(lastMs, f.interval_min);
+    return `<tr>
+      <td><span class="status-dot ${dotClass}"></span>${esc(f.name)}</td>
+      <td style="font-size:0.82rem">${relTime(lastMs)} <span style="color:#bbb">· ${(+r.value).toFixed(3)} ${esc(r.unit)}</span></td>
+      <td style="font-size:0.82rem;color:#666">${nextStr ? nextStr : '<span style="color:#f44336">überfällig</span>'}</td>
+      <td style="color:#aaa;font-size:0.82rem">alle ${f.interval_min} min</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('agentStatus').innerHTML = `<table>
+    <thead><tr><th>Mission</th><th>Letzte Ablesung</th><th>Nächste</th><th>Intervall</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+  document.getElementById('agentRefreshInfo').textContent = 'aktualisiert ' + new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+
 async function deleteReading(id) {
   if (!confirm('Ablesung löschen?')) return;
   if (!await ensureSession()) return;
