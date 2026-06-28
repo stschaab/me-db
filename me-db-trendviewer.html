@@ -439,6 +439,17 @@ async function addSeries(id) {
   });
 
   chart.update();
+
+  // If all data fits within 2 hours, pad to a 24h window so ticks are visible
+  const allX = chart.data.datasets.flatMap(d => d.data.map(p => p.x));
+  if (allX.length >= 2) {
+    const minX = Math.min(...allX), maxX = Math.max(...allX);
+    if (maxX - minX < 7200000) {
+      const mid = (minX + maxX) / 2;
+      chart.zoomScale('x', { min: mid - 43200000, max: mid + 43200000 }, 'none');
+    }
+  }
+
   adaptTimeUnit();
   renderChips();
   renderPanel();
@@ -503,7 +514,7 @@ function initChart() {
           time: {
             unit: 'day',
             tooltipFormat: 'dd MMM yyyy HH:mm',
-            displayFormats: { hour: 'HH:mm', day: 'd MMM', week: 'd MMM', month: 'MMM yy', year: 'yyyy' },
+            displayFormats: { minute: 'HH:mm', hour: 'HH:mm', day: 'd MMM', week: 'd MMM', month: 'MMM yy', year: 'yyyy' },
           },
           adapters: { date: {} },
           grid: { color: '#f0f0f0' },
@@ -551,11 +562,9 @@ function adaptTimeUnit() {
   if (!chart) return;
   const scale = chart.scales.x;
   const days = (scale.max - scale.min) / 86400000;
-  const unit = days > 500 ? 'year' : days > 60 ? 'month' : days > 14 ? 'week' : days > 1 ? 'day' : 'hour';
-  if (chart.options.scales.x.time.unit !== unit) {
-    chart.options.scales.x.time.unit = unit;
-    chart.update('none');
-  }
+  const unit = days > 500 ? 'year' : days > 60 ? 'month' : days > 14 ? 'week' : days > 1 ? 'day' : days > 0.04 ? 'hour' : 'minute';
+  chart.options.scales.x.time.unit = unit;
+  chart.update('none');
 }
 
 function setRange(days, btn) {
