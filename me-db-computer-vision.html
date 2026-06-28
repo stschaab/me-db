@@ -884,6 +884,19 @@ class App(tk.Tk):
         self._load_functions()
 
     def _build(self):
+        # Discovery bar
+        disc = tk.Frame(self, bg='#eef2ff', padx=12, pady=8)
+        disc.pack(fill='x')
+        tk.Label(disc, text='Kameras im Netzwerk:', bg='#eef2ff', font=('Segoe UI', 8, 'bold'), fg=ACCENT).grid(row=0, column=0, sticky='w')
+        self.disc_var = tk.StringVar(value='– suchen –')
+        self.disc_combo = ttk.Combobox(disc, textvariable=self.disc_var, state='readonly', width=42)
+        self.disc_combo.grid(row=0, column=1, padx=(8,8))
+        self.disc_combo.bind('<<ComboboxSelected>>', self._on_disc_select)
+        self.disc_btn = tk.Button(disc, text='\\U0001f50d Suchen', bg=ACCENT, fg='white',
+            font=('Segoe UI', 9, 'bold'), relief='flat', padx=10, command=self.discover)
+        self.disc_btn.grid(row=0, column=2)
+        self._disc_results = []
+
         # Connection bar
         bar = tk.Frame(self, bg=BG, padx=12, pady=10)
         bar.pack(fill='x')
@@ -958,6 +971,47 @@ class App(tk.Tk):
             except Exception as e:
                 print(f'Supabase: {e}')
         threading.Thread(target=_f, daemon=True).start()
+
+    def discover(self):
+        self.disc_btn.config(state='disabled')
+        self.disc_var.set('Suche l\\u00e4uft\\u2026')
+        def _d():
+            try:
+                from wsdiscovery.discovery import ThreadedWSDiscovery as WSD
+                from wsdiscovery import QName
+                wsd = WSD()
+                wsd.start()
+                svcs = wsd.searchServices(
+                    types=[QName('http://www.onvif.org/ver10/network/wsdl', 'NetworkVideoTransmitter')],
+                    timeout=3)
+                wsd.stop()
+                self._disc_results = []
+                for s in svcs:
+                    for addr in s.getXAddrs():
+                        import re
+                        m = re.search(r'http://([\\d.]+)(?::(\\d+))?', addr)
+                        if m:
+                            self._disc_results.append({'ip': m.group(1), 'port': m.group(2) or '80', 'addr': addr})
+                if self._disc_results:
+                    names = [f'{r["ip"]}:{r["port"]}' for r in self._disc_results]
+                    self.after(0, lambda: self.disc_combo.configure(values=names))
+                    self.after(0, lambda: self.disc_var.set(names[0]))
+                    self.after(0, lambda: self._on_disc_select(None))
+                    self.after(0, lambda: self.status_var.set(f'\\u2139\\ufe0f {len(self._disc_results)} Kamera(s) gefunden'))
+                else:
+                    self.after(0, lambda: self.disc_var.set('Keine ONVIF-Kamera gefunden'))
+                    self.after(0, lambda: self.status_var.set('Keine ONVIF-Kamera im Netzwerk gefunden'))
+            except Exception as e:
+                self.after(0, lambda: self.disc_var.set(f'Fehler: {e}'))
+            self.after(0, lambda: self.disc_btn.config(state='normal'))
+        threading.Thread(target=_d, daemon=True).start()
+
+    def _on_disc_select(self, event):
+        sel = self.disc_var.get()
+        r = next((x for x in self._disc_results if f'{x["ip"]}:{x["port"]}' == sel), None)
+        if r:
+            self.ip_var.set(r['ip'])
+            self.port_var.set(r['port'])
 
     def connect(self):
         self.conn_btn.config(state='disabled')
