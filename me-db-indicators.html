@@ -222,13 +222,14 @@ async function logout() { await db.auth.signOut(); window.location.href = 'me-db
 
 // ── Load all data ─────────────────────────────────────────────────────────────
 async function loadAll() {
-  const [paramsRes, measRes, hrvRes, actRes, pvRes, dwdRes] = await Promise.all([
+  const [paramsRes, measRes, hrvRes, actRes, pvRes, dwdRes, meterRes] = await Promise.all([
     db.from('parameters').select('id,name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si,ref_note').order('name'),
     db.from('measurements').select('parameter_id,measured_at,value,value_si,unit').order('measured_at', { ascending: false }),
     db.from('hrv_measurements').select('measured_at,rmssd,sdnn,pnn50,mean_hr').order('measured_at', { ascending: false }).limit(1),
     db.from('activities').select('date,duration_sec').order('date', { ascending: false }).limit(1),
     db.from('pv_daily').select('date,pv_generation_kwh,grid_export_kwh,grid_import_kwh,direct_consumption_kwh,battery_charge_kwh').order('date', { ascending: false }).limit(1),
     db.from('dwd_radiation_daily').select('date,radiation_kwh_m2').order('date', { ascending: false }).limit(1),
+    db.from('meter_readings').select('agent_name,meter_type,value,unit,captured_at').order('captured_at', { ascending: false }),
   ]);
 
   // ── Process lab measurements ──────────────────────────────────────────────
@@ -303,7 +304,34 @@ async function loadAll() {
     }),
   }));
 
-  allGroups = [...labGroups, ...extraGroups];
+  // ── Meter readings group ──────────────────────────────────────────────────
+  const meterLatest = {};
+  for (const r of (meterRes.data || [])) {
+    if (!meterLatest[r.agent_name]) meterLatest[r.agent_name] = r;
+  }
+  const meterItems = Object.values(meterLatest).map(r => {
+    const safeId = r.agent_name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+    return {
+      id: 'meter_' + safeId,
+      name: r.agent_name,
+      category: r.meter_type || '',
+      unit: r.unit || 'm3',
+      description: 'Automatische Ablesung via ONVIF-Kamera + Claude Vision',
+      formula: null,
+      ref_low: null, ref_high: null,
+      latestVal: r.value != null ? +r.value : null,
+      latestDate: r.captured_at ? r.captured_at.substring(0, 10) : null,
+      count: null,
+      status: null,
+      trendId: 'meter_' + safeId,
+      source: 'Computer Vision · ONVIF + Claude Haiku',
+    };
+  });
+  const meterGroup = meterItems.length
+    ? [{ group: 'Zähler', color: '#00796b', source: 'Computer Vision', items: meterItems }]
+    : [];
+
+  allGroups = [...labGroups, ...extraGroups, ...meterGroup];
   buildCategoryChips();
   applyFilter();
   updateSummary();
