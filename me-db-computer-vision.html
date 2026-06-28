@@ -56,6 +56,28 @@
     .cam-badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: #e3f2fd; color: #1565c0; margin-right: 4px; }
     .val-badge { font-weight: 700; }
     .icon-btn { border: none; background: none; cursor: pointer; font-size: 1rem; padding: 2px 5px; }
+    .reading-row { cursor: pointer; }
+    .reading-row:hover td { background: #f9f9fb; }
+    /* Detail modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 500; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: white; border-radius: 14px; max-width: 780px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.25); }
+    .modal-hdr { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 12px; border-bottom: 1px solid #f0f0f0; }
+    .modal-hdr h3 { font-size: 0.95rem; font-weight: 700; }
+    .modal-close { border: none; background: none; font-size: 1.3rem; cursor: pointer; color: #999; padding: 4px 8px; }
+    .modal-body { padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 600px) { .modal-body { grid-template-columns: 1fr; } }
+    .detail-photo { border-radius: 10px; overflow: hidden; background: #f5f5f5; display: flex; align-items: center; justify-content: center; min-height: 200px; }
+    .detail-photo img { width: 100%; display: block; border-radius: 10px; }
+    .detail-photo .no-photo { color: #ccc; font-size: 0.85rem; text-align: center; padding: 40px 20px; }
+    .detail-info { display: flex; flex-direction: column; gap: 14px; }
+    .detail-row { display: flex; flex-direction: column; gap: 4px; }
+    .detail-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: #999; letter-spacing: 0.04em; }
+    .detail-val { font-size: 1.1rem; font-weight: 700; color: #1a1a2e; }
+    .detail-raw { font-size: 0.82rem; color: #555; line-height: 1.5; background: #f9f9fb; border-radius: 8px; padding: 10px 12px; }
+    .diff-badge { display: inline-block; font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; margin-left: 6px; font-weight: 600; }
+    .diff-ok { background: #e8f5e9; color: #2e7d32; }
+    .diff-warn { background: #fff3e0; color: #e65100; }
   </style>
 </head>
 <body>
@@ -466,14 +488,15 @@ async function loadReadings() {
   const el = document.getElementById('readings');
   if (error) { el.innerHTML = `<div class="empty">Fehler: ${esc(error.message)}</div>`; return; }
   if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Ablesungen.</div>'; return; }
+  allReadings = data;
   el.innerHTML = `<table>
     <thead><tr><th>Zeitstempel</th><th>Name</th><th>Typ</th><th>Wert</th><th></th></tr></thead>
-    <tbody>${data.map(r => `<tr id="row_${r.id}">
+    <tbody>${data.map(r => `<tr id="row_${r.id}" class="reading-row" onclick="openReadingDetail('${r.id}')">
       <td>${new Date(r.captured_at).toLocaleString('de-DE')}</td>
-      <td>${esc(r.agent_name)}</td>
+      <td>${esc(r.agent_name)}${r.image_path ? ' <span title="Foto vorhanden" style="font-size:0.75rem">📷</span>' : ''}</td>
       <td>${esc(r.meter_type)}</td>
       <td id="val_${r.id}"><span class="val-badge">${(+r.value).toFixed(3)}</span> <span style="color:#888;font-size:0.8rem">${esc(r.unit)}</span></td>
-      <td style="white-space:nowrap">
+      <td style="white-space:nowrap" onclick="event.stopPropagation()">
         <button class="icon-btn" onclick="editReading('${r.id}','${r.value}','${esc(r.unit)}')" title="Bearbeiten">✏️</button>
         <button class="icon-btn" onclick="deleteReading('${r.id}')" title="Löschen">🗑️</button>
       </td>
@@ -748,6 +771,72 @@ function downloadSetup() {
   a.download = 'setup-medb-monitor.ps1';
   a.click();
 }
+
+// ── Reading detail modal ───────────────────────────────────────────────────────
+let allReadings = [];
+
+async function openReadingDetail(id) {
+  const r = allReadings.find(x => x.id === id);
+  if (!r) return;
+  const overlay = document.getElementById('readingModal');
+  overlay.classList.add('open');
+  document.getElementById('modalTitle').textContent = r.agent_name + ' · ' + new Date(r.captured_at).toLocaleString('de-DE');
+  // Photo
+  const photoEl = document.getElementById('modalPhoto');
+  if (r.image_path) {
+    photoEl.innerHTML = '<div style="color:#ccc;font-size:0.8rem;padding:20px;text-align:center">⏳ Foto laden…</div>';
+    const { data, error } = await db.storage.from('meter-photos').createSignedUrl(r.image_path, 300);
+    if (data?.signedUrl) {
+      photoEl.innerHTML = `<img src="${data.signedUrl}" alt="Foto">`;
+    } else {
+      photoEl.innerHTML = '<div class="no-photo">📷 Foto nicht verfügbar</div>';
+    }
+  } else {
+    photoEl.innerHTML = '<div class="no-photo">📷 Kein Foto gespeichert</div>';
+  }
+  // Values comparison
+  const corrected = (+r.value).toFixed(3) + ' ' + r.unit;
+  // Extract number from raw_response for comparison
+  const rawMatch = r.raw_response ? r.raw_response.match(/[\d]+[.,][\d]+|[\d]+/) : null;
+  const rawNum = rawMatch ? parseFloat(rawMatch[0].replace(',', '.')) : null;
+  const match = rawNum !== null && Math.abs(rawNum - (+r.value)) < 0.001;
+  const diffBadge = rawNum !== null
+    ? `<span class="diff-badge ${match ? 'diff-ok' : 'diff-warn'}">${match ? '✓ identisch' : '≠ korrigiert'}</span>`
+    : '';
+  document.getElementById('modalCorrected').textContent = corrected;
+  document.getElementById('modalDiff').innerHTML = diffBadge;
+  document.getElementById('modalRaw').textContent = r.raw_response || '–';
+}
+
+function closeReadingModal() {
+  document.getElementById('readingModal').classList.remove('open');
+}
 </script>
+
+<!-- Reading detail modal -->
+<div class="modal-overlay" id="readingModal" onclick="if(event.target===this)closeReadingModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h3 id="modalTitle"></h3>
+      <button class="modal-close" onclick="closeReadingModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-photo" id="modalPhoto">
+        <div class="no-photo">📷 Kein Foto</div>
+      </div>
+      <div class="detail-info">
+        <div class="detail-row">
+          <span class="detail-label">Gespeicherter Wert</span>
+          <span class="detail-val" id="modalCorrected">–</span>
+          <span id="modalDiff"></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">KI-Rohtext</span>
+          <div class="detail-raw" id="modalRaw">–</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
