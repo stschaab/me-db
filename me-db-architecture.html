@@ -98,7 +98,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
 <div class="canvas-wrap" id="canvasWrap">
   <div class="canvas-inner" id="canvasInner">
-    <svg id="diagram" width="1900" height="1260" viewBox="0 0 1900 1260" xmlns="http://www.w3.org/2000/svg">
+    <svg id="diagram" width="1900" height="1620" viewBox="0 0 1900 1620" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="#8a8fa3"/>
@@ -214,7 +214,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
       <!-- Supabase -->
       <g>
-        <rect x="1130" y="360" width="280" height="330" rx="14" fill="#0f3d2e" stroke="#0f3d2e"/>
+        <rect x="1130" y="360" width="280" height="390" rx="14" fill="#0f3d2e" stroke="#0f3d2e"/>
         <text x="1270" y="392" text-anchor="middle" fill="#3ecf8e" font-size="16" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">⚡ Supabase</text>
         <text x="1270" y="412" text-anchor="middle" fill="#9fe6c8" font-size="10.5" font-family="-apple-system,Segoe UI,sans-serif">Postgres + Auth + REST (PostgREST)</text>
         <line x1="1150" y1="426" x2="1390" y2="426" stroke="#1a5a44"/>
@@ -232,6 +232,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <line x1="1150" y1="630" x2="1390" y2="630" stroke="#1a5a44"/>
         <text x="1270" y="652" text-anchor="middle" fill="#9fe6c8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">MCP-managed via Claude Code</text>
         <text x="1270" y="668" text-anchor="middle" fill="#9fe6c8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">(schema, RLS, migrations)</text>
+        <line x1="1150" y1="680" x2="1390" y2="680" stroke="#1a5a44"/>
+        <text x="1270" y="698" text-anchor="middle" fill="#cdeede" font-size="9.5" font-weight="600" font-family="-apple-system,Segoe UI,sans-serif">Storage: meter-photos (private)</text>
+        <text x="1270" y="714" text-anchor="middle" fill="#9fe6c8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">cameras · monitoring_functions</text>
+        <text x="1270" y="730" text-anchor="middle" fill="#9fe6c8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">meter_readings + image_path</text>
       </g>
 
       <!-- Cloudflare Worker -->
@@ -243,6 +247,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <text x="1560" y="447" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">POST /  (AI chat)</text>
         <text x="1560" y="464" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">/parse-task · /parse-universal</text>
         <text x="1560" y="481" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">/sync-strava · /sync-pv</text>
+        <text x="1560" y="498" text-anchor="middle" fill="#ffd9ad" font-size="9.5" font-family="monospace">/read-meter  (Claude Vision)</text>
         <line x1="1450" y1="495" x2="1670" y2="495" stroke="#5a3000"/>
         <text x="1560" y="513" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">scheduled() — 05:00 UTC daily</text>
         <text x="1560" y="529" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Strava sync + PV sync</text>
@@ -331,6 +336,95 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <text x="1500" y="1052" text-anchor="middle" fill="#c87a3a" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">daily 05:00 UTC · /sync-strava + /sync-pv</text>
       </g>
 
+      <!-- ===== COMPUTER VISION ZONE ===== -->
+      <!-- Zone background -->
+      <rect x="55" y="1140" width="760" height="440" rx="18" fill="#1a1a2e" fill-opacity="0.04" stroke="#1a1a2e" stroke-width="1.5" stroke-dasharray="7 4"/>
+      <text x="76" y="1163" fill="#1a1a2e" font-size="12" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">🎥  Computer Vision</text>
+
+      <!-- CV edges -->
+      <g stroke="#8a8fa3" stroke-width="2" fill="none" marker-end="url(#arrow)">
+        <!-- PoE Camera → Agent (snapshot) -->
+        <path d="M260,1240 L310,1240"/>
+        <!-- Agent → Cloudflare Worker /read-meter -->
+        <path d="M550,1255 C 800,1255 1100,900 1430,620"/>
+        <!-- Agent → Supabase REST (meter_readings) -->
+        <path d="M550,1300 C 750,1350 950,1050 1130,730"/>
+        <!-- Agent → Supabase Storage (photos) -->
+        <path d="M540,1320 C 720,1380 980,1100 1150,740" stroke-dasharray="5 3"/>
+        <!-- Camera Setup Tool ↔ PoE Camera (PTZ) -->
+        <path d="M170,1460 L170,1340" marker-start="url(#arrow)"/>
+        <!-- Camera Setup Tool → Supabase (ptz_preset) -->
+        <path d="M280,1490 C 600,1520 900,1200 1130,750" stroke="#7c3aed" stroke-width="1.5"/>
+        <!-- Browser CV page → Worker /read-meter (manual photo) -->
+        <path d="M820,580 C 1050,490 1250,480 1430,510" stroke-dasharray="5 3"/>
+      </g>
+
+      <!-- CV edge labels -->
+      <g font-size="10" fill="#6b7280" font-family="-apple-system,Segoe UI,sans-serif">
+        <text x="263" y="1233">GET /onvif/snapshot</text>
+        <text x="780" y="1140">POST /read-meter (image_b64)</text>
+        <text x="680" y="1340">POST meter_readings + image_path</text>
+        <text x="680" y="1380" fill="#999">PUT meter-photos/… (Storage)</text>
+        <text x="185" y="1415" fill="#7c3aed">ONVIF PTZ</text>
+        <text x="420" y="1540" fill="#7c3aed">PATCH ptz_preset → Supabase</text>
+        <text x="865" y="510" fill="#999">manual photo (browser)</text>
+      </g>
+
+      <!-- PoE Camera -->
+      <g>
+        <rect x="65" y="1175" width="190" height="100" rx="12" fill="#37404d" stroke="#37404d"/>
+        <text x="160" y="1203" text-anchor="middle" fill="white" font-size="13" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">📷 PoE Kamera</text>
+        <text x="160" y="1221" text-anchor="middle" fill="#c4cdd9" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Reolink RLC-823S1</text>
+        <line x1="83" y1="1232" x2="237" y2="1232" stroke="#4a5568"/>
+        <text x="160" y="1248" text-anchor="middle" fill="#c4cdd9" font-size="9" font-family="monospace">ONVIF · /onvif/snapshot</text>
+        <text x="160" y="1264" text-anchor="middle" fill="#c4cdd9" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">PTZ · PoE Switch · local LAN</text>
+      </g>
+
+      <!-- Python Monitoring Agent -->
+      <g>
+        <rect x="310" y="1175" width="260" height="130" rx="12" fill="#1a3a1a" stroke="#1a3a1a"/>
+        <text x="440" y="1203" text-anchor="middle" fill="#90ee90" font-size="13" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">🤖 Monitoring Agent</text>
+        <text x="440" y="1220" text-anchor="middle" fill="#b0d9b0" font-size="9" font-family="monospace">medb-monitor-agent.py</text>
+        <line x1="328" y1="1231" x2="552" y2="1231" stroke="#2a5a2a"/>
+        <text x="440" y="1248" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Windows Task Scheduler (NB)</text>
+        <text x="440" y="1264" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">schedule lib · interval per MF</text>
+        <text x="440" y="1280" text-anchor="middle" fill="#cdeede" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">PTZ → Snapshot → /read-meter</text>
+        <line x1="328" y1="1291" x2="552" y2="1291" stroke="#2a5a2a"/>
+        <text x="440" y="1299" text-anchor="middle" fill="#b0d9b0" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">anon key only · kein Anthropic key</text>
+      </g>
+
+      <!-- MeDB CV Page (Browser highlight) -->
+      <g>
+        <rect x="620" y="1175" width="185" height="100" rx="12" fill="#1a1a2e" stroke="#33345c"/>
+        <text x="712" y="1203" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">📱 CV Page</text>
+        <text x="712" y="1219" text-anchor="middle" fill="#aab1c9" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">me-db-computer-vision.html</text>
+        <line x1="638" y1="1229" x2="787" y2="1229" stroke="#33345c"/>
+        <text x="712" y="1245" text-anchor="middle" fill="#cdd2e6" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">Cameras · MF · Agent Status</text>
+        <text x="712" y="1261" text-anchor="middle" fill="#cdd2e6" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">Manual photo · Detail modal</text>
+        <text x="712" y="1270" text-anchor="middle" fill="#aab1c9" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">auto-refresh 60s</text>
+      </g>
+
+      <!-- Camera Setup Tool -->
+      <g>
+        <rect x="65" y="1355" width="215" height="110" rx="12" fill="#2a1810" stroke="#2a1810"/>
+        <text x="172" y="1383" text-anchor="middle" fill="#d97757" font-size="13" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">🛠 Camera Setup Tool</text>
+        <text x="172" y="1399" text-anchor="middle" fill="#e8b8a4" font-size="9" font-family="monospace">medb-camera-setup.py</text>
+        <line x1="83" y1="1409" x2="262" y2="1409" stroke="#4a2510"/>
+        <text x="172" y="1425" text-anchor="middle" fill="#e8b8a4" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">tkinter · einmalig on-demand</text>
+        <text x="172" y="1441" text-anchor="middle" fill="#e8b8a4" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">WS-Discovery · PTZ control</text>
+        <text x="172" y="1457" text-anchor="middle" fill="#e8b8a4" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Live preview · SetPreset → Supabase</text>
+      </g>
+
+      <!-- Download arrows (from MeDB CV page to both tools) -->
+      <g stroke="#8a8fa3" stroke-width="1.5" fill="none" stroke-dasharray="4 3" marker-end="url(#arrow)">
+        <path d="M712,1275 C 712,1310 550,1320 450,1320"/>
+        <path d="M670,1275 C 500,1340 300,1400 282,1410"/>
+      </g>
+      <g font-size="9.5" fill="#999" font-family="-apple-system,Segoe UI,sans-serif">
+        <text x="530" y="1308">📥 .ps1 herunterladen</text>
+        <text x="320" y="1370">📥 .py herunterladen</text>
+      </g>
+
     </svg>
   </div>
 </div>
@@ -347,6 +441,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="row"><div class="sw" style="background:#37404d"></div>Local PC / scheduled tasks</div>
   <div class="row"><div class="sw" style="background:#1a3a1a"></div>SMA ennexOS (PV API)</div>
   <div class="row"><div class="sw" style="background:#2a2a40"></div>DWD (radiation data)</div>
+  <div class="row"><div class="sw" style="background:#1a3a1a"></div>Monitoring Agent (NB)</div>
+  <div class="row"><div class="sw" style="background:#2a1810"></div>Camera Setup Tool (einmalig)</div>
   <div class="hint">Scroll/pinch to zoom · drag to pan · buttons bottom-right</div>
 </div>
 
