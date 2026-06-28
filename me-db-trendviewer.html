@@ -221,7 +221,7 @@ let catalogReady = false;
 // ── Auth ─────────────────────────────────────────────────────────────────────
 db.auth.getSession().then(async ({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
-  await Promise.all([loadLabParameters(), loadMeterCatalog()]);
+  await Promise.all([loadLabParameters(), loadMeterCatalog(), loadCalcCatalog()]);
   const addId = new URLSearchParams(location.search).get('add');
   if (addId) addSeries(addId);
 });
@@ -260,6 +260,39 @@ async function loadMeterData(agentName) {
     .order('captured_at', { ascending: true });
   tableCache[key] = (data || []).map(r => ({
     x: new Date(r.captured_at).getTime(),
+    y: +r.value,
+  }));
+  return tableCache[key];
+}
+
+// ── Calc results catalog ──────────────────────────────────────────────────────
+async function loadCalcCatalog() {
+  const { data } = await db.from('calc_results')
+    .select('name,unit')
+    .order('name');
+  if (!data?.length) return;
+  const seen = {};
+  for (const r of data) { if (!seen[r.name]) seen[r.name] = r; }
+  const items = Object.values(seen).map(r => ({
+    id: 'calc_' + r.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, ''),
+    label: r.name,
+    unit: r.unit || '',
+    category: 'Berechnet',
+    load: () => loadCalcData(r.name),
+  }));
+  catalog.push({ group: 'Berechnet', items });
+  renderPanel();
+}
+
+async function loadCalcData(name) {
+  const key = 'calc_' + name;
+  if (tableCache[key]) return tableCache[key];
+  const { data } = await db.from('calc_results')
+    .select('period_end,value')
+    .eq('name', name)
+    .order('period_end', { ascending: true });
+  tableCache[key] = (data || []).map(r => ({
+    x: new Date(r.period_end).getTime(),
     y: +r.value,
   }));
   return tableCache[key];
