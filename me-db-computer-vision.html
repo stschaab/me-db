@@ -166,22 +166,17 @@
   <div class="card">
     <div class="card-title">⚙️ Agent einrichten (einmalig pro PC)</div>
     <p style="font-size:0.83rem;color:#888;margin-bottom:16px">
-      Das Script installiert einen dauerhaft laufenden Python-Dienst. Alle Monitoring Functions werden direkt aus Supabase geladen —
-      neue Functions werden beim nächsten Neustart des Agents automatisch übernommen.
+      Das Script installiert einen dauerhaft laufenden Python-Dienst. Kein API-Key nötig —
+      die KI-Ablesung läuft über den Cloudflare Worker, der den Anthropic Key bereits sicher gespeichert hat.
     </p>
     <div class="form-grid">
-      <div class="fg full">
-        <label>Anthropic API Key</label>
-        <input id="setupApiKey" type="password" placeholder="sk-ant-api03-...">
-      </div>
       <div class="fg full">
         <label>Installationsordner</label>
         <input id="setupDir" type="text" value="C:\MeDB-Agents">
       </div>
     </div>
     <div class="tip">
-      💡 Anthropic API Key: <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys ·
-      PC muss durchlaufen (Bildschirmsperre OK) · Agent startet automatisch nach Reboot
+      💡 Nur Python nötig · PC muss durchlaufen (Bildschirmsperre OK) · Agent startet automatisch nach Reboot
     </div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="downloadSetup()">📥 Setup-Skript herunterladen (.ps1)</button>
@@ -492,11 +487,13 @@ async function saveReading() {
 
 // ── Setup Script Generator ────────────────────────────────────────────────────
 function downloadSetup() {
-  const apiKey     = document.getElementById('setupApiKey').value.trim();
   const installDir = document.getElementById('setupDir').value.trim() || 'C:\\MeDB-Agents';
-  if (!apiKey) { alert('Bitte Anthropic API Key eingeben.'); return; }
 
-  const config = JSON.stringify({ anthropic_key: apiKey, supabase_url: SUPABASE_URL, supabase_anon_key: SUPABASE_KEY }, null, 2);
+  const config = JSON.stringify({
+    worker_url: WORKER_URL,
+    supabase_url: SUPABASE_URL,
+    supabase_anon_key: SUPABASE_KEY
+  }, null, 2);
 
   const py = [
     'import sys, os, json, base64, requests, time',
@@ -508,7 +505,7 @@ function downloadSetup() {
     '',
     'def load_functions():',
     "    url = cfg['supabase_url'].rstrip('/') + '/rest/v1/monitoring_functions?active=eq.true&order=name'",
-    "    h = {'apikey': cfg['supabase_anon_key'], 'Content-Type': 'application/json'}",
+    "    h = {'apikey': cfg['supabase_anon_key']}",
     '    r = requests.get(url, headers=h, timeout=10)',
     '    r.raise_for_status()',
     '    return r.json()',
@@ -531,17 +528,14 @@ function downloadSetup() {
     "        r = requests.get(fn['camera_url'], auth=(fn['camera_user'], fn['camera_pass']), timeout=15)",
     '        r.raise_for_status()',
     '        img_b64 = base64.b64encode(r.content).decode()',
-    '        import anthropic',
-    "        client = anthropic.Anthropic(api_key=cfg['anthropic_key'])",
-    '        msg = client.messages.create(',
-    "            model='claude-haiku-4-5-20251001', max_tokens=50,",
-    "            messages=[{'role': 'user', 'content': [",
-    "                {'type': 'image', 'source': {'type': 'base64', 'media_type': 'image/jpeg', 'data': img_b64}},",
-    "                {'type': 'text', 'text': 'Read the ' + fn['meter_type'] + ' meter. Reply ONLY with the numeric value, e.g. 1234.567'}",
-    '            ]}]',
-    '        )',
-    '        raw = msg.content[0].text.strip()',
-    "        value = float(raw.replace(',', '.').replace(' ', ''))",
+    "        resp = requests.post(cfg['worker_url'] + '/read-meter',",
+    "            json={'image_b64': img_b64, 'media_type': 'image/jpeg', 'meter_type': fn['meter_type']},",
+    '            timeout=30)',
+    '        result = resp.json()',
+    "        if not result.get('success'):",
+    "            raise Exception(result.get('error', 'Vision failed'))",
+    "        value = result['value']",
+    "        raw   = result['raw']",
     "        sb_url = cfg['supabase_url'].rstrip('/') + '/rest/v1/meter_readings'",
     "        h = {'apikey': cfg['supabase_anon_key'], 'Authorization': 'Bearer ' + cfg['supabase_anon_key'],",
     "             'Content-Type': 'application/json', 'Prefer': 'return=minimal'}",
@@ -601,7 +595,7 @@ function downloadSetup() {
     '',
     '# 2. Pakete',
     'Write-Host "... Python-Pakete installieren"',
-    'python -m pip install anthropic requests schedule --quiet',
+    'python -m pip install requests schedule --quiet',
     'Write-Host "OK  Pakete installiert" -ForegroundColor Green',
     '',
     '# 3. Ordner',
