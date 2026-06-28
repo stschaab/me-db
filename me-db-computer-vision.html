@@ -393,7 +393,7 @@ async function loadFunctions() {
   const sel = document.getElementById('manFnId');
   const prev = sel.value;
   sel.innerHTML = '<option value="">– Zähler wählen –</option>' +
-    allFunctions.map(f => `<option value="${f.id}">${esc(f.name)} · ${esc(f.meter_type)}</option>`).join('');
+    allFunctions.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
   if (prev) sel.value = prev;
   if (!sel.value && allFunctions.length) { sel.value = allFunctions[0].id; onManFnChange(); }
 }
