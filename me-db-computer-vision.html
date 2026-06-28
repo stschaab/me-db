@@ -527,7 +527,7 @@ async function saveEdit(id) {
   const val = parseFloat(document.getElementById('edit_' + id).value);
   if (isNaN(val)) return;
   if (!await ensureSession()) return;
-  const { error } = await db.from('meter_readings').update({ value: val }).eq('id', id);
+  const { error } = await db.from('meter_readings').update({ value: val, is_example: true }).eq('id', id);
   if (error) { alert('Fehler: ' + error.message); return; }
   loadReadings();
 }
@@ -598,7 +598,7 @@ async function deleteReading(id) {
 
 // ── Manual photo ──────────────────────────────────────────────────────────────
 const unitMap = { Wasserzähler:'m3', Gaszähler:'m3', Stromzähler:'kWh', Wärmezähler:'MWh' };
-let currentImageB64 = null, currentMediaType = 'image/jpeg', currentFile = null;
+let currentImageB64 = null, currentMediaType = 'image/jpeg', currentFile = null, currentClaudeValue = null;
 
 function onManFnChange() {
   const fn = allFunctions.find(f => f.id === document.getElementById('manFnId').value);
@@ -665,6 +665,7 @@ async function readMeter() {
     const result = await resp.json();
     if (!result.success) { status.textContent = '❌ ' + (result.error || 'Fehler'); btn.disabled = false; return; }
     const unit = unitMap[meterType] || 'm3';
+    currentClaudeValue = result.value;
     document.getElementById('readValue').value = result.value.toFixed(3);
     document.getElementById('readUnit').textContent = fn.unit || unit;
     document.getElementById('readRaw').textContent = 'Claude: "' + result.raw + '" — prüfen, dann Speichern.';
@@ -682,11 +683,13 @@ async function saveReading() {
   const btn = document.getElementById('saveBtn');
   btn.disabled = true; btn.textContent = '⏳…';
   const imagePath = currentFile ? await uploadMeterPhoto(fn.name, currentFile) : null;
+  const isExample = currentClaudeValue !== null && Math.abs(currentClaudeValue - value) > 0.0005;
   const { error } = await db.from('meter_readings').insert({
     agent_name: fn.name, meter_type: fn.meter_type, value, unit: fn.unit,
     monitoring_function_id: fn.id,
     raw_response: document.getElementById('readRaw').textContent,
     image_path: imagePath,
+    is_example: isExample,
     captured_at: new Date().toISOString()
   });
   if (error) { alert('Fehler: ' + error.message); btn.disabled = false; btn.textContent = '💾 Speichern'; return; }
