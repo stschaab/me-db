@@ -5,15 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MeDB &middot; Trend Viewer</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<script src="https://cdn.jsdelivr.net/npm/hammerjs@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
 
-/* ── Header / Nav ── */
 header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; }
 header h1 { font-size: 1.4rem; font-weight: 600; }
 .hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
@@ -24,10 +20,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 .navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; }
 .navdrop-menu a { padding: 12px 10px 12px 24px !important; }
 
-/* ── Layout ── */
 .container { max-width: 1200px; margin: 20px auto; padding: 0 20px 60px; }
 
-/* ── Toolbar ── */
 .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
 .add-btn { background: #1a1a2e; color: white; border: none; border-radius: 20px; padding: 7px 16px; font-size: 0.85rem; cursor: pointer; font-weight: 600; }
 .add-btn:hover { background: #2d2d4e; }
@@ -37,7 +31,6 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 .reset-btn:hover { background: #ddd; }
 .hint { font-size: 0.72rem; color: #aaa; }
 
-/* ── Series panel ── */
 .series-panel { background: white; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.13); margin-bottom: 12px; overflow: hidden; display: none; }
 .series-panel.open { display: block; }
 .panel-search { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; }
@@ -56,7 +49,6 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 .si-unit { font-size: 0.72rem; color: #bbb; }
 .panel-loading { padding: 20px; text-align: center; color: #aaa; font-size: 0.85rem; }
 
-/* ── Active series chips ── */
 .active-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; min-height: 30px; align-items: center; }
 .chip { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px; padding: 5px 10px 5px 9px; font-size: 0.79rem; font-weight: 500; border: 1.5px solid; white-space: nowrap; }
 .chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
@@ -69,19 +61,18 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 .clear-btn { background: none; border: none; cursor: pointer; font-size: 0.75rem; color: #bbb; padding: 4px 8px; margin-left: 4px; }
 .clear-btn:hover { color: #e53935; }
 
-/* ── Chart card ── */
 .chart-card { background: white; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
-.chart-inner { position: relative; height: 420px; padding: 16px; }
+.chart-inner { position: relative; height: 460px; }
 .chart-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #ccc; gap: 10px; }
 .chart-empty .icon { font-size: 2.8rem; }
 .chart-empty .txt { font-size: 0.9rem; }
-#trendChart { display: none; width: 100% !important; height: 100% !important; }
+#trendChart { width: 100%; height: 100%; display: none; }
 
 @media (max-width: 768px) {
   header { padding: 12px 14px; }
   header h1 { font-size: 0.95rem; }
   .container { padding: 0 12px 60px; margin: 12px auto; }
-  .chart-inner { height: 300px; }
+  .chart-inner { height: 320px; }
 }
 </style>
 </head>
@@ -130,7 +121,6 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
 <div class="container">
 
-  <!-- Toolbar -->
   <div class="toolbar">
     <button class="add-btn" id="addBtn" onclick="togglePanel()">＋ Add Series</button>
     <button class="rbtn" onclick="setRange(30, this)">30d</button>
@@ -142,7 +132,6 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <span class="hint">Scroll to zoom · Drag to pan · Double-click to reset</span>
   </div>
 
-  <!-- Series panel (hidden by default) -->
   <div class="series-panel" id="seriesPanel">
     <div class="panel-search">
       <input type="text" id="searchInput" placeholder="Search series…" oninput="renderPanel()">
@@ -152,19 +141,17 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     </div>
   </div>
 
-  <!-- Active series chips -->
   <div class="active-row" id="activeRow">
     <span class="no-series-hint">No series selected — click "+ Add Series" to start</span>
   </div>
 
-  <!-- Chart -->
   <div class="chart-card">
     <div class="chart-inner">
       <div class="chart-empty" id="chartEmpty">
         <div class="icon">📈</div>
         <div class="txt">Add a series above to see trends</div>
       </div>
-      <canvas id="trendChart"></canvas>
+      <div id="trendChart"></div>
     </div>
   </div>
 
@@ -175,50 +162,47 @@ const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
-// ── Color palette ────────────────────────────────────────────────────────────
 const PALETTE = [
   '#f0a500','#1976d2','#e53935','#2e7d32','#7b1fa2',
   '#00838f','#ff7043','#8bc34a','#ab47bc','#26c6da',
   '#5d4037','#d97757','#66bb6a','#90a4ae','#ef5350',
 ];
 
-// ── Series catalog ───────────────────────────────────────────────────────────
-// Each item: { id, label, unit, load: async () => [{x: ms, y: number}] }
+// ── Catalog ───────────────────────────────────────────────────────────────────
 let catalog = [
   { group: 'HRV', items: [
-    { id: 'hrv_rmssd', label: 'RMSSD',  unit: 'ms', load: () => loadColumn('hrv_measurements', 'measured_at', 'rmssd') },
-    { id: 'hrv_sdnn',  label: 'SDNN',   unit: 'ms', load: () => loadColumn('hrv_measurements', 'measured_at', 'sdnn') },
-    { id: 'hrv_pnn50', label: 'pNN50',  unit: '%',  load: () => loadColumn('hrv_measurements', 'measured_at', 'pnn50') },
-    { id: 'hrv_hr',    label: 'Mean HR', unit: 'bpm',load: () => loadColumn('hrv_measurements', 'measured_at', 'mean_hr') },
+    { id: 'hrv_rmssd', label: 'RMSSD',   unit: 'ms',  load: () => loadColumn('hrv_measurements', 'measured_at', 'rmssd') },
+    { id: 'hrv_sdnn',  label: 'SDNN',    unit: 'ms',  load: () => loadColumn('hrv_measurements', 'measured_at', 'sdnn') },
+    { id: 'hrv_pnn50', label: 'pNN50',   unit: '%',   load: () => loadColumn('hrv_measurements', 'measured_at', 'pnn50') },
+    { id: 'hrv_hr',    label: 'Mean HR', unit: 'bpm', load: () => loadColumn('hrv_measurements', 'measured_at', 'mean_hr') },
   ]},
   { group: 'Sport', items: [
     { id: 'act_duration',        label: 'Duration (daily)',  unit: 'h', load: () => loadColumn('activities', 'date', 'duration_sec', v => +(v / 3600).toFixed(2)) },
     { id: 'act_duration_weekly', label: 'Duration (weekly)', unit: 'h', load: loadWeeklyDuration },
   ]},
   { group: 'PV', items: [
-    { id: 'pv_gen',     label: 'Generation',     unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'pv_generation_kwh') },
-    { id: 'pv_export',  label: 'Feed-in',         unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'grid_export_kwh') },
-    { id: 'pv_import',  label: 'Grid import',     unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'grid_import_kwh') },
-    { id: 'pv_direct',  label: 'Direct use',      unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'direct_consumption_kwh') },
-    { id: 'pv_consume', label: 'Consumption',     unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'total_consumption_kwh') },
-    { id: 'pv_bat_c',   label: 'Battery charge',  unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'battery_charge_kwh') },
-    { id: 'pv_bat_d',   label: 'Battery disch.',  unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'battery_discharge_kwh') },
-    { id: 'pv_echarge', label: 'eCharger',        unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'echarger_kwh') },
+    { id: 'pv_gen',     label: 'Generation',    unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'pv_generation_kwh') },
+    { id: 'pv_export',  label: 'Feed-in',        unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'grid_export_kwh') },
+    { id: 'pv_import',  label: 'Grid import',    unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'grid_import_kwh') },
+    { id: 'pv_direct',  label: 'Direct use',     unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'direct_consumption_kwh') },
+    { id: 'pv_consume', label: 'Consumption',    unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'total_consumption_kwh') },
+    { id: 'pv_bat_c',   label: 'Battery charge', unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'battery_charge_kwh') },
+    { id: 'pv_bat_d',   label: 'Battery disch.', unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'battery_discharge_kwh') },
+    { id: 'pv_echarge', label: 'eCharger',       unit: 'kWh', load: () => loadColumn('pv_daily', 'date', 'echarger_kwh') },
   ]},
   { group: 'Weather', items: [
     { id: 'dwd_rad', label: 'Solar Radiation', unit: 'kWh/m²', load: () => loadColumn('dwd_radiation_daily', 'date', 'radiation_kwh_m2') },
   ]},
-  // Lab groups injected dynamically after parameters load
 ];
 
-// ── State ────────────────────────────────────────────────────────────────────
-let chart = null;
-let activeSeries = {};   // id → { def, color }
+// ── State ─────────────────────────────────────────────────────────────────────
+let activeSeries = {};   // id → { def, color, points, loading }
 let nextColorIdx = 0;
-let tableCache = {};     // cache key → [{x,y}]
+let tableCache = {};
 let catalogReady = false;
+let plotInited = false;
 
-// ── Auth ─────────────────────────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
 db.auth.getSession().then(async ({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   await Promise.all([loadLabParameters(), loadMeterCatalog(), loadCalcCatalog()]);
@@ -227,89 +211,57 @@ db.auth.getSession().then(async ({ data }) => {
 });
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 
-// ── Meter readings catalog ────────────────────────────────────────────────────
+// ── Data loaders ──────────────────────────────────────────────────────────────
 async function loadMeterCatalog() {
-  const { data } = await db.from('meter_readings')
-    .select('agent_name,meter_type,unit')
-    .order('agent_name');
+  const { data } = await db.from('meter_readings').select('agent_name,meter_type,unit').order('agent_name');
   if (!data?.length) return;
-
   const seen = {};
-  for (const r of data) {
-    if (!seen[r.agent_name]) seen[r.agent_name] = r;
-  }
-
-  const items = Object.values(seen).map(r => ({
-    id: 'meter_' + r.agent_name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, ''),
-    label: r.agent_name,
-    unit: r.unit || 'm3',
-    category: r.meter_type || '',
+  for (const r of data) { if (!seen[r.agent_name]) seen[r.agent_name] = r; }
+  catalog.push({ group: 'Zähler', items: Object.values(seen).map(r => ({
+    id: 'meter_' + r.agent_name.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g,''),
+    label: r.agent_name, unit: r.unit || 'm3', category: r.meter_type || '',
     load: () => loadMeterData(r.agent_name),
-  }));
-
-  catalog.push({ group: 'Zähler', items });
+  }))});
   renderPanel();
 }
 
 async function loadMeterData(agentName) {
   const key = 'meter_' + agentName;
   if (tableCache[key]) return tableCache[key];
-  const { data } = await db.from('meter_readings')
-    .select('captured_at,value')
-    .eq('agent_name', agentName)
-    .order('captured_at', { ascending: true });
-  tableCache[key] = (data || []).map(r => ({
-    x: new Date(r.captured_at).getTime(),
-    y: +r.value,
-  }));
+  const { data } = await db.from('meter_readings').select('captured_at,value').eq('agent_name', agentName).order('captured_at', { ascending: true });
+  tableCache[key] = (data || []).map(r => ({ x: new Date(r.captured_at).getTime(), y: +r.value }));
   return tableCache[key];
 }
 
-// ── Calc results catalog ──────────────────────────────────────────────────────
 async function loadCalcCatalog() {
-  const { data } = await db.from('calc_results')
-    .select('name,unit')
-    .order('name');
+  const { data } = await db.from('calc_results').select('name,unit').order('name');
   if (!data?.length) return;
   const seen = {};
   for (const r of data) { if (!seen[r.name]) seen[r.name] = r; }
-  const items = Object.values(seen).map(r => ({
-    id: 'calc_' + r.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, ''),
-    label: r.name,
-    unit: r.unit || '',
-    category: 'Berechnet',
+  catalog.push({ group: 'Berechnet', items: Object.values(seen).map(r => ({
+    id: 'calc_' + r.name.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g,''),
+    label: r.name, unit: r.unit || '', category: 'Berechnet',
     load: () => loadCalcData(r.name),
-  }));
-  catalog.push({ group: 'Berechnet', items });
+  }))});
   renderPanel();
 }
 
 async function loadCalcData(name) {
   const key = 'calc_' + name;
   if (tableCache[key]) return tableCache[key];
-  const { data } = await db.from('calc_results')
-    .select('period_end,value')
-    .eq('name', name)
-    .order('period_end', { ascending: true });
-  tableCache[key] = (data || []).map(r => ({
-    x: new Date(r.period_end).getTime(),
-    y: +r.value,
-  }));
+  const { data } = await db.from('calc_results').select('period_end,value').eq('name', name).order('period_end', { ascending: true });
+  tableCache[key] = (data || []).map(r => ({ x: new Date(r.period_end).getTime(), y: +r.value }));
   return tableCache[key];
 }
 
-// ── Lab parameters ────────────────────────────────────────────────────────────
 async function loadLabParameters() {
   const { data } = await db.from('parameters').select('id,name,category,unit_si,unit').order('name');
   if (data?.length) {
-    const labItems = data.map(p => ({
-      id: 'lab_' + p.id,
-      label: p.name,
-      unit: p.unit_si || p.unit || '',
-      category: p.category || '',
+    catalog.push({ group: 'Lab', items: data.map(p => ({
+      id: 'lab_' + p.id, label: p.name,
+      unit: p.unit_si || p.unit || '', category: p.category || '',
       load: () => loadLabMeasurements(p.id),
-    }));
-    catalog.push({ group: 'Lab', items: labItems });
+    }))});
   }
   catalogReady = true;
   renderPanel();
@@ -318,10 +270,7 @@ async function loadLabParameters() {
 async function loadLabMeasurements(parameterId) {
   const key = 'lab_' + parameterId;
   if (!tableCache[key]) {
-    const { data } = await db.from('measurements')
-      .select('measured_at,value_si,value')
-      .eq('parameter_id', parameterId)
-      .order('measured_at', { ascending: true });
+    const { data } = await db.from('measurements').select('measured_at,value_si,value').eq('parameter_id', parameterId).order('measured_at', { ascending: true });
     tableCache[key] = (data || []).map(r => ({
       x: new Date(r.measured_at).getTime(),
       y: r.value_si != null ? +r.value_si : (r.value != null ? +r.value : null),
@@ -330,24 +279,18 @@ async function loadLabMeasurements(parameterId) {
   return tableCache[key];
 }
 
-// ── Generic column loader (paginated — bypasses Supabase max_rows=1000) ───────
 async function loadColumn(table, xField, yField, transform) {
   const key = table + '_' + yField;
   if (tableCache[key]) return tableCache[key];
-
   const PAGE = 1000;
   let allRows = [], from = 0;
   while (true) {
-    const { data, error } = await db.from(table)
-      .select(xField + ',' + yField)
-      .order(xField, { ascending: true })
-      .range(from, from + PAGE - 1);
+    const { data, error } = await db.from(table).select(xField + ',' + yField).order(xField, { ascending: true }).range(from, from + PAGE - 1);
     if (error || !data?.length) break;
     allRows = allRows.concat(data);
     if (data.length < PAGE) break;
     from += PAGE;
   }
-
   tableCache[key] = allRows.map(r => {
     const xStr = r[xField];
     const x = new Date(xStr.includes?.('T') ? xStr : xStr + 'T12:00:00').getTime();
@@ -355,26 +298,22 @@ async function loadColumn(table, xField, yField, transform) {
     const y = raw != null ? (transform ? transform(+raw) : +raw) : null;
     return { x, y };
   }).filter(p => p.y !== null && !isNaN(p.y));
-
   return tableCache[key];
 }
 
-// ── Weekly aggregation: sport duration ────────────────────────────────────────
 async function loadWeeklyDuration() {
   if (!tableCache['act_weekly_duration']) {
     const { data } = await db.from('activities').select('date,duration_sec').order('date', { ascending: true });
     const weeks = {};
     for (const r of (data || [])) {
       if (!r.duration_sec) continue;
-      // ISO week Monday as anchor
       const d = new Date(r.date + 'T12:00:00');
-      const day = d.getDay() || 7; // Mon=1 … Sun=7
+      const day = d.getDay() || 7;
       const mon = new Date(d); mon.setDate(d.getDate() - (day - 1));
       const key = mon.toISOString().substring(0, 10);
       weeks[key] = (weeks[key] || 0) + +r.duration_sec;
     }
-    tableCache['act_weekly_duration'] = Object.entries(weeks)
-      .sort(([a], [b]) => a.localeCompare(b))
+    tableCache['act_weekly_duration'] = Object.entries(weeks).sort(([a],[b]) => a.localeCompare(b))
       .map(([dateStr, sec]) => ({ x: new Date(dateStr + 'T12:00:00').getTime(), y: +(sec / 3600).toFixed(2) }));
   }
   return tableCache['act_weekly_duration'];
@@ -393,9 +332,7 @@ function renderPanel() {
   const filter = (document.getElementById('searchInput')?.value || '').toLowerCase();
   let html = '';
   for (const group of catalog) {
-    const items = filter
-      ? group.items.filter(i => i.label.toLowerCase().includes(filter))
-      : group.items;
+    const items = filter ? group.items.filter(i => i.label.toLowerCase().includes(filter)) : group.items;
     if (!items.length) continue;
     html += `<div class="group-label">${esc(group.group)}</div>`;
     for (const item of items) {
@@ -409,110 +346,43 @@ function renderPanel() {
       </div>`;
     }
   }
-  document.getElementById('panelGroups').innerHTML = html ||
-    '<div class="panel-loading">No results</div>';
+  document.getElementById('panelGroups').innerHTML = html || '<div class="panel-loading">No results</div>';
 }
 
-// ── Add / remove series ───────────────────────────────────────────────────────
-async function toggleSeries(id) {
-  if (activeSeries[id]) {
-    removeSeries(id);
-  } else {
-    await addSeries(id);
-  }
-}
-
+// ── Add / remove ──────────────────────────────────────────────────────────────
 function findDef(id) {
-  for (const g of catalog) {
-    const item = g.items.find(i => i.id === id);
-    if (item) return item;
-  }
+  for (const g of catalog) { const item = g.items.find(i => i.id === id); if (item) return item; }
   return null;
+}
+
+async function toggleSeries(id) {
+  activeSeries[id] ? removeSeries(id) : await addSeries(id);
 }
 
 async function addSeries(id) {
   const def = findDef(id);
   if (!def || activeSeries[id]) return;
-
-  const color = PALETTE[nextColorIdx % PALETTE.length];
-  nextColorIdx++;
-
-  // Optimistic: show loading chip immediately
-  activeSeries[id] = { def, color, loading: true };
-  renderChips();
-  renderPanel();
-
+  const color = PALETTE[nextColorIdx++ % PALETTE.length];
+  activeSeries[id] = { def, color, loading: true, points: [] };
+  renderChips(); renderPanel();
   const points = await def.load();
-
   activeSeries[id].loading = false;
-
-  if (!chart) initChart();
-
-  // Each series gets its own y-axis → independent auto-scale
-  const axisId = safeId(id);
-  const seriesCount = Object.keys(activeSeries).length;
-  const position = seriesCount % 2 === 0 ? 'right' : 'left';
-  chart.options.scales[axisId] = {
-    type: 'linear',
-    display: true,
-    position,
-    beginAtZero: false,
-    title: { display: true, text: def.unit, color: color, font: { size: 11, weight: '600' } },
-    ticks: { color, font: { size: 10 }, maxTicksLimit: 6 },
-    grid: { drawOnChartArea: position === 'left' },
-  };
-
-  chart.data.datasets.push({
-    label: def.label,
-    seriesId: id,
-    data: points,
-    yAxisID: axisId,
-    borderColor: color,
-    backgroundColor: color + '28',
-    borderWidth: 2,
-    pointRadius: points.length < 80 ? 3 : 0,
-    pointHoverRadius: 6,
-    tension: 0.25,
-    fill: false,
-    spanGaps: false,
-  });
-
-  chart.update();
-
-  // If all data fits within 2 hours, pad to a 24h window so ticks are visible
-  const allX = chart.data.datasets.flatMap(d => d.data.map(p => p.x));
-  if (allX.length >= 2) {
-    const minX = Math.min(...allX), maxX = Math.max(...allX);
-    if (maxX - minX < 7200000) {
-      const mid = (minX + maxX) / 2;
-      chart.zoomScale('x', { min: mid - 43200000, max: mid + 43200000 }, 'none');
-    }
-  }
-
-  adaptTimeUnit();
-  renderChips();
-  renderPanel();
+  activeSeries[id].points = points;
+  rebuildChart();
+  renderChips(); renderPanel();
 }
 
 function removeSeries(id) {
   if (!activeSeries[id]) return;
   delete activeSeries[id];
-
-  if (chart) {
-    chart.data.datasets = chart.data.datasets.filter(ds => ds.seriesId !== id);
-    delete chart.options.scales[safeId(id)];
-    if (chart.data.datasets.length === 0) {
-      showEmpty(true);
-    } else {
-      chart.update();
-    }
-  }
-  renderChips();
-  renderPanel();
+  rebuildChart();
+  renderChips(); renderPanel();
 }
 
 function clearAll() {
-  for (const id of Object.keys(activeSeries)) removeSeries(id);
+  activeSeries = {};
+  rebuildChart();
+  renderChips(); renderPanel();
 }
 
 // ── Chips ─────────────────────────────────────────────────────────────────────
@@ -535,62 +405,72 @@ function renderChips() {
   ).join('') + `<button class="clear-btn" onclick="clearAll()">Clear all</button>`;
 }
 
-// ── Chart ─────────────────────────────────────────────────────────────────────
-function initChart() {
+// ── Plotly chart ──────────────────────────────────────────────────────────────
+function rebuildChart() {
+  const entries = Object.entries(activeSeries).filter(([, s]) => !s.loading);
+  if (!entries.length) { showEmpty(true); return; }
   showEmpty(false);
-  const ctx = document.getElementById('trendChart').getContext('2d');
-  chart = new Chart(ctx, {
-    type: 'line',
-    data: { datasets: [] },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      parsing: false,
-      scales: {
-        x: {
-          type: 'time',
-          time: {
-            unit: 'day',
-            tooltipFormat: 'dd MMM yyyy HH:mm',
-            displayFormats: { minute: 'HH:mm', hour: 'HH:mm', day: 'd MMM', week: 'd MMM', month: 'MMM yy', year: 'yyyy' },
-          },
-          adapters: { date: {} },
-          grid: { color: '#f0f0f0' },
-          title: { display: true, text: 'Datum', color: '#aaa', font: { size: 11 } },
-          ticks: { maxRotation: 0, color: '#888', font: { size: 11 } },
-        },
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: ctx => {
-              if (ctx.parsed.y == null) return null;
-              const s = activeSeries[ctx.dataset.seriesId];
-              const unit = s ? s.def.unit : '';
-              const val = Number.isInteger(ctx.parsed.y) ? ctx.parsed.y : ctx.parsed.y.toFixed(2);
-              return `  ${ctx.dataset.label}: ${val}${unit ? ' ' + unit : ''}`;
-            },
-          },
-        },
-        zoom: {
-          pan:  { enabled: true, mode: 'x', onPanComplete: adaptTimeUnit },
-          zoom: {
-            wheel: { enabled: true, speed: 0.1 },
-            pinch: { enabled: true },
-            mode: 'x',
-            onZoomComplete: adaptTimeUnit,
-          },
-          limits: { x: { minRange: 2 * 86400000 } },
-        },
-      },
+
+  const traces = [];
+  const layout = {
+    paper_bgcolor: 'white',
+    plot_bgcolor: 'white',
+    margin: { t: 24, r: 60, b: 60, l: 70 },
+    hovermode: 'x unified',
+    showlegend: false,
+    font: { family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
+    xaxis: {
+      type: 'date',
+      title: { text: 'Datum', font: { size: 11, color: '#aaa' } },
+      gridcolor: '#f0f0f0',
+      linecolor: '#e0e0e0',
+      zeroline: false,
+      tickfont: { size: 11, color: '#888' },
     },
-    plugins: [{
-      id: 'dblclick-reset',
-      afterEvent(ch, { event }) { if (event.type === 'dblclick') ch.resetZoom(); },
-    }],
+  };
+
+  entries.forEach(([id, s], i) => {
+    const pts = s.points || [];
+    const xs = pts.map(p => new Date(p.x));
+    const ys = pts.map(p => p.y);
+    const axisKey = i === 0 ? 'yaxis' : `yaxis${i + 1}`;
+    const yref    = i === 0 ? 'y'     : `y${i + 1}`;
+    const side    = i % 2 === 0 ? 'left' : 'right';
+
+    layout[axisKey] = {
+      title: { text: s.def.unit, font: { size: 11, color: s.color } },
+      tickfont: { size: 10, color: s.color },
+      gridcolor: i === 0 ? '#f0f0f0' : 'transparent',
+      zeroline: false,
+      linecolor: '#e0e0e0',
+      ...(i > 0 ? { overlaying: 'y', side } : { side: 'left' }),
+    };
+
+    traces.push({
+      x: xs, y: ys,
+      mode: pts.length < 100 ? 'lines+markers' : 'lines',
+      name: s.def.label,
+      line: { color: s.color, width: 2 },
+      marker: { color: s.color, size: 5 },
+      yaxis: yref,
+      hovertemplate: `<b>${esc(s.def.label)}</b>: %{y:.4g} ${s.def.unit}<br>%{x|%d %b %Y %H:%M}<extra></extra>`,
+    });
   });
+
+  const config = {
+    responsive: true,
+    scrollZoom: true,
+    displayModeBar: true,
+    modeBarButtonsToRemove: ['select2d', 'lasso2d', 'toImage'],
+    doubleClick: 'autosize',
+  };
+
+  if (plotInited) {
+    Plotly.react('trendChart', traces, layout, config);
+  } else {
+    Plotly.newPlot('trendChart', traces, layout, config);
+    plotInited = true;
+  }
 }
 
 function showEmpty(empty) {
@@ -598,36 +478,27 @@ function showEmpty(empty) {
   document.getElementById('trendChart').style.display = empty ? 'none' : 'block';
 }
 
-function adaptTimeUnit() {
-  if (!chart) return;
-  const scale = chart.scales.x;
-  const days = (scale.max - scale.min) / 86400000;
-  const unit = days > 500 ? 'year' : days > 60 ? 'month' : days > 14 ? 'week' : days > 1 ? 'day' : days > 0.04 ? 'hour' : 'minute';
-  chart.options.scales.x.time.unit = unit;
-  chart.update('none');
-}
-
+// ── Range buttons ─────────────────────────────────────────────────────────────
 function setRange(days, btn) {
   document.querySelectorAll('.rbtn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  if (!chart) return;
-  if (days === 0) { chart.resetZoom(); adaptTimeUnit(); return; }
-  const to   = new Date();
-  const from = new Date(to.getTime() - days * 86400000);
-  chart.zoomScale('x', { min: from.getTime(), max: to.getTime() }, 'default');
-  adaptTimeUnit();
+  if (!plotInited) return;
+  if (days === 0) {
+    Plotly.relayout('trendChart', { 'xaxis.autorange': true });
+  } else {
+    const to   = new Date();
+    const from = new Date(to.getTime() - days * 86400000);
+    Plotly.relayout('trendChart', { 'xaxis.range': [from.toISOString(), to.toISOString()] });
+  }
 }
 
 function resetZoom() {
-  if (!chart) return;
-  chart.resetZoom();
+  if (!plotInited) return;
+  Plotly.relayout('trendChart', { 'xaxis.autorange': true });
   document.querySelectorAll('.rbtn').forEach(b => b.classList.remove('active'));
   document.querySelector('.rbtn[onclick*="setRange(0"]').classList.add('active');
-  adaptTimeUnit();
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function safeId(id) { return 'y_' + id.replace(/[^a-z0-9]/gi, '_'); }
 function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
 </script>
 </body>
