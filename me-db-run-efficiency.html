@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Run Efficiency</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+
+header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; }
+header h1 { font-size: 1.4rem; font-weight: 600; }
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; color: #7ec8e3; text-decoration: none; background: none; border-top: none; cursor: pointer; }
+.navdrop { width: 100%; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+
+.container { max-width: 1100px; margin: 20px auto; padding: 0 20px 60px; }
+
+.intro { background: white; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 18px 22px; margin-bottom: 16px; }
+.intro h2 { font-size: 1.05rem; margin-bottom: 6px; }
+.intro p { font-size: 0.85rem; color: #777; line-height: 1.5; }
+
+.stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.stat-card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 12px 18px; flex: 1; min-width: 130px; }
+.stat-card .label { font-size: 0.7rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.stat-card .value { font-size: 1.2rem; font-weight: 700; color: #1a1a2e; }
+
+.chart-card { background: white; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; padding: 8px; }
+.chart-inner { position: relative; height: 560px; }
+#hrPaceChart { width: 100%; height: 100%; }
+.chart-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #ccc; gap: 10px; }
+.chart-empty .icon { font-size: 2.8rem; }
+.chart-empty .txt { font-size: 0.9rem; }
+
+.toggle-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.tbtn { border: 1px solid #d8d8d8; background: white; border-radius: 16px; padding: 5px 13px; font-size: 0.78rem; cursor: pointer; color: #555; }
+.tbtn.active, .tbtn:hover { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+
+@media (max-width: 768px) {
+  header { padding: 12px 14px; }
+  header h1 { font-size: 0.95rem; }
+  .container { padding: 0 12px 60px; margin: 12px auto; }
+  .chart-inner { height: 420px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>
+    <a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a>
+    <span style="color:#5c5c78;margin:0 6px">&rsaquo;</span>
+    <span>Run Efficiency</span>
+  </h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Lab Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Activities</a>
+      <a href="me-db-run-efficiency.html">Run Efficiency</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Reports</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Values</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-abos.html">Subscriptions</a>
+    <a href="me-db-supplements.html">Supplements</a>
+    <a href="me-db-pv.html">PV Plant</a>
+    <a href="me-db-trendviewer.html">Trend Viewer</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <div class="intro">
+    <h2>HR = f(Tempo) &middot; Steady-State-Läufe</h2>
+    <p>Jeder Punkt ist ein Lauf (LDL / MDL / GA1 / SSL / Langer Langsamer Lauf) — kein Intervall- oder Sprinttraining. Bei gleichem Fitnesszustand sollten die Punkte auf einer Kurve liegen. Verschiebt sich die Kurve über Zeit nach unten (gleiches Tempo, niedrigerer Puls) oder nach links (gleicher Puls, schnelleres Tempo), ist das ein Zeichen für bessere aerobe Fitness.</p>
+  </div>
+
+  <div class="stats-row" id="statsRow"></div>
+
+  <div class="toggle-row">
+    <button class="tbtn active" onclick="setTrend(true, this)">Trendlinie an</button>
+    <button class="tbtn" onclick="setTrend(false, this)">Trendlinie aus</button>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-inner">
+      <div class="chart-empty" id="chartEmpty">
+        <div class="icon">📈</div>
+        <div class="txt">Lade Läufe…</div>
+      </div>
+      <div id="hrPaceChart" style="display:none"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+let allPoints = [];
+let trendOn = true;
+
+db.auth.getSession().then(async ({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  await loadData();
+});
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+function fmtPace(p) {
+  const m = Math.floor(p);
+  const s = Math.round((p - m) * 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+async function loadData() {
+  const { data, error } = await db.from('activities')
+    .select('id,name,date,analysis_pace_min_km,analysis_avg_hr')
+    .not('analysis_pace_min_km', 'is', null)
+    .not('analysis_avg_hr', 'is', null)
+    .order('date', { ascending: true });
+  if (error || !data?.length) {
+    document.getElementById('chartEmpty').querySelector('.txt').textContent = 'Keine Daten gefunden';
+    return;
+  }
+  allPoints = data;
+  renderStats();
+  renderChart();
+}
+
+function renderStats() {
+  const years = allPoints.map(p => new Date(p.date).getFullYear());
+  const paces = allPoints.map(p => p.analysis_pace_min_km);
+  const hrs = allPoints.map(p => p.analysis_avg_hr);
+  const stats = [
+    { label: 'Läufe', value: allPoints.length },
+    { label: 'Zeitraum', value: `${Math.min(...years)}–${Math.max(...years)}` },
+    { label: 'Pace-Spanne', value: `${fmtPace(Math.min(...paces))}–${fmtPace(Math.max(...paces))}` },
+    { label: 'HR-Spanne', value: `${Math.round(Math.min(...hrs))}–${Math.round(Math.max(...hrs))} bpm` },
+  ];
+  document.getElementById('statsRow').innerHTML = stats.map(s =>
+    `<div class="stat-card"><div class="label">${s.label}</div><div class="value">${s.value}</div></div>`
+  ).join('');
+}
+
+function linregress(xs, ys) {
+  const n = xs.length;
+  const mx = xs.reduce((a, b) => a + b, 0) / n;
+  const my = ys.reduce((a, b) => a + b, 0) / n;
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) { num += (xs[i] - mx) * (ys[i] - my); den += (xs[i] - mx) ** 2; }
+  const slope = den ? num / den : 0;
+  const intercept = my - slope * mx;
+  return { slope, intercept };
+}
+
+function setTrend(on, btn) {
+  trendOn = on;
+  document.querySelectorAll('.tbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderChart();
+}
+
+function renderChart() {
+  document.getElementById('chartEmpty').style.display = 'none';
+  document.getElementById('hrPaceChart').style.display = 'block';
+
+  const xs = allPoints.map(p => p.analysis_pace_min_km);
+  const ys = allPoints.map(p => p.analysis_avg_hr);
+  const ts = allPoints.map(p => new Date(p.date).getTime());
+  const tMin = Math.min(...ts), tMax = Math.max(...ts);
+
+  const traces = [{
+    x: xs, y: ys,
+    mode: 'markers',
+    type: 'scatter',
+    marker: {
+      size: 9,
+      color: ts,
+      colorscale: [[0, '#dfe3f5'], [0.5, '#8c8fc9'], [1, '#1a1a2e']],
+      cmin: tMin, cmax: tMax,
+      line: { width: 1, color: 'rgba(255,255,255,0.6)' },
+      colorbar: {
+        title: { text: 'Jahr', font: { size: 11, color: '#888' } },
+        tickvals: (() => {
+          const y0 = new Date(tMin).getFullYear(), y1 = new Date(tMax).getFullYear();
+          const vals = [];
+          for (let y = y0; y <= y1; y++) vals.push(new Date(`${y}-01-01`).getTime());
+          return vals;
+        })(),
+        ticktext: (() => {
+          const y0 = new Date(tMin).getFullYear(), y1 = new Date(tMax).getFullYear();
+          const labels = [];
+          for (let y = y0; y <= y1; y++) labels.push(String(y));
+          return labels;
+        })(),
+        tickfont: { size: 10, color: '#888' },
+        thickness: 14,
+      },
+    },
+    text: allPoints.map(p => `${esc(p.name)}<br>${p.date}`),
+    hovertemplate: `%{text}<br>Pace: ${''}%{customdata[0]} min/km<br>HR: %{y} bpm<extra></extra>`,
+    customdata: allPoints.map(p => [fmtPace(p.analysis_pace_min_km)]),
+  }];
+
+  if (trendOn && xs.length >= 3) {
+    const { slope, intercept } = linregress(xs, ys);
+    const xMin = Math.min(...xs), xMax = Math.max(...xs);
+    traces.push({
+      x: [xMin, xMax],
+      y: [slope * xMin + intercept, slope * xMax + intercept],
+      mode: 'lines',
+      type: 'scatter',
+      line: { color: '#e53935', width: 2, dash: 'dash' },
+      hoverinfo: 'skip',
+      showlegend: false,
+    });
+  }
+
+  const layout = {
+    paper_bgcolor: 'white',
+    plot_bgcolor: 'white',
+    margin: { t: 20, r: 20, b: 60, l: 60 },
+    showlegend: false,
+    font: { family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
+    xaxis: {
+      title: { text: 'Pace (min/km) — kleiner = schneller', font: { size: 11, color: '#888' } },
+      gridcolor: '#f0f0f0', linecolor: '#e0e0e0', zeroline: false, tickfont: { size: 11, color: '#888' },
+    },
+    yaxis: {
+      title: { text: 'Ø Herzfrequenz (bpm)', font: { size: 11, color: '#888' } },
+      gridcolor: '#f0f0f0', linecolor: '#e0e0e0', zeroline: false, tickfont: { size: 11, color: '#888' },
+    },
+    hovermode: 'closest',
+  };
+
+  const config = { responsive: true, displayModeBar: true, modeBarButtonsToRemove: ['select2d', 'lasso2d', 'toImage'] };
+  Plotly.newPlot('hrPaceChart', traces, layout, config);
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+</script>
+</body>
+</html>
