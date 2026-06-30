@@ -429,22 +429,31 @@ function rebuildChart() {
     },
   };
 
-  entries.forEach(([id, s], i) => {
+  // Series with the same unit share one axis (and therefore one scale) instead
+  // of each getting its own auto-ranged axis, which made equal-unit series look
+  // misleadingly different in volatility.
+  const units = [];
+  entries.forEach(([, s]) => { if (!units.includes(s.def.unit)) units.push(s.def.unit); });
+
+  entries.forEach(([id, s]) => {
     const pts = s.points || [];
     const xs = pts.map(p => new Date(p.x));
     const ys = pts.map(p => p.y);
-    const axisKey = i === 0 ? 'yaxis' : `yaxis${i + 1}`;
-    const yref    = i === 0 ? 'y'     : `y${i + 1}`;
-    const side    = i % 2 === 0 ? 'left' : 'right';
+    const u = units.indexOf(s.def.unit);
+    const axisKey = u === 0 ? 'yaxis' : `yaxis${u + 1}`;
+    const yref    = u === 0 ? 'y'     : `y${u + 1}`;
+    const side    = u % 2 === 0 ? 'left' : 'right';
 
-    layout[axisKey] = {
-      title: { text: s.def.unit, font: { size: 11, color: s.color } },
-      tickfont: { size: 10, color: s.color },
-      gridcolor: i === 0 ? '#f0f0f0' : 'transparent',
-      zeroline: false,
-      linecolor: '#e0e0e0',
-      ...(i > 0 ? { overlaying: 'y', side } : { side: 'left' }),
-    };
+    if (!layout[axisKey]) {
+      layout[axisKey] = {
+        title: { text: s.def.unit, font: { size: 11, color: '#888' } },
+        tickfont: { size: 10, color: '#888' },
+        gridcolor: u === 0 ? '#f0f0f0' : 'transparent',
+        zeroline: false,
+        linecolor: '#e0e0e0',
+        ...(u > 0 ? { overlaying: 'y', side } : { side: 'left' }),
+      };
+    }
 
     traces.push({
       x: xs, y: ys,
