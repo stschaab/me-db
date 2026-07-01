@@ -945,9 +945,12 @@ class App(tk.Tk):
         tk.Scale(ctrl, variable=self.speed_var, from_=0.1, to=1.0, resolution=0.1,
             orient='horizontal', bg=BG, highlightthickness=0, length=120).grid(row=7, column=0, columnspan=3)
         tk.Label(ctrl, text='Position', bg=BG, fg='#999', font=('Segoe UI', 8)).grid(row=8, column=0, columnspan=3, pady=(12,2))
-        self.ptz_pos_var = tk.StringVar(value='Pan:  \\u2013\\nTilt: \\u2013\\nZoom: \\u2013')
-        tk.Label(ctrl, textvariable=self.ptz_pos_var, bg=BG, fg='#444',
-            font=('Courier', 8), justify='left').grid(row=9, column=0, columnspan=3)
+        self.ptz_pan_var  = tk.StringVar(value='Pan:  --')
+        self.ptz_tilt_var = tk.StringVar(value='Tilt: --')
+        self.ptz_zoom_var = tk.StringVar(value='Zoom: --')
+        tk.Label(ctrl, textvariable=self.ptz_pan_var,  bg=BG, fg='#444', font=('Courier', 8)).grid(row=9,  column=0, columnspan=3)
+        tk.Label(ctrl, textvariable=self.ptz_tilt_var, bg=BG, fg='#444', font=('Courier', 8)).grid(row=10, column=0, columnspan=3)
+        tk.Label(ctrl, textvariable=self.ptz_zoom_var, bg=BG, fg='#444', font=('Courier', 8)).grid(row=11, column=0, columnspan=3)
 
         # Save bar
         save = tk.Frame(self, bg='white', pady=14)
@@ -1097,8 +1100,13 @@ class App(tk.Tk):
                 status = self.ptz.GetStatus({'ProfileToken': self.profile_token})
                 pt = status.Position.PanTilt
                 z = status.Position.Zoom
-                txt = f'Pan:  {pt.x:+.3f}\\nTilt: {pt.y:+.3f}\\nZoom: {z.x:.3f}'
-                self.after(0, lambda: self.ptz_pos_var.set(txt))
+                pan  = f'Pan:  {pt.x:+.3f}'
+                tilt = f'Tilt: {pt.y:+.3f}'
+                zoom = f'Zoom: {z.x:.3f}'
+                self.after(0, lambda p=pan, t=tilt, z2=zoom: (
+                    self.ptz_pan_var.set(p),
+                    self.ptz_tilt_var.set(t),
+                    self.ptz_zoom_var.set(z2)))
             except Exception:
                 pass
         threading.Thread(target=_f, daemon=True).start()
