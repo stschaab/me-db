@@ -227,7 +227,7 @@
     <div class="tip">💡 PC muss durchlaufen (Bildschirmsperre OK) · Startet automatisch nach Reboot · Nur Python + requests + schedule nötig</div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="downloadSetup()">📥 Monitoring Agent herunterladen (.ps1)</button>
-      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 Kamera-Setup Tool herunterladen (.py) <small style="opacity:0.55">v1.9</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 Kamera-Setup Tool herunterladen (.py) <small style="opacity:0.55">v2.0</small></button>
     </div>
   </div>
 
@@ -876,7 +876,7 @@ ACCENT, BG = '#1a1a2e', '#f5f5f5'
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('MeDB · Kamera Setup v1.9')
+        self.title('MeDB · Kamera Setup v2.0')
         self.configure(bg=BG)
         self.cam = self.ptz = self.media = None
         self.profile_token = None
@@ -1140,6 +1140,7 @@ class App(tk.Tk):
         user = self.user_var.get().strip()
         pw = self.pass_var.get()
         def _s():
+            self.after(0, lambda: self.result_var.set('Speichern...'))
             try:
                 h = {'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}',
                      'Content-Type': 'application/json'}
@@ -1172,11 +1173,14 @@ class App(tk.Tk):
                     headers={**h, 'Prefer': 'return=minimal'},
                     json={'camera_id': cam_id, 'ptz_preset': preset_num}, timeout=10)
                 patch.raise_for_status()
-                self.after(0, lambda: self.result_var.set(
-                    f'\\u2705 Kamera eingetragen · Preset {preset_num} f\\u00fcr \\u201e{fn["name"]}\\u201c gespeichert'))
+                msg_ok = f'OK: Kamera + Preset {preset_num} fuer {fn["name"]} gespeichert'
+                print(msg_ok, flush=True)
+                self.after(0, lambda m=msg_ok: self.result_var.set('\\u2705 ' + m))
                 self.after(0, self._load_functions)
             except Exception as e:
-                self.after(0, lambda: self.result_var.set(f'\\u274c {e}'))
+                msg_err = str(e)
+                print('FEHLER save_preset:', msg_err, flush=True)
+                self.after(0, lambda m=msg_err: self.result_var.set('\\u274c ' + m[:80]))
         threading.Thread(target=_s, daemon=True).start()
 
     def on_close(self):
@@ -1191,7 +1195,7 @@ if __name__ == '__main__':
   const blob = new Blob(['﻿' + py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-camera-setup-v1.9.py';
+  a.download = 'medb-camera-setup-v2.0.py';
   a.click();
 }
 
