@@ -227,7 +227,7 @@
     <div class="tip">💡 PC muss durchlaufen (Bildschirmsperre OK) · Startet automatisch nach Reboot · Nur Python + requests + schedule nötig</div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="downloadSetup()">📥 Monitoring Agent herunterladen (.ps1)</button>
-      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 Kamera-Setup Tool herunterladen (.py) <small style="opacity:0.55">v1.8</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 Kamera-Setup Tool herunterladen (.py) <small style="opacity:0.55">v1.9</small></button>
     </div>
   </div>
 
@@ -876,7 +876,7 @@ ACCENT, BG = '#1a1a2e', '#f5f5f5'
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('MeDB · Kamera Setup v1.8')
+        self.title('MeDB · Kamera Setup v1.9')
         self.configure(bg=BG)
         self.cam = self.ptz = self.media = None
         self.profile_token = None
@@ -1100,17 +1100,24 @@ class App(tk.Tk):
                 status = self.ptz.GetStatus({'ProfileToken': self.profile_token})
                 pt = status.Position.PanTilt
                 z = status.Position.Zoom
-                pan  = f'Pan:  {pt.x:+.3f}'
-                tilt = f'Tilt: {pt.y:+.3f}'
-                zoom = f'Zoom: {z.x:.3f}'
+                try:
+                    pan  = f'Pan:  {pt.x:+.3f}'
+                    tilt = f'Tilt: {pt.y:+.3f}'
+                except Exception:
+                    pan  = 'Pan:  ' + str(pt)[:24]
+                    tilt = 'Tilt: (s.o.)'
+                try:
+                    zoom = f'Zoom: {z.x:.3f}'
+                except Exception:
+                    zoom = 'Zoom: ' + str(z)[:24]
                 self.after(0, lambda p=pan, t=tilt, z2=zoom: (
                     self.ptz_pan_var.set(p),
                     self.ptz_tilt_var.set(t),
                     self.ptz_zoom_var.set(z2)))
             except Exception as e:
-                msg = 'nicht unterstuetzt' if 'not support' in str(e).lower() else str(e)[:30]
+                msg = str(e)[:28]
                 self.after(0, lambda m=msg: (
-                    self.ptz_pan_var.set('Pan:  ' + m),
+                    self.ptz_pan_var.set('Err: ' + m),
                     self.ptz_tilt_var.set('Tilt: --'),
                     self.ptz_zoom_var.set('Zoom: --')))
         threading.Thread(target=_f, daemon=True).start()
@@ -1184,7 +1191,7 @@ if __name__ == '__main__':
   const blob = new Blob(['﻿' + py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-camera-setup-v1.8.py';
+  a.download = 'medb-camera-setup-v1.9.py';
   a.click();
 }
 
