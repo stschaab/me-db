@@ -1029,8 +1029,13 @@ class App(tk.Tk):
                 self.media = self.cam.create_media_service()
                 self.ptz = self.cam.create_ptz_service()
                 self.profile_token = self.media.GetProfiles()[0].token
-                self.snap_url = f'http://{ip}/onvif/snapshot'
-                self.snap_auth = HTTPDigestAuth(user, pw)
+                try:
+                    snap_uri = self.media.GetSnapshotUri({'ProfileToken': self.profile_token})
+                    self.snap_url = snap_uri.Uri
+                    self.snap_auth = HTTPDigestAuth(user, pw)
+                except Exception:
+                    self.snap_url = f'http://{ip}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=medb&user={user}&password={pw}'
+                    self.snap_auth = None
                 self.streaming = True
                 self.after(0, lambda: self.status_var.set(f'\\u2705 Verbunden \\u2022 {ip}'))
                 self._snap_loop()
