@@ -97,22 +97,22 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <div class="container">
 
   <div class="intro">
-    <h2>HR = f(Tempo) &middot; Steady-State-Läufe</h2>
-    <p>Jeder Punkt ist ein Lauf (LDL / MDL / GA1 / SSL / Langer Langsamer Lauf) — kein Intervall- oder Sprinttraining. Bei gleichem Fitnesszustand sollten die Punkte auf einer Kurve liegen. Verschiebt sich die Kurve über Zeit nach unten (gleiches Tempo, niedrigerer Puls) oder nach links (gleicher Puls, schnelleres Tempo), ist das ein Zeichen für bessere aerobe Fitness.</p>
+    <h2>HR = f(Pace) &middot; Steady-State Runs</h2>
+    <p>Each point is a run (LDL / MDL / GA1 / SSL / Long Slow Distance) — no interval or sprint training. At a given fitness level, the points should fall on a single curve. If the curve shifts down over time (same pace, lower heart rate) or to the left (same heart rate, faster pace), that's a sign of improved aerobic fitness.</p>
   </div>
 
   <div class="stats-row" id="statsRow"></div>
 
   <div class="toggle-row">
-    <button class="tbtn active" onclick="setTrend(true, this)">Trendlinie an</button>
-    <button class="tbtn" onclick="setTrend(false, this)">Trendlinie aus</button>
+    <button class="tbtn active" onclick="setTrend(true, this)">Trend line on</button>
+    <button class="tbtn" onclick="setTrend(false, this)">Trend line off</button>
   </div>
 
   <div class="chart-card">
     <div class="chart-inner">
       <div class="chart-empty" id="chartEmpty">
         <div class="icon">📈</div>
-        <div class="txt">Lade Läufe…</div>
+        <div class="txt">Loading runs…</div>
       </div>
       <div id="hrPaceChart" style="display:none"></div>
     </div>
@@ -147,7 +147,7 @@ async function loadData() {
     .not('analysis_avg_hr', 'is', null)
     .order('date', { ascending: true });
   if (error || !data?.length) {
-    document.getElementById('chartEmpty').querySelector('.txt').textContent = 'Keine Daten gefunden';
+    document.getElementById('chartEmpty').querySelector('.txt').textContent = 'No data found';
     return;
   }
   allPoints = data;
@@ -160,10 +160,10 @@ function renderStats() {
   const paces = allPoints.map(p => p.analysis_pace_min_km);
   const hrs = allPoints.map(p => p.analysis_avg_hr);
   const stats = [
-    { label: 'Läufe', value: allPoints.length },
-    { label: 'Zeitraum', value: `${Math.min(...years)}–${Math.max(...years)}` },
-    { label: 'Pace-Spanne', value: `${fmtPace(Math.min(...paces))}–${fmtPace(Math.max(...paces))}` },
-    { label: 'HR-Spanne', value: `${Math.round(Math.min(...hrs))}–${Math.round(Math.max(...hrs))} bpm` },
+    { label: 'Runs', value: allPoints.length },
+    { label: 'Period', value: `${Math.min(...years)}–${Math.max(...years)}` },
+    { label: 'Pace range', value: `${fmtPace(Math.min(...paces))}–${fmtPace(Math.max(...paces))}` },
+    { label: 'HR range', value: `${Math.round(Math.min(...hrs))}–${Math.round(Math.max(...hrs))} bpm` },
   ];
   document.getElementById('statsRow').innerHTML = stats.map(s =>
     `<div class="stat-card"><div class="label">${s.label}</div><div class="value">${s.value}</div></div>`
@@ -208,7 +208,7 @@ function renderChart() {
       cmin: tMin, cmax: tMax,
       line: { width: 1, color: 'rgba(255,255,255,0.6)' },
       colorbar: {
-        title: { text: 'Jahr', font: { size: 11, color: '#888' } },
+        title: { text: 'Year', font: { size: 11, color: '#888' } },
         tickvals: (() => {
           const y0 = new Date(tMin).getFullYear(), y1 = new Date(tMax).getFullYear();
           const vals = [];
@@ -251,11 +251,11 @@ function renderChart() {
     showlegend: false,
     font: { family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
     xaxis: {
-      title: { text: 'Pace (min/km) — kleiner = schneller', font: { size: 11, color: '#888' } },
+      title: { text: 'Pace (min/km) — lower = faster', font: { size: 11, color: '#888' } },
       gridcolor: '#f0f0f0', linecolor: '#e0e0e0', zeroline: false, tickfont: { size: 11, color: '#888' },
     },
     yaxis: {
-      title: { text: 'Ø Herzfrequenz (bpm)', font: { size: 11, color: '#888' } },
+      title: { text: 'Avg heart rate (bpm)', font: { size: 11, color: '#888' } },
       gridcolor: '#f0f0f0', linecolor: '#e0e0e0', zeroline: false, tickfont: { size: 11, color: '#888' },
     },
     hovermode: 'closest',
