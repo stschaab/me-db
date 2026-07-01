@@ -945,7 +945,7 @@ class App(tk.Tk):
         tk.Scale(ctrl, variable=self.speed_var, from_=0.1, to=1.0, resolution=0.1,
             orient='horizontal', bg=BG, highlightthickness=0, length=120).grid(row=7, column=0, columnspan=3)
         tk.Label(ctrl, text='Position', bg=BG, fg='#999', font=('Segoe UI', 8)).grid(row=8, column=0, columnspan=3, pady=(12,2))
-        self.ptz_pos_var = tk.StringVar(value='Pan:  –\nTilt: –\nZoom: –')
+        self.ptz_pos_var = tk.StringVar(value='Pan:  \\u2013\\nTilt: \\u2013\\nZoom: \\u2013')
         tk.Label(ctrl, textvariable=self.ptz_pos_var, bg=BG, fg='#444',
             font=('Courier', 8), justify='left').grid(row=9, column=0, columnspan=3)
 
@@ -1097,7 +1097,7 @@ class App(tk.Tk):
                 status = self.ptz.GetStatus({'ProfileToken': self.profile_token})
                 pt = status.Position.PanTilt
                 z = status.Position.Zoom
-                txt = f'Pan:  {pt.x:+.3f}\nTilt: {pt.y:+.3f}\nZoom: {z.x:.3f}'
+                txt = f'Pan:  {pt.x:+.3f}\\nTilt: {pt.y:+.3f}\\nZoom: {z.x:.3f}'
                 self.after(0, lambda: self.ptz_pos_var.set(txt))
             except Exception:
                 pass
