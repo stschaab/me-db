@@ -227,7 +227,7 @@
     <div class="tip">💡 PC muss durchlaufen (Bildschirmsperre OK) · Startet automatisch nach Reboot · Nur Python + requests + schedule nötig</div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="downloadSetup()">📥 Monitoring Agent herunterladen (.ps1)</button>
-      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 Kamera-Setup Tool herunterladen (.py) <small style="opacity:0.55">v1.7</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 Kamera-Setup Tool herunterladen (.py) <small style="opacity:0.55">v1.8</small></button>
     </div>
   </div>
 
@@ -876,7 +876,7 @@ ACCENT, BG = '#1a1a2e', '#f5f5f5'
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('MeDB · Kamera Setup v1.7')
+        self.title('MeDB · Kamera Setup v1.8')
         self.configure(bg=BG)
         self.cam = self.ptz = self.media = None
         self.profile_token = None
@@ -923,7 +923,7 @@ class App(tk.Tk):
         # Middle: canvas + PTZ
         mid = tk.Frame(self, bg=BG)
         mid.pack(fill='both', expand=True, padx=12, pady=6)
-        self.canvas = tk.Canvas(mid, width=480, height=360, bg='#222', highlightthickness=0)
+        self.canvas = tk.Canvas(mid, width=640, height=480, bg='#222', highlightthickness=0)
         self.canvas.grid(row=0, column=0, padx=(0,16))
         self.canvas.create_text(240, 180, text='Kein Bild', fill='#555', font=('Segoe UI', 12))
 
@@ -1062,7 +1062,7 @@ class App(tk.Tk):
                     self.after(0, lambda: self.status_var.set(f'\\u26a0\\ufe0f Snapshot HTTP {r.status_code} • {self.snap_url}'))
                 else:
                     img = Image.open(BytesIO(r.content))
-                    img.thumbnail((480, 360))
+                    img.thumbnail((640, 480))
                     photo = ImageTk.PhotoImage(img)
                     def _up():
                         self.canvas.delete('all')
@@ -1107,8 +1107,12 @@ class App(tk.Tk):
                     self.ptz_pan_var.set(p),
                     self.ptz_tilt_var.set(t),
                     self.ptz_zoom_var.set(z2)))
-            except Exception:
-                pass
+            except Exception as e:
+                msg = 'nicht unterstuetzt' if 'not support' in str(e).lower() else str(e)[:30]
+                self.after(0, lambda m=msg: (
+                    self.ptz_pan_var.set('Pan:  ' + m),
+                    self.ptz_tilt_var.set('Tilt: --'),
+                    self.ptz_zoom_var.set('Zoom: --')))
         threading.Thread(target=_f, daemon=True).start()
 
     def stop_cam(self):
@@ -1180,7 +1184,7 @@ if __name__ == '__main__':
   const blob = new Blob(['﻿' + py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-camera-setup-v1.7.py';
+  a.download = 'medb-camera-setup-v1.8.py';
   a.click();
 }
 
