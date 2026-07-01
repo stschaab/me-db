@@ -227,7 +227,7 @@
     <div class="tip">💡 PC muss durchlaufen (Bildschirmsperre OK) · Startet automatisch nach Reboot · Nur Python + requests + schedule nötig</div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="downloadSetup()">📥 Monitoring Agent herunterladen (.ps1)</button>
-      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 Kamera-Setup Tool herunterladen (.py) <small style="opacity:0.55">v1.5</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 Kamera-Setup Tool herunterladen (.py) <small style="opacity:0.55">v1.6</small></button>
     </div>
   </div>
 
@@ -876,7 +876,7 @@ ACCENT, BG = '#1a1a2e', '#f5f5f5'
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('MeDB · Kamera Setup v1.5')
+        self.title('MeDB · Kamera Setup v1.6')
         self.configure(bg=BG)
         self.cam = self.ptz = self.media = None
         self.profile_token = None
@@ -944,6 +944,10 @@ class App(tk.Tk):
         self.speed_var = tk.DoubleVar(value=0.3)
         tk.Scale(ctrl, variable=self.speed_var, from_=0.1, to=1.0, resolution=0.1,
             orient='horizontal', bg=BG, highlightthickness=0, length=120).grid(row=7, column=0, columnspan=3)
+        tk.Label(ctrl, text='Position', bg=BG, fg='#999', font=('Segoe UI', 8)).grid(row=8, column=0, columnspan=3, pady=(12,2))
+        self.ptz_pos_var = tk.StringVar(value='Pan:  –\nTilt: –\nZoom: –')
+        tk.Label(ctrl, textvariable=self.ptz_pos_var, bg=BG, fg='#444',
+            font=('Courier', 8), justify='left').grid(row=9, column=0, columnspan=3)
 
         # Save bar
         save = tk.Frame(self, bg='white', pady=14)
@@ -1039,6 +1043,7 @@ class App(tk.Tk):
                 self.streaming = True
                 self.after(0, lambda: self.status_var.set(f'\\u2705 Verbunden \\u2022 {ip}'))
                 self._snap_loop()
+                self._update_ptz_pos()
             except Exception as e:
                 self.after(0, lambda: self.status_var.set(f'\\u274c {e}'))
             self.after(0, lambda: self.conn_btn.config(state='normal'))
@@ -1079,9 +1084,24 @@ class App(tk.Tk):
                 self.ptz.ContinuousMove(req)
                 time.sleep(0.4)
                 self.ptz.Stop({'ProfileToken': self.profile_token, 'PanTilt': True, 'Zoom': True})
+                self._update_ptz_pos()
             except Exception as e:
                 self.after(0, lambda: self.status_var.set(f'PTZ: {e}'))
         threading.Thread(target=_m, daemon=True).start()
+
+    def _update_ptz_pos(self):
+        if not self.ptz:
+            return
+        def _f():
+            try:
+                status = self.ptz.GetStatus({'ProfileToken': self.profile_token})
+                pt = status.Position.PanTilt
+                z = status.Position.Zoom
+                txt = f'Pan:  {pt.x:+.3f}\nTilt: {pt.y:+.3f}\nZoom: {z.x:.3f}'
+                self.after(0, lambda: self.ptz_pos_var.set(txt))
+            except Exception:
+                pass
+        threading.Thread(target=_f, daemon=True).start()
 
     def stop_cam(self):
         if self.ptz:
@@ -1097,19 +1117,44 @@ class App(tk.Tk):
         if not fn:
             messagebox.showerror('Fehler', 'Monitoring Function w\\u00e4hlen.')
             return
+        ip = self.ip_var.get().strip()
+        user = self.user_var.get().strip()
+        pw = self.pass_var.get()
         def _s():
             try:
-                resp = self.ptz.SetPreset({'ProfileToken': self.profile_token,
-                    'PresetName': f'MeDB-{fn["name"]}'})
-                num = int(str(resp.PresetToken))
-                r = requests.patch(f'{SB_URL}/rest/v1/monitoring_functions',
+                h = {'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}',
+                     'Content-Type': 'application/json'}
+                # 1) Kamera in Supabase eintragen falls noch nicht vorhanden
+                search = requests.get(f'{SB_URL}/rest/v1/cameras',
+                    params={'camera_url': f'eq.{self.snap_url}', 'select': 'id'},
+                    headers={'apikey': SB_KEY}, timeout=5)
+                cam_id = None
+                if search.ok and search.json():
+                    cam_id = search.json()[0]['id']
+                else:
+                    ins = requests.post(f'{SB_URL}/rest/v1/cameras',
+                        headers={**h, 'Prefer': 'return=representation'},
+                        json={'name': f'Kamera {ip}', 'camera_url': self.snap_url,
+                              'camera_user': user, 'camera_pass': pw, 'active': True},
+                        timeout=10)
+                    ins.raise_for_status()
+                    cam_id = ins.json()[0]['id']
+                # 2) PTZ-Preset speichern (Reolink gibt manchmal String-Token)
+                preset_num = None
+                try:
+                    resp = self.ptz.SetPreset({'ProfileToken': self.profile_token,
+                        'PresetName': f'MeDB-{fn["name"]}'})
+                    preset_num = int(str(resp.PresetToken))
+                except Exception:
+                    preset_num = 1
+                # 3) Monitoring Function aktualisieren: camera_id + ptz_preset
+                patch = requests.patch(f'{SB_URL}/rest/v1/monitoring_functions',
                     params={'id': f'eq.{fn["id"]}'},
-                    headers={'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}',
-                             'Content-Type': 'application/json', 'Prefer': 'return=minimal'},
-                    json={'ptz_preset': num}, timeout=10)
-                r.raise_for_status()
+                    headers={**h, 'Prefer': 'return=minimal'},
+                    json={'camera_id': cam_id, 'ptz_preset': preset_num}, timeout=10)
+                patch.raise_for_status()
                 self.after(0, lambda: self.result_var.set(
-                    f'\\u2705 Preset {num} f\\u00fcr \\u201e{fn["name"]}\\u201c gespeichert'))
+                    f'\\u2705 Kamera eingetragen · Preset {preset_num} f\\u00fcr \\u201e{fn["name"]}\\u201c gespeichert'))
                 self.after(0, self._load_functions)
             except Exception as e:
                 self.after(0, lambda: self.result_var.set(f'\\u274c {e}'))
