@@ -227,7 +227,7 @@
     <div class="tip">💡 PC muss durchlaufen (Bildschirmsperre OK) · Startet automatisch nach Reboot · Nur Python + requests + schedule nötig</div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="downloadSetup()">📥 Monitoring Agent herunterladen (.ps1)</button>
-      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 Kamera-Setup Tool herunterladen (.py) <small style="opacity:0.55">v1.6</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 Kamera-Setup Tool herunterladen (.py) <small style="opacity:0.55">v1.7</small></button>
     </div>
   </div>
 
@@ -876,7 +876,7 @@ ACCENT, BG = '#1a1a2e', '#f5f5f5'
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('MeDB · Kamera Setup v1.6')
+        self.title('MeDB · Kamera Setup v1.7')
         self.configure(bg=BG)
         self.cam = self.ptz = self.media = None
         self.profile_token = None
@@ -1180,7 +1180,7 @@ if __name__ == '__main__':
   const blob = new Blob(['﻿' + py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-camera-setup-v1.6.py';
+  a.download = 'medb-camera-setup-v1.7.py';
   a.click();
 }
 
