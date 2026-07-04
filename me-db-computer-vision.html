@@ -67,14 +67,15 @@
     /* Detail modal */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 500; align-items: center; justify-content: center; padding: 16px; }
     .modal-overlay.open { display: flex; }
-    .modal-box { background: white; border-radius: 14px; max-width: 780px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.25); }
+    .modal-box { background: white; border-radius: 14px; max-width: 95vw; width: 1100px; max-height: 94vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.25); }
     .modal-hdr { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 12px; border-bottom: 1px solid #f0f0f0; }
     .modal-hdr h3 { font-size: 0.95rem; font-weight: 700; }
     .modal-close { border: none; background: none; font-size: 1.3rem; cursor: pointer; color: #999; padding: 4px 8px; }
-    .modal-body { padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    @media (max-width: 600px) { .modal-body { grid-template-columns: 1fr; } }
-    .detail-photo { border-radius: 10px; overflow: hidden; background: #f5f5f5; display: flex; align-items: center; justify-content: center; min-height: 200px; }
-    .detail-photo img { width: 100%; display: block; border-radius: 10px; }
+    .modal-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+    .detail-photo { border-radius: 10px; overflow: hidden; background: #111; display: flex; align-items: center; justify-content: center; }
+    .detail-photo img { width: 100%; max-height: 70vh; object-fit: contain; display: block; border-radius: 10px; cursor: zoom-in; }
+    .detail-photo img.zoomed { max-height: none; cursor: zoom-out; }
+    .detail-meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
     .detail-photo .no-photo { color: #ccc; font-size: 0.85rem; text-align: center; padding: 40px 20px; }
     .detail-info { display: flex; flex-direction: column; gap: 14px; }
     .detail-row { display: flex; flex-direction: column; gap: 4px; }
@@ -1479,7 +1480,7 @@ async function openReadingDetail(id) {
     photoEl.innerHTML = '<div style="color:#ccc;font-size:0.8rem;padding:20px;text-align:center">⏳ Foto laden…</div>';
     const { data, error } = await db.storage.from('meter-photos').createSignedUrl(r.image_path, 300);
     if (data?.signedUrl) {
-      photoEl.innerHTML = `<img src="${data.signedUrl}" alt="Foto">`;
+      photoEl.innerHTML = `<img src="${data.signedUrl}" alt="Foto" onclick="this.classList.toggle('zoomed')" title="Klicken zum Zoomen">`;
     } else {
       photoEl.innerHTML = '<div class="no-photo">📷 Foto nicht verfügbar</div>';
     }
@@ -1516,7 +1517,7 @@ function closeReadingModal() {
       <div class="detail-photo" id="modalPhoto">
         <div class="no-photo">📷 Kein Foto</div>
       </div>
-      <div class="detail-info">
+      <div class="detail-meta">
         <div class="detail-row">
           <span class="detail-label">Gespeicherter Wert</span>
           <span class="detail-val" id="modalCorrected">–</span>
