@@ -229,7 +229,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v1.7</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v1.8</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -926,7 +926,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v1.7\')',
+    '        self.title(\'MeDB CCTV v1.8\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1299,13 +1299,17 @@ function downloadCameraSetup() {
     '                try:',
     '                    import re as _re',
     '                    _ip = _re.search(r\'https?://([^/:]+)\', cam[\'camera_url\']).group(1)',
-    '                    _port = cam.get(\'onvif_port\', 8000)',
-    '                    _oc = ONVIFCamera(_ip, _port, cam[\'camera_user\'], cam[\'camera_pass\'])',
-    '                    _media = _oc.create_media_service()',
-    '                    _ptz = _oc.create_ptz_service()',
-    '                    _tok = _media.GetProfiles()[0].token',
-    '                    _ptz.GotoPreset({\'ProfileToken\': _tok, \'PresetToken\': str(fn[\'ptz_preset\'])})',
-    '                    self.after(0, lambda: self.log(f\'  PTZ -> Preset {fn["ptz_preset"]}\'))',
+    '                    _u  = cam[\'camera_user\']',
+    '                    _p  = cam[\'camera_pass\']',
+    '                    _pid = int(fn[\'ptz_preset\'])',
+    '                    # Reolink native CGI API (same protocol as Reolink app)',
+    '                    _ptz_url = (f\'http://{_ip}/cgi-bin/api.cgi\'',
+    '                                f\'?cmd=PtzCtrl&rs=medb&channel=0\'',
+    '                                f\'&op=ToPos&speed=32&id={_pid}\'',
+    '                                f\'&user={_u}&password={_p}\')',
+    '                    _r = requests.get(_ptz_url, timeout=5)',
+    '                    _pid_cap = _pid',
+    '                    self.after(0, lambda pid=_pid_cap: self.log(f\'  PTZ -> Preset {pid} ({_r.status_code})\'))',
     '                    time.sleep(3)',
     '                except Exception as e:',
     '                    self.after(0, lambda err=str(e): self.log(f\'  PTZ Fehler: {err}\'))',
@@ -1393,7 +1397,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v1.7.py';
+  a.download = 'medb-cctv-v1.8.py';
   a.click();
 }
 
