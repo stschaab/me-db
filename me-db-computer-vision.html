@@ -227,7 +227,7 @@
     <div class="tip">💡 PC muss durchlaufen (Bildschirmsperre OK) · Startet automatisch nach Reboot · Nur Python + requests + schedule nötig</div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="downloadSetup()">📥 CCTV Setup herunterladen (.ps1) <small style="opacity:0.55">v1.3</small></button>
-      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 MeDB CCTV App herunterladen (.py) <small style="opacity:0.55">v1.1</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 MeDB CCTV App herunterladen (.py) <small style="opacity:0.55">v1.2</small></button>
     </div>
   </div>
 
@@ -919,7 +919,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v1.1\')',
+    '        self.title(\'MeDB CCTV v1.2\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -962,7 +962,7 @@ function downloadCameraSetup() {
     '        # Left: camera',
     '        left = tk.Frame(main, bg=BG)',
     '        left.pack(side=\'left\', fill=\'y\')',
-    '        self.canvas = tk.Canvas(left, width=640, height=480, bg=\'#111\', highlightthickness=0)',
+    '        self.canvas = tk.Canvas(left, width=560, height=380, bg=\'#111\', highlightthickness=0)',
     '        self.canvas.pack()',
     '        self.canvas.create_text(320, 240, text=\'Keine Verbindung\', fill=\'#555\',',
     '            font=(\'Segoe UI\',14), tags=\'placeholder\')',
@@ -1067,7 +1067,7 @@ function downloadCameraSetup() {
     '                r = requests.get(self.snap_url, auth=self.snap_auth, timeout=5)',
     '                if r.status_code == 200:',
     '                    img = Image.open(BytesIO(r.content))',
-    '                    img.thumbnail((640, 480))',
+    '                    img.thumbnail((560, 380))',
     '                    photo = ImageTk.PhotoImage(img)',
     '                    def _up():',
     '                        self.canvas.delete(\'all\')',
@@ -1088,18 +1088,25 @@ function downloadCameraSetup() {
     '        def _f():',
     '            try:',
     '                st = self.ptz.GetStatus({\'ProfileToken\': self.profile_token})',
-    '                pt = st.Position.PanTilt',
-    '                z  = st.Position.Zoom',
-    '                try: pan = f\'Pan:  {pt.x:+.3f}\'',
-    '                except Exception: pan = f\'Pan:  {str(pt)[:14]}\'',
-    '                try: tilt = f\'Tilt: {pt.y:+.3f}\'',
-    '                except Exception: tilt = \'Tilt: --\'',
-    '                try: zoom = f\'Zoom: {z.x:.3f}\'',
-    '                except Exception: zoom = \'Zoom: --\'',
+    '                pos = st.Position',
+    '                if pos is None:',
+    '                    raise Exception(\'keine Position\')',
+    '                pt = pos.PanTilt',
+    '                z  = pos.Zoom',
+    '                def _getf(obj, attr):',
+    '                    v = getattr(obj, attr, None)',
+    '                    if v is None and hasattr(obj, \'__getitem__\'):',
+    '                        v = obj.get(attr)',
+    '                    return float(v) if v is not None else None',
+    '                px, py = _getf(pt,\'x\'), _getf(pt,\'y\')',
+    '                zx = _getf(z,\'x\')',
+    '                pan  = f\'Pan:  {px:+.3f}\' if px is not None else f\'Pan:  {str(pt)[:16]}\'',
+    '                tilt = f\'Tilt: {py:+.3f}\' if py is not None else \'Tilt: --\'',
+    '                zoom = f\'Zoom: {zx:.3f}\' if zx is not None else \'Zoom: --\'',
     '                self.after(0, lambda p=pan,t=tilt,z2=zoom: (',
     '                    self.ptz_pan_var.set(p), self.ptz_tilt_var.set(t), self.ptz_zoom_var.set(z2)))',
-    '            except Exception:',
-    '                pass',
+    '            except Exception as e:',
+    '                self.after(0, lambda: self.ptz_pan_var.set(f\'Pan: {str(e)[:20]}\'))',
     '        threading.Thread(target=_f, daemon=True).start()',
     '',
     '    def move(self, pan, tilt, zoom=0):',
@@ -1358,7 +1365,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v1.1.py';
+  a.download = 'medb-cctv-v1.2.py';
   a.click();
 }
 
