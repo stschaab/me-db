@@ -226,7 +226,7 @@
     </div>
     <div class="tip">💡 PC muss durchlaufen (Bildschirmsperre OK) · Startet automatisch nach Reboot · Nur Python + requests + schedule nötig</div>
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="downloadSetup()">📥 Monitoring Agent herunterladen (.ps1)</button>
+      <button class="btn btn-primary" onclick="downloadSetup()">📥 Monitoring Agent herunterladen (.ps1) <small style="opacity:0.55">v1.1</small></button>
       <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 Kamera-Setup Tool herunterladen (.py) <small style="opacity:0.55">v2.1</small></button>
     </div>
   </div>
@@ -834,7 +834,7 @@ function downloadSetup() {
   ].join('\r\n');
 
   const ps1 = [
-    '# MeDB Monitoring Agent Setup — ' + new Date().toLocaleString('de-DE'),
+    '# MeDB Monitoring Agent Setup v1.1 — ' + new Date().toLocaleString('de-DE'),
     '# Als Administrator ausfuehren: Set-ExecutionPolicy Bypass -Scope Process -Force',
     '',
     '$InstallDir = "' + installDir + '"',
@@ -874,7 +874,7 @@ function downloadSetup() {
   const blob = new Blob(['﻿' + ps1], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'setup-medb-monitor.ps1';
+  a.download = 'setup-medb-monitor-v1.1.ps1';
   a.click();
 }
 
