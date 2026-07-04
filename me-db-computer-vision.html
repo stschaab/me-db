@@ -846,7 +846,7 @@ function downloadSetup() {
     'Set-ExecutionPolicy Bypass -Scope Process -Force',
     '',
     '$InstallDir = "' + installDir + '"',
-    '$AppFile   = "medb-cctv-v1.1.py"',
+    '$AppFile   = "medb-cctv-v1.3.py"',
     '$TaskName  = "MeDB-CCTV"',
     '$Downloads = "$env:USERPROFILE\\Downloads"',
     '$ErrorActionPreference = "Stop"',
@@ -1392,7 +1392,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v1.0.py';
+  a.download = 'medb-cctv-v1.3.py';
   a.click();
 }
 
