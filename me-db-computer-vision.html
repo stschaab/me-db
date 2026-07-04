@@ -67,15 +67,14 @@
     /* Detail modal */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 500; align-items: center; justify-content: center; padding: 16px; }
     .modal-overlay.open { display: flex; }
-    .modal-box { background: white; border-radius: 14px; max-width: 95vw; width: 1100px; max-height: 94vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.25); }
+    .modal-box { background: white; border-radius: 14px; max-width: 780px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.25); }
     .modal-hdr { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 12px; border-bottom: 1px solid #f0f0f0; }
     .modal-hdr h3 { font-size: 0.95rem; font-weight: 700; }
     .modal-close { border: none; background: none; font-size: 1.3rem; cursor: pointer; color: #999; padding: 4px 8px; }
-    .modal-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
-    .detail-photo { border-radius: 10px; overflow: hidden; background: #111; display: flex; align-items: center; justify-content: center; }
-    .detail-photo img { width: 100%; max-height: 70vh; object-fit: contain; display: block; border-radius: 10px; cursor: zoom-in; }
-    .detail-photo img.zoomed { max-height: none; cursor: zoom-out; }
-    .detail-meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+    .modal-body { padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 600px) { .modal-body { grid-template-columns: 1fr; } }
+    .detail-photo { border-radius: 10px; overflow: hidden; background: #f5f5f5; display: flex; align-items: center; justify-content: center; min-height: 200px; }
+    .detail-photo img { width: 100%; display: block; border-radius: 10px; }
     .detail-photo .no-photo { color: #ccc; font-size: 0.85rem; text-align: center; padding: 40px 20px; }
     .detail-info { display: flex; flex-direction: column; gap: 14px; }
     .detail-row { display: flex; flex-direction: column; gap: 4px; }
@@ -230,7 +229,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v2.3</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v2.5</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -927,7 +926,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v2.2\')',
+    '        self.title(\'MeDB CCTV v2.5\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1347,15 +1346,16 @@ function downloadCameraSetup() {
     '            return',
     '        self.after(0, lambda: self.log(f\'--- {fn["name"]} ---\'))',
     '        self.next_runs[fn[\'id\']] = datetime.now() + timedelta(minutes=fn[\'interval_min\'])',
+    '        import re as _re',
+    '        _ip = _re.search(r\'https?://([^/:]+)\', cam[\'camera_url\']).group(1)',
+    '        _u, _p = cam[\'camera_user\'], cam[\'camera_pass\']',
     '        try:',
+    '            # 1) Licht AN (immer, bevor alles andere passiert)',
+    '            self._set_light(_ip, _u, _p, True)',
+    '            self.after(0, lambda: self.log(f\'  Licht AN\'))',
+    '            # 2) PTZ Preset anfahren',
     '            if fn.get(\'ptz_preset\') is not None:',
     '                try:',
-    '                    import re as _re',
-    '                    _ip = _re.search(r\'https?://([^/:]+)\', cam[\'camera_url\']).group(1)',
-    '                    _u  = cam[\'camera_user\']',
-    '                    _p  = cam[\'camera_pass\']',
-    '                    self._set_light(_ip, _u, _p, True)',
-    '                    # Reolink CGI: 0-indexed (ONVIF preset 1 = CGI id 0)',
     '                    _cgi_id = max(0, int(fn[\'ptz_preset\']) - 1)',
     '                    _body = f\'[{{"cmd":"PtzCtrl","action":0,"param":{{"channel":0,"op":"ToPos","speed":32,"id":{_cgi_id}}}}}]\'',
     '                    _r = requests.post(',
@@ -1367,21 +1367,19 @@ function downloadCameraSetup() {
     '                    _cgi_cap = _cgi_id',
     '                    self.after(0, lambda ok=_ok, pid=_cgi_cap: self.log(',
     '                        f\'  PTZ -> CGI id={pid} {"OK" if ok else "FEHLER"}\'))',
-    '                    time.sleep(3)',
     '                except Exception as e:',
     '                    self.after(0, lambda err=str(e): self.log(f\'  PTZ Fehler: {err}\'))',
+    '            # 3) Warten: Kamera f\u00e4hrt + Autofokus + Auto-Exposure auf Weisslicht',
+    '            self.after(0, lambda: self.log(f\'  Warte auf Fokus (8s)...\'))',
+    '            time.sleep(8)',
+    '            # 4) Snapshot',
     '            r = requests.get(cam[\'camera_url\'],',
-    '                auth=(cam[\'camera_user\'], cam[\'camera_pass\']) if cam[\'camera_user\'] else None,',
-    '                timeout=15)',
+    '                auth=(_u, _p) if _u else None, timeout=15)',
     '            r.raise_for_status()',
     '            img_b64 = base64.b64encode(r.content).decode()',
-    '            # Light off after snapshot',
-    '            try:',
-    '                import re as _re2',
-    '                _lip = _re2.search(r\'https?://([^/:]+)\', cam[\'camera_url\']).group(1)',
-    '                self._set_light(_lip, cam[\'camera_user\'], cam[\'camera_pass\'], False)',
-    '            except Exception:',
-    '                pass',
+    '            # 5) Licht AUS sofort nach Snapshot',
+    '            self._set_light(_ip, _u, _p, False)',
+    '            self.after(0, lambda: self.log(f\'  Licht AUS\'))',
     '            img_path = None',
     '            try:',
     '                folder = fn[\'name\'].replace(\' \',\'_\').replace(\'/\',\'_\').replace(\'\u00e4\',\'ae\').replace(\'\u00f6\',\'oe\').replace(\'\u00fc\',\'ue\').replace(\'\u00df\',\'ss\')',
@@ -1401,8 +1399,23 @@ function downloadCameraSetup() {
     '                        headers={**st_h, \'Content-Type\': \'application/json\'}, json=old, timeout=10)',
     '            except Exception as pe:',
     '                self.after(0, lambda: self.log(f\'  Foto-Fehler: {pe}\'))',
+    '            # Fetch last known value for plausibility check',
+    '            last_val = None',
+    '            try:',
+    '                lr = requests.get(f\'{SB_URL}/rest/v1/meter_readings\',',
+    '                    params={\'monitoring_function_id\': f\'eq.{fn["id"]}\', \'select\': \'value\',',
+    '                            \'order\': \'captured_at.desc\', \'limit\': \'1\'},',
+    '                    headers={\'apikey\': SB_KEY}, timeout=5)',
+    '                if lr.ok and lr.json():',
+    '                    last_val = lr.json()[0][\'value\']',
+    '                    self.after(0, lambda lv=last_val: self.log(f\'  Letzter Wert: {lv}\'))',
+    '            except Exception:',
+    '                pass',
     '            resp = requests.post(f\'{WORKER}/read-meter\',',
-    '                json={\'image_b64\': img_b64, \'media_type\': \'image/jpeg\', \'meter_type\': fn[\'meter_type\']},',
+    '                json={\'image_b64\': img_b64, \'media_type\': \'image/jpeg\',',
+    '                      \'meter_type\': fn[\'meter_type\'],',
+    '                      \'last_value\': last_val,',
+    '                      \'max_increase\': fn.get(\'max_increase_per_reading\')},',
     '                timeout=30).json()',
     '            if not resp.get(\'success\'):',
     '                raise Exception(resp.get(\'error\', \'Vision failed\'))',
@@ -1461,7 +1474,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v2.2.py';
+  a.download = 'medb-cctv-v2.5.py';
   a.click();
 }
 
@@ -1480,7 +1493,7 @@ async function openReadingDetail(id) {
     photoEl.innerHTML = '<div style="color:#ccc;font-size:0.8rem;padding:20px;text-align:center">⏳ Foto laden…</div>';
     const { data, error } = await db.storage.from('meter-photos').createSignedUrl(r.image_path, 300);
     if (data?.signedUrl) {
-      photoEl.innerHTML = `<img src="${data.signedUrl}" alt="Foto" onclick="this.classList.toggle('zoomed')" title="Klicken zum Zoomen">`;
+      photoEl.innerHTML = `<img src="${data.signedUrl}" alt="Foto">`;
     } else {
       photoEl.innerHTML = '<div class="no-photo">📷 Foto nicht verfügbar</div>';
     }
@@ -1517,7 +1530,7 @@ function closeReadingModal() {
       <div class="detail-photo" id="modalPhoto">
         <div class="no-photo">📷 Kein Foto</div>
       </div>
-      <div class="detail-meta">
+      <div class="detail-info">
         <div class="detail-row">
           <span class="detail-label">Gespeicherter Wert</span>
           <span class="detail-val" id="modalCorrected">–</span>
