@@ -229,7 +229,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v1.6</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v1.7</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -911,18 +911,22 @@ function downloadCameraSetup() {
     'from requests.auth import HTTPDigestAuth',
     '',
     'SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))',
-    '_cfg = os.path.join(SCRIPT_DIR, \'config.json\')',
-    'cfg = json.load(open(_cfg, encoding=\'utf-8-sig\')) if os.path.exists(_cfg) else {}',
-    'SB_URL  = cfg.get(\'supabase_url\', \'\').rstrip(\'/\')',
-    'SB_KEY  = cfg.get(\'supabase_anon_key\', \'\')',
-    'WORKER  = cfg.get(\'worker_url\', \'\')',
+    '_cfg_paths = [os.path.join(SCRIPT_DIR, \'config.json\'), r\'C:\\MeDB-Agents\\config.json\']',
+    'cfg = {}',
+    'for _p in _cfg_paths:',
+    '    if os.path.exists(_p):',
+    '        cfg = json.load(open(_p, encoding=\'utf-8-sig\'))',
+    '        break',
+    'SB_URL  = cfg.get(\'supabase_url\', \'https://thgawuqcogugzurrijkp.supabase.co\').rstrip(\'/\')',
+    'SB_KEY  = cfg.get(\'supabase_anon_key\', \'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w\')',
+    'WORKER  = cfg.get(\'worker_url\', \'https://health-db-ai.st-schaab.workers.dev\')',
     'ACCENT, BG, BG2 = \'#1a1a2e\', \'#f5f5f5\', \'#ffffff\'',
     '',
     '',
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v1.6\')',
+    '        self.title(\'MeDB CCTV v1.7\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1389,7 +1393,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v1.6.py';
+  a.download = 'medb-cctv-v1.7.py';
   a.click();
 }
 
