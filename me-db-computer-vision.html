@@ -229,7 +229,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v1.5</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v1.6</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -922,7 +922,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v1.5\')',
+    '        self.title(\'MeDB CCTV v1.6\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -934,7 +934,7 @@ function downloadCameraSetup() {
     '        self._build()',
     '        threading.Thread(target=self._poll_loop, daemon=True).start()',
     '        self._load_functions()',
-    '        self._load_camera_defaults()',
+    '        self.after(800, self._load_camera_defaults)',
     '',
     '    def _build(self):',
     '        # Top bar',
@@ -1034,34 +1034,24 @@ function downloadCameraSetup() {
     '',
     '    # \u2500\u2500 Camera \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
     '    def _load_camera_defaults(self):',
-    '        def _f():',
-    '            try:',
-    '                import re as _re',
-    '                print(f\'Loading camera defaults from Supabase... SB_URL={SB_URL[:30]}\', flush=True)',
-    '                r = requests.get(f\'{SB_URL}/rest/v1/cameras\',',
-    '                    params={\'select\': \'camera_url,camera_user,camera_pass,onvif_port\',',
-    '                            \'order\': \'created_at.desc\', \'limit\': \'1\'},',
-    '                    headers={\'apikey\': SB_KEY, \'Authorization\': f\'Bearer {SB_KEY}\'}, timeout=5)',
-    '                print(f\'Camera response: {r.status_code} {r.text[:100]}\', flush=True)',
-    '                if r.ok and r.json():',
-    '                    cam = r.json()[0]',
-    '                    m = _re.search(r\'https?://([^/:]+)\', cam.get(\'camera_url\', \'\'))',
-    '                    if m:',
-    '                        ip   = m.group(1)',
-    '                        port = str(cam.get(\'onvif_port\') or 8000)',
-    '                        user = cam.get(\'camera_user\') or \'admin\'',
-    '                        pw   = cam.get(\'camera_pass\') or \'\'',
-    '                        print(f\'Auto-fill: IP={ip} Port={port} User={user}\', flush=True)',
-    '                        self.after(0, lambda i=ip,po=port,u=user,p=pw: (',
-    '                            self.ip_var.set(i), self.port_var.set(po),',
-    '                            self.user_var.set(u), self.pass_var.set(p)))',
-    '                    else:',
-    '                        print(\'No IP found in camera_url\', flush=True)',
-    '                else:',
-    '                    print(f\'No cameras found or error: {r.status_code}\', flush=True)',
-    '            except Exception as e:',
-    '                print(f\'Camera defaults error: {e}\', flush=True)',
-    '        threading.Thread(target=_f, daemon=True).start()',
+    '        import re as _re',
+    '        try:',
+    '            print(f\'Loading camera defaults...\', flush=True)',
+    '            r = requests.get(f\'{SB_URL}/rest/v1/cameras\',',
+    '                params={\'select\': \'camera_url,camera_user,camera_pass,onvif_port\',',
+    '                        \'order\': \'created_at.desc\', \'limit\': \'1\'},',
+    '                headers={\'apikey\': SB_KEY, \'Authorization\': f\'Bearer {SB_KEY}\'}, timeout=5)',
+    '            if r.ok and r.json():',
+    '                cam = r.json()[0]',
+    '                m = _re.search(r\'https?://([^/:]+)\', cam.get(\'camera_url\', \'\'))',
+    '                if m:',
+    '                    self.ip_var.set(m.group(1))',
+    '                    self.port_var.set(str(cam.get(\'onvif_port\') or 8000))',
+    '                    self.user_var.set(cam.get(\'camera_user\') or \'admin\')',
+    '                    self.pass_var.set(cam.get(\'camera_pass\') or \'\')',
+    '                    print(f\'Auto-fill OK: {m.group(1)}\', flush=True)',
+    '        except Exception as e:',
+    '            print(f\'Camera defaults error: {e}\', flush=True)',
     '',
     '    def connect(self):',
     '        self.conn_btn.config(state=\'disabled\')',
@@ -1399,7 +1389,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v1.5.py';
+  a.download = 'medb-cctv-v1.6.py';
   a.click();
 }
 
