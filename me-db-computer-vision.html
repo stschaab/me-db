@@ -229,7 +229,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v1.4</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v1.5</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -922,7 +922,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v1.4\')',
+    '        self.title(\'MeDB CCTV v1.5\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1089,7 +1089,7 @@ function downloadCameraSetup() {
     '                self._snap_loop()',
     '                self._update_ptz_pos()',
     '            except Exception as e:',
-    '                self.after(0, lambda: self.status_var.set(f\'\u274c {e}\'))',
+    '                self.after(0, lambda err=str(e): self.status_var.set(f\'\u274c {err}\'))',
     '            self.after(0, lambda: self.conn_btn.config(state=\'normal\'))',
     '        threading.Thread(target=_c, daemon=True).start()',
     '',
@@ -1156,7 +1156,7 @@ function downloadCameraSetup() {
     '                self.ptz.Stop({\'ProfileToken\': self.profile_token, \'PanTilt\': True, \'Zoom\': True})',
     '                self._update_ptz_pos()',
     '            except Exception as e:',
-    '                self.after(0, lambda: self.status_var.set(f\'PTZ: {e}\'))',
+    '                self.after(0, lambda err=str(e): self.status_var.set(f\'PTZ: {err}\'))',
     '        threading.Thread(target=_m, daemon=True).start()',
     '',
     '    def stop_cam(self):',
@@ -1314,7 +1314,7 @@ function downloadCameraSetup() {
     '                    self.after(0, lambda: self.log(f\'  PTZ -> Preset {fn["ptz_preset"]}\'))',
     '                    time.sleep(3)',
     '                except Exception as e:',
-    '                    self.after(0, lambda: self.log(f\'  PTZ Fehler: {e}\'))',
+    '                    self.after(0, lambda err=str(e): self.log(f\'  PTZ Fehler: {err}\'))',
     '            r = requests.get(cam[\'camera_url\'],',
     '                auth=(cam[\'camera_user\'], cam[\'camera_pass\']) if cam[\'camera_user\'] else None,',
     '                timeout=15)',
@@ -1355,7 +1355,7 @@ function downloadCameraSetup() {
     '                timeout=10).raise_for_status()',
     '            self.after(0, lambda: self.log(f\'  OK: {value} {fn["unit"]}\'))',
     '        except Exception as e:',
-    '            self.after(0, lambda: self.log(f\'  FEHLER: {e}\'))',
+    '            self.after(0, lambda err=str(e): self.log(f\'  FEHLER: {err}\'))',
     '',
     '    def _poll_loop(self):',
     '        while True:',
@@ -1399,7 +1399,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v1.4.py';
+  a.download = 'medb-cctv-v1.5.py';
   a.click();
 }
 
