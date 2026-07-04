@@ -420,7 +420,10 @@ async function loadFunctions() {
       <td style="color:#888;font-size:0.82rem">${f.ptz_preset ?? '–'}</td>
       <td style="color:#888;font-size:0.82rem">${f.interval_min} min</td>
       <td><label class="toggle"><input type="checkbox" ${f.active ? 'checked' : ''} onchange="toggleFn('${f.id}',this.checked)"><span class="slider"></span></label></td>
-      <td><button class="icon-btn" onclick="openFnForm('${f.id}')" title="Bearbeiten">✏️</button></td>
+      <td style="display:flex;gap:4px">
+        <button class="icon-btn" onclick="openFnForm('${f.id}')" title="Bearbeiten">✏️</button>
+        <button class="icon-btn" onclick="triggerNow('${f.id}',this)" title="Jetzt auslesen" style="background:#e8f5e9;color:#2e7d32">📷</button>
+      </td>
     </tr>`).join('')}</tbody></table>`;
   // Populate manual reading dropdown
   const sel = document.getElementById('manFnId');
@@ -485,6 +488,14 @@ async function saveFn() {
 async function toggleFn(id, active) {
   if (!await ensureSession()) return;
   await db.from('monitoring_functions').update({ active }).eq('id', id);
+}
+async function triggerNow(id, btn) {
+  if (!await ensureSession()) return;
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  await db.from('monitoring_functions').update({ manual_trigger: true }).eq('id', id);
+  btn.title = 'Trigger gesetzt — Agent liest in max. 30 Sek aus';
+  setTimeout(() => { btn.textContent = '📷'; btn.disabled = false; }, 5000);
 }
 async function deleteFn() {
   if (!editFnId || !confirm('Monitoring Function löschen?')) return;
@@ -708,7 +719,7 @@ function downloadSetup() {
     'from datetime import datetime, timezone',
     '',
     'script_dir = os.path.dirname(os.path.abspath(__file__))',
-    "with open(os.path.join(script_dir, 'config.json'), encoding='utf-8') as f:",
+    "with open(os.path.join(script_dir, 'config.json'), encoding='utf-8-sig') as f:",
     '    cfg = json.load(f)',
     '',
     'def load_functions():',
@@ -728,19 +739,42 @@ function downloadSetup() {
     '    except Exception as e:',
     "        print('  PTZ warning: ' + str(e), flush=True)",
     '',
+    'def upload_photo(fn, img_bytes):',
+    "    folder = fn['name'].replace(' ','_').replace('/','_').replace('ae','ae')",
+    "    ts_str = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')",
+    "    img_path = folder + '/' + ts_str + '.jpg'",
+    "    st_url = cfg['supabase_url'].rstrip('/') + '/storage/v1/object/meter-photos/' + img_path",
+    "    st_h = {'apikey': cfg['supabase_anon_key'], 'Authorization': 'Bearer ' + cfg['supabase_anon_key'], 'Content-Type': 'image/jpeg'}",
+    "    requests.post(st_url, headers=st_h, data=img_bytes, timeout=15).raise_for_status()",
+    "    ls_url = cfg['supabase_url'].rstrip('/') + '/storage/v1/object/list/meter-photos'",
+    "    ls_resp = requests.post(ls_url, headers={**st_h, 'Content-Type': 'application/json'},",
+    "        json={'prefix': folder + '/', 'sortBy': {'column': 'created_at', 'order': 'asc'}}, timeout=10)",
+    "    files_list = ls_resp.json() if ls_resp.ok else []",
+    "    if isinstance(files_list, list) and len(files_list) > 10:",
+    "        old = [folder + '/' + f['name'] for f in files_list[:-10]]",
+    "        rm_url = cfg['supabase_url'].rstrip('/') + '/storage/v1/object/meter-photos'",
+    "        requests.delete(rm_url, headers={**st_h, 'Content-Type': 'application/json'}, json=old, timeout=10)",
+    "    return img_path",
+    '',
     'def run_function(fn):',
     "    ts  = datetime.now().strftime('%Y-%m-%d %H:%M')",
     "    cam = fn.get('camera')",
     '    if not cam:',
     "        print('[' + ts + '] SKIP ' + fn['name'] + ': no camera assigned', flush=True)",
     '        return',
-    "    print('[' + ts + '] Running: #' + str(cam['number']) + ' ' + cam['name'] + ' → ' + fn['name'], flush=True)",
+    "    print('[' + ts + '] Running: ' + cam['name'] + ' -> ' + fn['name'], flush=True)",
     '    try:',
     "        if fn.get('ptz_preset') is not None:",
     "            move_to_preset(cam, fn['ptz_preset'])",
     "        r = requests.get(cam['camera_url'], auth=(cam['camera_user'], cam['camera_pass']), timeout=15)",
     '        r.raise_for_status()',
     '        img_b64 = base64.b64encode(r.content).decode()',
+    '        img_path = None',
+    '        try:',
+    '            img_path = upload_photo(fn, r.content)',
+    "            print('  Foto: ' + img_path, flush=True)",
+    '        except Exception as pe:',
+    "            print('  Foto-Fehler: ' + str(pe), flush=True)",
     "        resp = requests.post(cfg['worker_url'] + '/read-meter',",
     "            json={'image_b64': img_b64, 'media_type': 'image/jpeg', 'meter_type': fn['meter_type']},",
     '            timeout=30)',
@@ -748,26 +782,6 @@ function downloadSetup() {
     "        if not result.get('success'):",
     "            raise Exception(result.get('error', 'Vision failed'))",
     "        value, raw = result['value'], result['raw']",
-    "        # Upload photo to Supabase Storage (keep last 10 per meter)",
-    "        img_path = None",
-    "        try:",
-    "            folder = fn['name'].replace(' ', '_').replace('/', '_')",
-    "            ts_str = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')",
-    "            img_path = folder + '/' + ts_str + '.jpg'",
-    "            st_url = cfg['supabase_url'].rstrip('/') + '/storage/v1/object/meter-photos/' + img_path",
-    "            st_h = {'apikey': cfg['supabase_anon_key'], 'Authorization': 'Bearer ' + cfg['supabase_anon_key'], 'Content-Type': 'image/jpeg'}",
-    "            requests.post(st_url, headers=st_h, data=r.content, timeout=15).raise_for_status()",
-    "            # Cleanup: keep only last 10",
-    "            ls_url = cfg['supabase_url'].rstrip('/') + '/storage/v1/object/list/meter-photos'",
-    "            ls_resp = requests.post(ls_url, headers={**st_h, 'Content-Type': 'application/json'},",
-    "                json={'prefix': folder + '/', 'sortBy': {'column': 'created_at', 'order': 'asc'}}, timeout=10)",
-    "            files_list = ls_resp.json() if ls_resp.ok else []",
-    "            if isinstance(files_list, list) and len(files_list) > 10:",
-    "                old = [folder + '/' + f['name'] for f in files_list[:-10]]",
-    "                rm_url = cfg['supabase_url'].rstrip('/') + '/storage/v1/object/meter-photos'",
-    "                requests.delete(rm_url, headers={**st_h, 'Content-Type': 'application/json'}, json=old, timeout=10)",
-    "        except Exception as pe:",
-    "            print('  Photo upload warning: ' + str(pe), flush=True)",
     "        sb_url = cfg['supabase_url'].rstrip('/') + '/rest/v1/meter_readings'",
     "        h = {'apikey': cfg['supabase_anon_key'], 'Authorization': 'Bearer ' + cfg['supabase_anon_key'],",
     "             'Content-Type': 'application/json', 'Prefer': 'return=minimal'}",
@@ -780,13 +794,30 @@ function downloadSetup() {
     '    except Exception as e:',
     "        print('  ERROR: ' + str(e), flush=True)",
     '',
+    'def check_manual_triggers():',
+    "    h = {'apikey': cfg['supabase_anon_key'], 'Authorization': 'Bearer ' + cfg['supabase_anon_key'],",
+    "         'Content-Type': 'application/json', 'Prefer': 'return=minimal'}",
+    '    try:',
+    "        url = cfg['supabase_url'].rstrip('/') + '/rest/v1/monitoring_functions'",
+    "        url += '?manual_trigger=eq.true&active=eq.true&select=*,camera:camera_id(*)'",
+    "        r = requests.get(url, headers={'apikey': cfg['supabase_anon_key']}, timeout=5)",
+    '        if not r.ok: return',
+    '        for fn in (r.json() or []):',
+    "            print('  [MANUELL] ' + fn['name'], flush=True)",
+    '            run_function(fn)',
+    "            requests.patch(cfg['supabase_url'].rstrip('/') + '/rest/v1/monitoring_functions',",
+    "                params={'id': 'eq.' + fn['id']}, headers=h,",
+    "                json={'manual_trigger': False}, timeout=5)",
+    '    except Exception:',
+    '        pass',
+    '',
     'def main():',
     "    print('MeDB Monitoring Agent starting...', flush=True)",
     '    import schedule',
     '    functions = load_functions()',
     "    print('Loaded ' + str(len(functions)) + ' active monitoring function(s)', flush=True)",
     '    if not functions:',
-    "        print('No active functions found. Add in MeDB → Computer Vision, then restart.', flush=True)",
+    "        print('No active functions found. Add in MeDB -> Computer Vision, then restart.', flush=True)",
     '        time.sleep(3600)',
     '        return',
     '    for fn in functions:',
@@ -795,6 +826,7 @@ function downloadSetup() {
     "        print('Scheduled: ' + fn['name'] + ' every ' + str(fn['interval_min']) + ' min', flush=True)",
     '    while True:',
     '        schedule.run_pending()',
+    '        check_manual_triggers()',
     '        time.sleep(30)',
     '',
     "if __name__ == '__main__':",
