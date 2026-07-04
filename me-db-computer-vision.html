@@ -227,7 +227,7 @@
     <div class="tip">💡 PC muss durchlaufen (Bildschirmsperre OK) · Startet automatisch nach Reboot · Nur Python + requests + schedule nötig</div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="downloadSetup()">📥 CCTV Setup herunterladen (.ps1) <small style="opacity:0.55">v1.3</small></button>
-      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 MeDB CCTV App herunterladen (.py) <small style="opacity:0.55">v1.0</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()">🎥 MeDB CCTV App herunterladen (.py) <small style="opacity:0.55">v1.1</small></button>
     </div>
   </div>
 
@@ -843,7 +843,7 @@ function downloadSetup() {
     'Set-ExecutionPolicy Bypass -Scope Process -Force',
     '',
     '$InstallDir = "' + installDir + '"',
-    '$AppFile   = "medb-cctv-v1.0.py"',
+    '$AppFile   = "medb-cctv-v1.1.py"',
     '$TaskName  = "MeDB-CCTV"',
     '$Downloads = "$env:USERPROFILE\\Downloads"',
     '$ErrorActionPreference = "Stop"',
@@ -919,7 +919,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v1.0\')',
+    '        self.title(\'MeDB CCTV v1.1\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1149,18 +1149,38 @@ function downloadCameraSetup() {
     '                              \'camera_user\': user, \'camera_pass\': pw, \'active\': True}, timeout=10)',
     '                    ins.raise_for_status()',
     '                    cam_id = ins.json()[0][\'id\']',
+    '                # Save ONVIF port on camera record',
+    '                requests.patch(f\'{SB_URL}/rest/v1/cameras\',',
+    '                    params={\'id\': f\'eq.{cam_id}\'},',
+    '                    headers={**h, \'Prefer\': \'return=minimal\'},',
+    '                    json={\'onvif_port\': int(self.port_var.get().strip() or \'8000\')}, timeout=5)',
     '                pnum = 1',
+    '                ptz_pan, ptz_tilt, ptz_zoom = None, None, None',
     '                try:',
     '                    safe = fn[\'name\'].replace(\'\u00e4\',\'ae\').replace(\'\u00f6\',\'oe\').replace(\'\u00fc\',\'ue\').replace(\'\u00df\',\'ss\')',
     '                    resp = self.ptz.SetPreset({\'ProfileToken\': self.profile_token, \'PresetName\': f\'MeDB-{safe}\'})',
     '                    pnum = int(str(resp.PresetToken))',
     '                except Exception:',
     '                    pass',
+    '                # Try to read current PTZ coordinates',
+    '                try:',
+    '                    st = self.ptz.GetStatus({\'ProfileToken\': self.profile_token})',
+    '                    pt = st.Position.PanTilt',
+    '                    z  = st.Position.Zoom',
+    '                    ptz_pan  = float(getattr(pt, \'x\', None) or pt.get(\'x\', 0) if hasattr(pt, \'get\') else getattr(pt, \'x\', 0))',
+    '                    ptz_tilt = float(getattr(pt, \'y\', None) or pt.get(\'y\', 0) if hasattr(pt, \'get\') else getattr(pt, \'y\', 0))',
+    '                    ptz_zoom = float(getattr(z,  \'x\', None) or z.get(\'x\', 0)  if hasattr(z,  \'get\') else getattr(z,  \'x\', 0))',
+    '                except Exception as pe:',
+    '                    self.after(0, lambda: self.log(f\'  PTZ coords: {pe}\'))',
+    '                patch_data = {\'camera_id\': cam_id, \'ptz_preset\': pnum}',
+    '                if ptz_pan is not None:',
+    '                    patch_data.update({\'ptz_pan\': ptz_pan, \'ptz_tilt\': ptz_tilt, \'ptz_zoom\': ptz_zoom})',
     '                requests.patch(f\'{SB_URL}/rest/v1/monitoring_functions\',',
     '                    params={\'id\': f\'eq.{fn["id"]}\'},',
     '                    headers={**h, \'Prefer\': \'return=minimal\'},',
-    '                    json={\'camera_id\': cam_id, \'ptz_preset\': pnum}, timeout=10).raise_for_status()',
-    '                msg = f\'\u2705 Preset {pnum} + Kamera gespeichert\'',
+    '                    json=patch_data, timeout=10).raise_for_status()',
+    '                coord_txt = f\' (Pan:{ptz_pan:.3f} Tilt:{ptz_tilt:.3f})\' if ptz_pan is not None else \'\'',
+    '                msg = f\'\u2705 Preset {pnum}{coord_txt} gespeichert\'',
     '                self.after(0, lambda: self.preset_lbl.set(msg))',
     '                self.after(0, self._load_functions)',
     '            except Exception as e:',
@@ -1241,13 +1261,19 @@ function downloadCameraSetup() {
     '        self.next_runs[fn[\'id\']] = datetime.now() + timedelta(minutes=fn[\'interval_min\'])',
     '        try:',
     '            if fn.get(\'ptz_preset\') is not None:',
-    '                base = cam[\'camera_url\'].rsplit(\'/\', 1)[0]',
     '                try:',
-    '                    requests.get(f\'{base}/onvif/PTZ/GotoPreset?preset={fn["ptz_preset"]}\',',
-    '                        auth=(cam[\'camera_user\'], cam[\'camera_pass\']), timeout=5)',
+    '                    import re as _re',
+    '                    _ip = _re.search(r\'https?://([^/:]+)\', cam[\'camera_url\']).group(1)',
+    '                    _port = cam.get(\'onvif_port\', 8000)',
+    '                    _oc = ONVIFCamera(_ip, _port, cam[\'camera_user\'], cam[\'camera_pass\'])',
+    '                    _media = _oc.create_media_service()',
+    '                    _ptz = _oc.create_ptz_service()',
+    '                    _tok = _media.GetProfiles()[0].token',
+    '                    _ptz.GotoPreset({\'ProfileToken\': _tok, \'PresetToken\': str(fn[\'ptz_preset\'])})',
+    '                    self.after(0, lambda: self.log(f\'  PTZ -> Preset {fn["ptz_preset"]}\'))',
     '                    time.sleep(3)',
     '                except Exception as e:',
-    '                    self.after(0, lambda: self.log(f\'  PTZ: {e}\'))',
+    '                    self.after(0, lambda: self.log(f\'  PTZ Fehler: {e}\'))',
     '            r = requests.get(cam[\'camera_url\'],',
     '                auth=(cam[\'camera_user\'], cam[\'camera_pass\']) if cam[\'camera_user\'] else None,',
     '                timeout=15)',
@@ -1255,7 +1281,7 @@ function downloadCameraSetup() {
     '            img_b64 = base64.b64encode(r.content).decode()',
     '            img_path = None',
     '            try:',
-    '                folder = fn[\'name\'].replace(\' \',\'_\').replace(\'/\',\'_\')',
+    '                folder = fn[\'name\'].replace(\' \',\'_\').replace(\'/\',\'_\').replace(\'\u00e4\',\'ae\').replace(\'\u00f6\',\'oe\').replace(\'\u00fc\',\'ue\').replace(\'\u00df\',\'ss\')',
     '                ts_str = datetime.now(timezone.utc).strftime(\'%Y%m%dT%H%M%S\')',
     '                img_path = f\'{folder}/{ts_str}.jpg\'',
     '                st_h = {\'apikey\': SB_KEY, \'Authorization\': f\'Bearer {SB_KEY}\', \'Content-Type\': \'image/jpeg\'}',
@@ -1332,7 +1358,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v1.0.py';
+  a.download = 'medb-cctv-v1.1.py';
   a.click();
 }
 
