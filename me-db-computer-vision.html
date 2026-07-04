@@ -229,7 +229,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v2.0</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v2.1</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -926,7 +926,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v1.9\')',
+    '        self.title(\'MeDB CCTV v2.1\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -939,6 +939,7 @@ function downloadCameraSetup() {
     '        threading.Thread(target=self._poll_loop, daemon=True).start()',
     '        self._load_functions()',
     '        self.after(800, self._load_camera_defaults)',
+    '        self.after(1800, self._auto_connect)',
     '',
     '    def _build(self):',
     '        # Top bar',
@@ -1035,6 +1036,35 @@ function downloadCameraSetup() {
     '        self.log_txt.see(\'end\')',
     '        self.log_txt.config(state=\'disabled\')',
     '        print(f\'[{ts}] {msg}\', flush=True)',
+    '',
+    '    def _auto_connect(self):',
+    '        if not self.cam and self.ip_var.get().count(\'.\') == 3:',
+    '            self.connect()',
+    '',
+    '    def _goto_preset(self, fn, btn):',
+    '        cam = fn.get(\'camera\')',
+    '        if not cam:',
+    '            self.log(f\'Kein Kamera fuer {fn["name"]}\')',
+    '            return',
+    '        import re as _re',
+    '        btn.config(state=\'disabled\', text=\'...\')',
+    '        def _f():',
+    '            try:',
+    '                _ip = _re.search(r\'https?://([^/:]+)\', cam[\'camera_url\']).group(1)',
+    '                _u, _p = cam[\'camera_user\'], cam[\'camera_pass\']',
+    '                _cgi_id = max(0, int(fn[\'ptz_preset\']) - 1)',
+    '                _body = f\'[{{"cmd":"PtzCtrl","action":0,"param":{{"channel":0,"op":"ToPos","speed":32,"id":{_cgi_id}}}}}]\'',
+    '                _r = requests.post(',
+    '                    f\'http://{_ip}/api.cgi?cmd=PtzCtrl&rs=medb&user={_u}&password={_p}\',',
+    '                    data=_body, headers={\'Content-Type\': \'application/json\'}, timeout=5)',
+    '                _rj = _r.json()',
+    '                _rj = _rj[0] if isinstance(_rj, list) else _rj',
+    '                ok = _rj.get(\'code\', -1) == 0',
+    '                self.after(0, lambda: self.log(f\'Preset {fn["name"]}: CGI id={_cgi_id} {"OK" if ok else "FEHLER"}\'))',
+    '            except Exception as e:',
+    '                self.after(0, lambda err=str(e): self.log(f\'Preset Fehler: {err}\'))',
+    '            self.after(0, lambda: btn.config(state=\'normal\', text=\'\u25b6 Anfahren\'))',
+    '        threading.Thread(target=_f, daemon=True).start()',
     '',
     '    # \u2500\u2500 Camera \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
     '    def _load_camera_defaults(self):',
@@ -1260,12 +1290,20 @@ function downloadCameraSetup() {
     '            tk.Label(card, textvariable=nxt_var, bg=\'#eef2ff\', fg=\'#666\',',
     '                font=(\'Segoe UI\',8)).pack(anchor=\'w\')',
     '            fn[\'_nxt_var\'] = nxt_var',
-    '            tk.Button(card, text=\'\\U0001f4f7 Jetzt auslesen\',',
+    '            btn_row = tk.Frame(card, bg=\'#eef2ff\')',
+    '            btn_row.pack(anchor=\'w\', pady=(4,0))',
+    '            if fn.get(\'ptz_preset\') is not None:',
+    '                pb = tk.Button(btn_row, text=\'\u25b6 Anfahren\',',
+    '                    bg=\'#e0e0e0\', fg=\'#1a1a2e\', font=(\'Segoe UI\',8,\'bold\'),',
+    '                    relief=\'flat\', padx=8, pady=3)',
+    '                pb.config(command=lambda f=fn, b=pb: self._goto_preset(f, b))',
+    '                pb.pack(side=\'left\', padx=(0,6))',
+    '            tk.Button(btn_row, text=\'\\U0001f4f7 Jetzt auslesen\',',
     '                bg=\'#1976d2\', fg=\'white\', font=(\'Segoe UI\',8,\'bold\'),',
     '                relief=\'flat\', padx=8, pady=3,',
     '                command=lambda f=fn: threading.Thread(',
     '                    target=self._run_reading, args=(f,), daemon=True).start()',
-    '            ).pack(anchor=\'w\', pady=(4,0))',
+    '            ).pack(side=\'left\')',
     '        if not self._countdown_started:',
     '            self._countdown_started = True',
     '            threading.Thread(target=self._countdown_thread, daemon=True).start()',
@@ -1307,7 +1345,9 @@ function downloadCameraSetup() {
     '                    _r = requests.post(',
     '                        f\'http://{_ip}/api.cgi?cmd=PtzCtrl&rs=medb&user={_u}&password={_p}\',',
     '                        data=_body, headers={\'Content-Type\': \'application/json\'}, timeout=5)',
-    '                    _ok = _r.json().get(\'code\', -1) == 0',
+    '                    _rj = _r.json()',
+    '                    _rj = _rj[0] if isinstance(_rj, list) else _rj',
+    '                    _ok = _rj.get(\'code\', -1) == 0',
     '                    _cgi_cap = _cgi_id',
     '                    self.after(0, lambda ok=_ok, pid=_cgi_cap: self.log(',
     '                        f\'  PTZ -> CGI id={pid} {"OK" if ok else "FEHLER"}\'))',
@@ -1398,7 +1438,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v1.9.py';
+  a.download = 'medb-cctv-v2.1.py';
   a.click();
 }
 
