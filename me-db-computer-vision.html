@@ -885,449 +885,450 @@ function downloadSetup() {
 
 // ── Camera Setup Tool download ────────────────────────────────────────────────
 function downloadCameraSetup() {
-  const SB_URL = SUPABASE_URL, SB_KEY = SUPABASE_KEY, WORKER_URL = WORKER_URL;
-  const py = `import sys
-sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-import os, json, base64, requests, time, threading, subprocess
-from datetime import datetime, timezone, timedelta
-from io import BytesIO
-
-def _ensure(pkg, imp=None):
-    try: __import__(imp or pkg)
-    except ImportError:
-        print(f'Installiere {pkg}...', flush=True)
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', pkg, '-q'])
-
-_ensure('Pillow', 'PIL')
-_ensure('onvif-zeep', 'onvif')
-
-import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext
-from PIL import Image, ImageTk
-from onvif import ONVIFCamera
-from requests.auth import HTTPDigestAuth
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-_cfg = os.path.join(SCRIPT_DIR, 'config.json')
-cfg = json.load(open(_cfg, encoding='utf-8-sig')) if os.path.exists(_cfg) else {}
-SB_URL  = cfg.get('supabase_url', '').rstrip('/')
-SB_KEY  = cfg.get('supabase_anon_key', '')
-WORKER  = cfg.get('worker_url', '')
-ACCENT, BG, BG2 = '#1a1a2e', '#f5f5f5', '#ffffff'
-
-
-class App(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title('MeDB CCTV v1.0')
-        self.configure(bg=BG)
-        self.cam = self.ptz = self.media = None
-        self.profile_token = None
-        self.snap_url = self.snap_auth = None
-        self.streaming = False
-        self.functions = []
-        self.next_runs = {}
-        self._countdown_started = False
-        self._build()
-        threading.Thread(target=self._poll_loop, daemon=True).start()
-        self._load_functions()
-
-    def _build(self):
-        # Top bar
-        top = tk.Frame(self, bg=ACCENT, pady=8, padx=12)
-        top.pack(fill='x')
-        tk.Label(top, text='MeDB CCTV', bg=ACCENT, fg='white',
-            font=('Segoe UI', 11, 'bold')).pack(side='left')
-        bar = tk.Frame(top, bg=ACCENT)
-        bar.pack(side='left', padx=20)
-        fields = [('IP','ip_var',16,'192.168.178.',''),('Port','port_var',6,'8000',''),
-                  ('Benutzer','user_var',10,'admin',''),('Passwort','pass_var',12,'','*')]
-        for col,(lbl,vn,w,dflt,show) in enumerate(fields):
-            tk.Label(bar,text=lbl,bg=ACCENT,fg='#aaa',font=('Segoe UI',7)).grid(row=0,column=col,sticky='w',padx=(0,8))
-            v = tk.StringVar(value=dflt)
-            setattr(self, vn, v)
-            kw = {'show':show} if show else {}
-            tk.Entry(bar,textvariable=v,width=w,**kw).grid(row=1,column=col,padx=(0,8))
-        self.conn_btn = tk.Button(bar, text='Verbinden', bg='#4caf50', fg='white',
-            font=('Segoe UI',9,'bold'), relief='flat', padx=12, command=self.connect)
-        self.conn_btn.grid(row=1, column=4)
-        self.status_var = tk.StringVar(value='Nicht verbunden')
-        tk.Label(top, textvariable=self.status_var, bg=ACCENT, fg='#aaa',
-            font=('Segoe UI',8)).pack(side='left', padx=8)
-
-        # Main area
-        main = tk.Frame(self, bg=BG)
-        main.pack(fill='both', expand=True, padx=8, pady=8)
-
-        # Left: camera
-        left = tk.Frame(main, bg=BG)
-        left.pack(side='left', fill='y')
-        self.canvas = tk.Canvas(left, width=640, height=480, bg='#111', highlightthickness=0)
-        self.canvas.pack()
-        self.canvas.create_text(320, 240, text='Keine Verbindung', fill='#555',
-            font=('Segoe UI',14), tags='placeholder')
-
-        # PTZ
-        pf = tk.Frame(left, bg=BG, pady=4)
-        pf.pack(fill='x')
-        bk = dict(bg=ACCENT, fg='white', font=('Segoe UI',12), relief='flat', width=3)
-        tk.Button(pf,text='▲',**bk,command=lambda:self.move(0,1)).grid(row=0,column=1,padx=2,pady=2)
-        tk.Button(pf,text='◄',**bk,command=lambda:self.move(-1,0)).grid(row=1,column=0,padx=2)
-        tk.Button(pf,text='■',**bk,command=self.stop_cam).grid(row=1,column=1,padx=2)
-        tk.Button(pf,text='►',**bk,command=lambda:self.move(1,0)).grid(row=1,column=2,padx=2)
-        tk.Button(pf,text='▼',**bk,command=lambda:self.move(0,-1)).grid(row=2,column=1,padx=2)
-        zk = dict(bg='#e0e0e0', fg=ACCENT, font=('Segoe UI',11,'bold'), relief='flat', width=4)
-        tk.Button(pf,text='Z+',**zk,command=lambda:self.move(0,0,1)).grid(row=1,column=3,padx=(12,2))
-        tk.Button(pf,text='Z-',**zk,command=lambda:self.move(0,0,-1)).grid(row=1,column=4,padx=2)
-        self.speed_var = tk.DoubleVar(value=0.3)
-        tk.Scale(pf, variable=self.speed_var, from_=0.1, to=1.0, resolution=0.1,
-            orient='horizontal', bg=BG, label='Speed', length=100).grid(row=0,column=3,columnspan=2)
-        # PTZ pos
-        self.ptz_pan_var  = tk.StringVar(value='Pan:  --')
-        self.ptz_tilt_var = tk.StringVar(value='Tilt: --')
-        self.ptz_zoom_var = tk.StringVar(value='Zoom: --')
-        posf = tk.Frame(left, bg=BG)
-        posf.pack(fill='x', pady=2)
-        for v in [self.ptz_pan_var, self.ptz_tilt_var, self.ptz_zoom_var]:
-            tk.Label(posf, textvariable=v, bg=BG, fg='#888', font=('Courier',8)).pack(side='left', padx=6)
-
-        # Preset
-        presf = tk.Frame(left, bg=BG2, pady=8)
-        presf.pack(fill='x', pady=(4,0))
-        tk.Label(presf, text='Preset speichern fuer:', bg=BG2, fg='#666',
-            font=('Segoe UI',8)).pack(anchor='w', padx=8)
-        self.fn_var = tk.StringVar()
-        self.fn_combo = ttk.Combobox(presf, textvariable=self.fn_var, state='readonly', width=38)
-        self.fn_combo.pack(anchor='w', padx=8, pady=(2,6))
-        tk.Button(presf, text='\\U0001f4cd  Position als Preset speichern',
-            bg='#4caf50', fg='white', font=('Segoe UI',9,'bold'),
-            relief='flat', padx=12, pady=6, command=self.save_preset).pack(anchor='w', padx=8)
-        self.preset_lbl = tk.StringVar()
-        tk.Label(presf, textvariable=self.preset_lbl, bg=BG2, fg='#2e7d32',
-            font=('Segoe UI',8)).pack(anchor='w', padx=8, pady=(4,0))
-
-        # Right: monitoring
-        right = tk.Frame(main, bg=BG2, relief='solid', bd=1, width=340)
-        right.pack(side='left', fill='both', expand=True, padx=(8,0))
-        right.pack_propagate(False)
-        tk.Label(right, text='Monitoring', bg=BG2, fg=ACCENT,
-            font=('Segoe UI',10,'bold'), pady=8).pack(anchor='w', padx=10)
-        self.fn_cards = tk.Frame(right, bg=BG2)
-        self.fn_cards.pack(fill='x', padx=6)
-        tk.Label(right, text='Live-Log', bg=BG2, fg='#888',
-            font=('Segoe UI',8,'bold')).pack(anchor='w', padx=10, pady=(8,0))
-        self.log_txt = scrolledtext.ScrolledText(right, height=14, font=('Courier',8),
-            bg='#111', fg='#0f0', insertbackground='#0f0', wrap='word', state='disabled')
-        self.log_txt.pack(fill='both', expand=True, padx=6, pady=6)
-
-    def log(self, msg):
-        ts = datetime.now().strftime('%H:%M:%S')
-        self.log_txt.config(state='normal')
-        self.log_txt.insert('end', f'[{ts}] {msg}\\n')
-        self.log_txt.see('end')
-        self.log_txt.config(state='disabled')
-        print(f'[{ts}] {msg}', flush=True)
-
-    # ── Camera ──────────────────────────────────────────────────────────
-    def connect(self):
-        self.conn_btn.config(state='disabled')
-        self.status_var.set('Verbinde...')
-        ip   = self.ip_var.get().strip()
-        port = int(self.port_var.get().strip() or '8000')
-        user = self.user_var.get().strip()
-        pw   = self.pass_var.get()
-        def _c():
-            try:
-                self.cam = ONVIFCamera(ip, port, user, pw)
-                self.media = self.cam.create_media_service()
-                self.ptz   = self.cam.create_ptz_service()
-                self.profile_token = self.media.GetProfiles()[0].token
-                try:
-                    snap_uri = self.media.GetSnapshotUri({'ProfileToken': self.profile_token})
-                    self.snap_url  = snap_uri.Uri
-                    self.snap_auth = HTTPDigestAuth(user, pw)
-                except Exception:
-                    self.snap_url  = f'http://{ip}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=medb&user={user}&password={pw}'
-                    self.snap_auth = None
-                self.streaming = True
-                self.after(0, lambda: self.status_var.set(f'✅ Verbunden  {ip}'))
-                self.after(0, lambda: self.canvas.delete('placeholder'))
-                self._snap_loop()
-                self._update_ptz_pos()
-            except Exception as e:
-                self.after(0, lambda: self.status_var.set(f'❌ {e}'))
-            self.after(0, lambda: self.conn_btn.config(state='normal'))
-        threading.Thread(target=_c, daemon=True).start()
-
-    def _snap_loop(self):
-        def _f():
-            if not self.streaming:
-                return
-            try:
-                r = requests.get(self.snap_url, auth=self.snap_auth, timeout=5)
-                if r.status_code == 200:
-                    img = Image.open(BytesIO(r.content))
-                    img.thumbnail((640, 480))
-                    photo = ImageTk.PhotoImage(img)
-                    def _up():
-                        self.canvas.delete('all')
-                        self.canvas.create_image(0, 0, anchor='nw', image=photo)
-                        self.canvas._photo = photo
-                    self.after(0, _up)
-                else:
-                    self.after(0, lambda: self.status_var.set(f'⚠ HTTP {r.status_code}'))
-            except Exception as e:
-                self.after(0, lambda: self.status_var.set(f'⚠ {str(e)[:40]}'))
-            if self.streaming:
-                self.after(2000, lambda: threading.Thread(target=_f, daemon=True).start())
-        threading.Thread(target=_f, daemon=True).start()
-
-    def _update_ptz_pos(self):
-        if not self.ptz:
-            return
-        def _f():
-            try:
-                st = self.ptz.GetStatus({'ProfileToken': self.profile_token})
-                pt = st.Position.PanTilt
-                z  = st.Position.Zoom
-                try: pan = f'Pan:  {pt.x:+.3f}'
-                except Exception: pan = f'Pan:  {str(pt)[:14]}'
-                try: tilt = f'Tilt: {pt.y:+.3f}'
-                except Exception: tilt = 'Tilt: --'
-                try: zoom = f'Zoom: {z.x:.3f}'
-                except Exception: zoom = 'Zoom: --'
-                self.after(0, lambda p=pan,t=tilt,z2=zoom: (
-                    self.ptz_pan_var.set(p), self.ptz_tilt_var.set(t), self.ptz_zoom_var.set(z2)))
-            except Exception:
-                pass
-        threading.Thread(target=_f, daemon=True).start()
-
-    def move(self, pan, tilt, zoom=0):
-        if not self.ptz: return
-        s = self.speed_var.get()
-        def _m():
-            try:
-                req = self.ptz.create_type('ContinuousMove')
-                req.ProfileToken = self.profile_token
-                req.Velocity = {'PanTilt': {'x': pan*s, 'y': tilt*s}, 'Zoom': {'x': zoom*s}}
-                self.ptz.ContinuousMove(req)
-                time.sleep(0.4)
-                self.ptz.Stop({'ProfileToken': self.profile_token, 'PanTilt': True, 'Zoom': True})
-                self._update_ptz_pos()
-            except Exception as e:
-                self.after(0, lambda: self.status_var.set(f'PTZ: {e}'))
-        threading.Thread(target=_m, daemon=True).start()
-
-    def stop_cam(self):
-        if self.ptz:
-            threading.Thread(target=lambda: self.ptz.Stop(
-                {'ProfileToken': self.profile_token, 'PanTilt': True, 'Zoom': True}), daemon=True).start()
-
-    def save_preset(self):
-        if not self.ptz:
-            messagebox.showwarning('Nicht verbunden', 'Erst Kamera verbinden.')
-            return
-        fn = next((f for f in self.functions if f['name'] == self.fn_var.get()), None)
-        if not fn:
-            messagebox.showerror('Fehler', 'Monitoring Function waehlen.')
-            return
-        ip = self.ip_var.get().strip()
-        user = self.user_var.get().strip()
-        pw = self.pass_var.get()
-        def _s():
-            self.after(0, lambda: self.preset_lbl.set('Speichern...'))
-            try:
-                h = {'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}', 'Content-Type': 'application/json'}
-                sr = requests.get(f'{SB_URL}/rest/v1/cameras',
-                    params={'camera_url': f'eq.{self.snap_url}', 'select': 'id'},
-                    headers={'apikey': SB_KEY}, timeout=5)
-                cam_id = sr.json()[0]['id'] if sr.ok and sr.json() else None
-                if not cam_id:
-                    ins = requests.post(f'{SB_URL}/rest/v1/cameras',
-                        headers={**h, 'Prefer': 'return=representation'},
-                        json={'name': f'Kamera {ip}', 'camera_url': self.snap_url,
-                              'camera_user': user, 'camera_pass': pw, 'active': True}, timeout=10)
-                    ins.raise_for_status()
-                    cam_id = ins.json()[0]['id']
-                pnum = 1
-                try:
-                    safe = fn['name'].replace('ä','ae').replace('ö','oe').replace('ü','ue').replace('ß','ss')
-                    resp = self.ptz.SetPreset({'ProfileToken': self.profile_token, 'PresetName': f'MeDB-{safe}'})
-                    pnum = int(str(resp.PresetToken))
-                except Exception:
-                    pass
-                requests.patch(f'{SB_URL}/rest/v1/monitoring_functions',
-                    params={'id': f'eq.{fn["id"]}'},
-                    headers={**h, 'Prefer': 'return=minimal'},
-                    json={'camera_id': cam_id, 'ptz_preset': pnum}, timeout=10).raise_for_status()
-                msg = f'✅ Preset {pnum} + Kamera gespeichert'
-                self.after(0, lambda: self.preset_lbl.set(msg))
-                self.after(0, self._load_functions)
-            except Exception as e:
-                self.after(0, lambda: self.preset_lbl.set(f'❌ {str(e)[:60]}'))
-        threading.Thread(target=_s, daemon=True).start()
-
-    # ── Monitoring ───────────────────────────────────────────────────────
-    def _load_functions(self):
-        def _f():
-            try:
-                r = requests.get(f'{SB_URL}/rest/v1/monitoring_functions',
-                    params={'active': 'eq.true', 'select': '*,camera:camera_id(*)', 'order': 'name'},
-                    headers={'apikey': SB_KEY}, timeout=10)
-                if r.ok:
-                    self.functions = r.json() or []
-                    now = datetime.now()
-                    for fn in self.functions:
-                        if fn['id'] not in self.next_runs:
-                            self.next_runs[fn['id']] = now + timedelta(minutes=fn['interval_min'])
-                    self.after(0, self._rebuild_cards)
-                    self.after(0, lambda: self.fn_combo.configure(
-                        values=[f['name'] for f in self.functions]))
-            except Exception as e:
-                print('load_functions:', e, flush=True)
-        threading.Thread(target=_f, daemon=True).start()
-
-    def _rebuild_cards(self):
-        for w in self.fn_cards.winfo_children():
-            w.destroy()
-        for fn in self.functions:
-            card = tk.Frame(self.fn_cards, bg='#eef2ff', pady=6, padx=8)
-            card.pack(fill='x', pady=3)
-            tr = tk.Frame(card, bg='#eef2ff')
-            tr.pack(fill='x')
-            tk.Label(tr, text=fn['name'], bg='#eef2ff', fg=ACCENT,
-                font=('Segoe UI',9,'bold')).pack(side='left')
-            cam = fn.get('camera')
-            ctxt = cam.get('name','') if cam else 'keine Kamera'
-            tk.Label(tr, text=ctxt, bg='#eef2ff', fg='#888',
-                font=('Segoe UI',7)).pack(side='left', padx=6)
-            nxt_var = tk.StringVar(value='naechste: --')
-            tk.Label(card, textvariable=nxt_var, bg='#eef2ff', fg='#666',
-                font=('Segoe UI',8)).pack(anchor='w')
-            fn['_nxt_var'] = nxt_var
-            tk.Button(card, text='\\U0001f4f7 Jetzt auslesen',
-                bg='#1976d2', fg='white', font=('Segoe UI',8,'bold'),
-                relief='flat', padx=8, pady=3,
-                command=lambda f=fn: threading.Thread(
-                    target=self._run_reading, args=(f,), daemon=True).start()
-            ).pack(anchor='w', pady=(4,0))
-        if not self._countdown_started:
-            self._countdown_started = True
-            threading.Thread(target=self._countdown_thread, daemon=True).start()
-
-    def _countdown_thread(self):
-        while True:
-            now = datetime.now()
-            for fn in self.functions:
-                nv = fn.get('_nxt_var')
-                nxt = self.next_runs.get(fn['id'])
-                if nv and nxt:
-                    delta = nxt - now
-                    secs = int(delta.total_seconds())
-                    if secs > 0:
-                        m, s = divmod(secs, 60)
-                        txt = f'naechste: {m:02d}:{s:02d} | alle {fn["interval_min"]} min'
-                    else:
-                        txt = 'naechste: bald...'
-                    self.after(0, lambda v=nv, t=txt: v.set(t))
-            time.sleep(1)
-
-    def _run_reading(self, fn):
-        cam = fn.get('camera')
-        if not cam:
-            self.after(0, lambda: self.log(f'SKIP {fn["name"]}: keine Kamera'))
-            return
-        self.after(0, lambda: self.log(f'--- {fn["name"]} ---'))
-        self.next_runs[fn['id']] = datetime.now() + timedelta(minutes=fn['interval_min'])
-        try:
-            if fn.get('ptz_preset') is not None:
-                base = cam['camera_url'].rsplit('/', 1)[0]
-                try:
-                    requests.get(f'{base}/onvif/PTZ/GotoPreset?preset={fn["ptz_preset"]}',
-                        auth=(cam['camera_user'], cam['camera_pass']), timeout=5)
-                    time.sleep(3)
-                except Exception as e:
-                    self.after(0, lambda: self.log(f'  PTZ: {e}'))
-            r = requests.get(cam['camera_url'],
-                auth=(cam['camera_user'], cam['camera_pass']) if cam['camera_user'] else None,
-                timeout=15)
-            r.raise_for_status()
-            img_b64 = base64.b64encode(r.content).decode()
-            img_path = None
-            try:
-                folder = fn['name'].replace(' ','_').replace('/','_')
-                ts_str = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')
-                img_path = f'{folder}/{ts_str}.jpg'
-                st_h = {'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}', 'Content-Type': 'image/jpeg'}
-                requests.post(f'{SB_URL}/storage/v1/object/meter-photos/{img_path}',
-                    headers=st_h, data=r.content, timeout=15).raise_for_status()
-                self.after(0, lambda: self.log(f'  Foto gespeichert'))
-                ls = requests.post(f'{SB_URL}/storage/v1/object/list/meter-photos',
-                    headers={**st_h, 'Content-Type': 'application/json'},
-                    json={'prefix': f'{folder}/', 'sortBy': {'column': 'created_at', 'order': 'asc'}}, timeout=10)
-                fl = ls.json() if ls.ok else []
-                if isinstance(fl, list) and len(fl) > 10:
-                    old = [f'{folder}/{f["name"]}' for f in fl[:-10]]
-                    requests.delete(f'{SB_URL}/storage/v1/object/meter-photos',
-                        headers={**st_h, 'Content-Type': 'application/json'}, json=old, timeout=10)
-            except Exception as pe:
-                self.after(0, lambda: self.log(f'  Foto-Fehler: {pe}'))
-            resp = requests.post(f'{WORKER}/read-meter',
-                json={'image_b64': img_b64, 'media_type': 'image/jpeg', 'meter_type': fn['meter_type']},
-                timeout=30).json()
-            if not resp.get('success'):
-                raise Exception(resp.get('error', 'Vision failed'))
-            value = resp['value']
-            h = {'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}',
-                 'Content-Type': 'application/json', 'Prefer': 'return=minimal'}
-            requests.post(f'{SB_URL}/rest/v1/meter_readings', headers=h,
-                json={'agent_name': fn['name'], 'meter_type': fn['meter_type'],
-                      'value': value, 'unit': fn['unit'], 'raw_response': resp['raw'],
-                      'image_path': img_path, 'monitoring_function_id': fn['id'],
-                      'captured_at': datetime.now(timezone.utc).isoformat()},
-                timeout=10).raise_for_status()
-            self.after(0, lambda: self.log(f'  OK: {value} {fn["unit"]}'))
-        except Exception as e:
-            self.after(0, lambda: self.log(f'  FEHLER: {e}'))
-
-    def _poll_loop(self):
-        while True:
-            now = datetime.now()
-            for fn in list(self.functions):
-                nxt = self.next_runs.get(fn['id'])
-                if nxt and now >= nxt:
-                    self.next_runs[fn['id']] = now + timedelta(minutes=fn['interval_min'])
-                    threading.Thread(target=self._run_reading, args=(fn,), daemon=True).start()
-            try:
-                h = {'apikey': SB_KEY}
-                r = requests.get(f'{SB_URL}/rest/v1/monitoring_functions',
-                    params={'manual_trigger': 'eq.true', 'active': 'eq.true',
-                            'select': '*,camera:camera_id(*)'},
-                    headers=h, timeout=5)
-                if r.ok:
-                    h2 = {'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}',
-                          'Content-Type': 'application/json', 'Prefer': 'return=minimal'}
-                    for fn in (r.json() or []):
-                        fn_name = fn['name']
-                        self.after(0, lambda n=fn_name: self.log(f'[MANUELL] {n}'))
-                        requests.patch(f'{SB_URL}/rest/v1/monitoring_functions',
-                            params={'id': f'eq.{fn["id"]}'},
-                            headers=h2, json={'manual_trigger': False}, timeout=5)
-                        threading.Thread(target=self._run_reading, args=(fn,), daemon=True).start()
-            except Exception:
-                pass
-            time.sleep(30)
-
-    def on_close(self):
-        self.streaming = False
-        self.destroy()
-
-
-if __name__ == '__main__':
-    app = App()
-    app.protocol('WM_DELETE_WINDOW', app.on_close)
-    app.mainloop()
-`;
+  const lines = [
+    'import sys',
+    'sys.stdout.reconfigure(encoding=\'utf-8\', errors=\'replace\')',
+    'import os, json, base64, requests, time, threading, subprocess',
+    'from datetime import datetime, timezone, timedelta',
+    'from io import BytesIO',
+    '',
+    'def _ensure(pkg, imp=None):',
+    '    try: __import__(imp or pkg)',
+    '    except ImportError:',
+    '        print(f\'Installiere {pkg}...\', flush=True)',
+    '        subprocess.check_call([sys.executable, \'-m\', \'pip\', \'install\', pkg, \'-q\'])',
+    '',
+    '_ensure(\'Pillow\', \'PIL\')',
+    '_ensure(\'onvif-zeep\', \'onvif\')',
+    '',
+    'import tkinter as tk',
+    'from tkinter import ttk, messagebox, scrolledtext',
+    'from PIL import Image, ImageTk',
+    'from onvif import ONVIFCamera',
+    'from requests.auth import HTTPDigestAuth',
+    '',
+    'SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))',
+    '_cfg = os.path.join(SCRIPT_DIR, \'config.json\')',
+    'cfg = json.load(open(_cfg, encoding=\'utf-8-sig\')) if os.path.exists(_cfg) else {}',
+    'SB_URL  = cfg.get(\'supabase_url\', \'\').rstrip(\'/\')',
+    'SB_KEY  = cfg.get(\'supabase_anon_key\', \'\')',
+    'WORKER  = cfg.get(\'worker_url\', \'\')',
+    'ACCENT, BG, BG2 = \'#1a1a2e\', \'#f5f5f5\', \'#ffffff\'',
+    '',
+    '',
+    'class App(tk.Tk):',
+    '    def __init__(self):',
+    '        super().__init__()',
+    '        self.title(\'MeDB CCTV v1.0\')',
+    '        self.configure(bg=BG)',
+    '        self.cam = self.ptz = self.media = None',
+    '        self.profile_token = None',
+    '        self.snap_url = self.snap_auth = None',
+    '        self.streaming = False',
+    '        self.functions = []',
+    '        self.next_runs = {}',
+    '        self._countdown_started = False',
+    '        self._build()',
+    '        threading.Thread(target=self._poll_loop, daemon=True).start()',
+    '        self._load_functions()',
+    '',
+    '    def _build(self):',
+    '        # Top bar',
+    '        top = tk.Frame(self, bg=ACCENT, pady=8, padx=12)',
+    '        top.pack(fill=\'x\')',
+    '        tk.Label(top, text=\'MeDB CCTV\', bg=ACCENT, fg=\'white\',',
+    '            font=(\'Segoe UI\', 11, \'bold\')).pack(side=\'left\')',
+    '        bar = tk.Frame(top, bg=ACCENT)',
+    '        bar.pack(side=\'left\', padx=20)',
+    '        fields = [(\'IP\',\'ip_var\',16,\'192.168.178.\',\'\'),(\'Port\',\'port_var\',6,\'8000\',\'\'),',
+    '                  (\'Benutzer\',\'user_var\',10,\'admin\',\'\'),(\'Passwort\',\'pass_var\',12,\'\',\'*\')]',
+    '        for col,(lbl,vn,w,dflt,show) in enumerate(fields):',
+    '            tk.Label(bar,text=lbl,bg=ACCENT,fg=\'#aaa\',font=(\'Segoe UI\',7)).grid(row=0,column=col,sticky=\'w\',padx=(0,8))',
+    '            v = tk.StringVar(value=dflt)',
+    '            setattr(self, vn, v)',
+    '            kw = {\'show\':show} if show else {}',
+    '            tk.Entry(bar,textvariable=v,width=w,**kw).grid(row=1,column=col,padx=(0,8))',
+    '        self.conn_btn = tk.Button(bar, text=\'Verbinden\', bg=\'#4caf50\', fg=\'white\',',
+    '            font=(\'Segoe UI\',9,\'bold\'), relief=\'flat\', padx=12, command=self.connect)',
+    '        self.conn_btn.grid(row=1, column=4)',
+    '        self.status_var = tk.StringVar(value=\'Nicht verbunden\')',
+    '        tk.Label(top, textvariable=self.status_var, bg=ACCENT, fg=\'#aaa\',',
+    '            font=(\'Segoe UI\',8)).pack(side=\'left\', padx=8)',
+    '',
+    '        # Main area',
+    '        main = tk.Frame(self, bg=BG)',
+    '        main.pack(fill=\'both\', expand=True, padx=8, pady=8)',
+    '',
+    '        # Left: camera',
+    '        left = tk.Frame(main, bg=BG)',
+    '        left.pack(side=\'left\', fill=\'y\')',
+    '        self.canvas = tk.Canvas(left, width=640, height=480, bg=\'#111\', highlightthickness=0)',
+    '        self.canvas.pack()',
+    '        self.canvas.create_text(320, 240, text=\'Keine Verbindung\', fill=\'#555\',',
+    '            font=(\'Segoe UI\',14), tags=\'placeholder\')',
+    '',
+    '        # PTZ',
+    '        pf = tk.Frame(left, bg=BG, pady=4)',
+    '        pf.pack(fill=\'x\')',
+    '        bk = dict(bg=ACCENT, fg=\'white\', font=(\'Segoe UI\',12), relief=\'flat\', width=3)',
+    '        tk.Button(pf,text=\'\u25b2\',**bk,command=lambda:self.move(0,1)).grid(row=0,column=1,padx=2,pady=2)',
+    '        tk.Button(pf,text=\'\u25c4\',**bk,command=lambda:self.move(-1,0)).grid(row=1,column=0,padx=2)',
+    '        tk.Button(pf,text=\'\u25a0\',**bk,command=self.stop_cam).grid(row=1,column=1,padx=2)',
+    '        tk.Button(pf,text=\'\u25ba\',**bk,command=lambda:self.move(1,0)).grid(row=1,column=2,padx=2)',
+    '        tk.Button(pf,text=\'\u25bc\',**bk,command=lambda:self.move(0,-1)).grid(row=2,column=1,padx=2)',
+    '        zk = dict(bg=\'#e0e0e0\', fg=ACCENT, font=(\'Segoe UI\',11,\'bold\'), relief=\'flat\', width=4)',
+    '        tk.Button(pf,text=\'Z+\',**zk,command=lambda:self.move(0,0,1)).grid(row=1,column=3,padx=(12,2))',
+    '        tk.Button(pf,text=\'Z-\',**zk,command=lambda:self.move(0,0,-1)).grid(row=1,column=4,padx=2)',
+    '        self.speed_var = tk.DoubleVar(value=0.3)',
+    '        tk.Scale(pf, variable=self.speed_var, from_=0.1, to=1.0, resolution=0.1,',
+    '            orient=\'horizontal\', bg=BG, label=\'Speed\', length=100).grid(row=0,column=3,columnspan=2)',
+    '        # PTZ pos',
+    '        self.ptz_pan_var  = tk.StringVar(value=\'Pan:  --\')',
+    '        self.ptz_tilt_var = tk.StringVar(value=\'Tilt: --\')',
+    '        self.ptz_zoom_var = tk.StringVar(value=\'Zoom: --\')',
+    '        posf = tk.Frame(left, bg=BG)',
+    '        posf.pack(fill=\'x\', pady=2)',
+    '        for v in [self.ptz_pan_var, self.ptz_tilt_var, self.ptz_zoom_var]:',
+    '            tk.Label(posf, textvariable=v, bg=BG, fg=\'#888\', font=(\'Courier\',8)).pack(side=\'left\', padx=6)',
+    '',
+    '        # Preset',
+    '        presf = tk.Frame(left, bg=BG2, pady=8)',
+    '        presf.pack(fill=\'x\', pady=(4,0))',
+    '        tk.Label(presf, text=\'Preset speichern fuer:\', bg=BG2, fg=\'#666\',',
+    '            font=(\'Segoe UI\',8)).pack(anchor=\'w\', padx=8)',
+    '        self.fn_var = tk.StringVar()',
+    '        self.fn_combo = ttk.Combobox(presf, textvariable=self.fn_var, state=\'readonly\', width=38)',
+    '        self.fn_combo.pack(anchor=\'w\', padx=8, pady=(2,6))',
+    '        tk.Button(presf, text=\'\\U0001f4cd  Position als Preset speichern\',',
+    '            bg=\'#4caf50\', fg=\'white\', font=(\'Segoe UI\',9,\'bold\'),',
+    '            relief=\'flat\', padx=12, pady=6, command=self.save_preset).pack(anchor=\'w\', padx=8)',
+    '        self.preset_lbl = tk.StringVar()',
+    '        tk.Label(presf, textvariable=self.preset_lbl, bg=BG2, fg=\'#2e7d32\',',
+    '            font=(\'Segoe UI\',8)).pack(anchor=\'w\', padx=8, pady=(4,0))',
+    '',
+    '        # Right: monitoring',
+    '        right = tk.Frame(main, bg=BG2, relief=\'solid\', bd=1, width=340)',
+    '        right.pack(side=\'left\', fill=\'both\', expand=True, padx=(8,0))',
+    '        right.pack_propagate(False)',
+    '        tk.Label(right, text=\'Monitoring\', bg=BG2, fg=ACCENT,',
+    '            font=(\'Segoe UI\',10,\'bold\'), pady=8).pack(anchor=\'w\', padx=10)',
+    '        self.fn_cards = tk.Frame(right, bg=BG2)',
+    '        self.fn_cards.pack(fill=\'x\', padx=6)',
+    '        tk.Label(right, text=\'Live-Log\', bg=BG2, fg=\'#888\',',
+    '            font=(\'Segoe UI\',8,\'bold\')).pack(anchor=\'w\', padx=10, pady=(8,0))',
+    '        self.log_txt = scrolledtext.ScrolledText(right, height=14, font=(\'Courier\',8),',
+    '            bg=\'#111\', fg=\'#0f0\', insertbackground=\'#0f0\', wrap=\'word\', state=\'disabled\')',
+    '        self.log_txt.pack(fill=\'both\', expand=True, padx=6, pady=6)',
+    '',
+    '    def log(self, msg):',
+    '        ts = datetime.now().strftime(\'%H:%M:%S\')',
+    '        self.log_txt.config(state=\'normal\')',
+    '        self.log_txt.insert(\'end\', f\'[{ts}] {msg}\\n\')',
+    '        self.log_txt.see(\'end\')',
+    '        self.log_txt.config(state=\'disabled\')',
+    '        print(f\'[{ts}] {msg}\', flush=True)',
+    '',
+    '    # \u2500\u2500 Camera \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
+    '    def connect(self):',
+    '        self.conn_btn.config(state=\'disabled\')',
+    '        self.status_var.set(\'Verbinde...\')',
+    '        ip   = self.ip_var.get().strip()',
+    '        port = int(self.port_var.get().strip() or \'8000\')',
+    '        user = self.user_var.get().strip()',
+    '        pw   = self.pass_var.get()',
+    '        def _c():',
+    '            try:',
+    '                self.cam = ONVIFCamera(ip, port, user, pw)',
+    '                self.media = self.cam.create_media_service()',
+    '                self.ptz   = self.cam.create_ptz_service()',
+    '                self.profile_token = self.media.GetProfiles()[0].token',
+    '                try:',
+    '                    snap_uri = self.media.GetSnapshotUri({\'ProfileToken\': self.profile_token})',
+    '                    self.snap_url  = snap_uri.Uri',
+    '                    self.snap_auth = HTTPDigestAuth(user, pw)',
+    '                except Exception:',
+    '                    self.snap_url  = f\'http://{ip}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=medb&user={user}&password={pw}\'',
+    '                    self.snap_auth = None',
+    '                self.streaming = True',
+    '                self.after(0, lambda: self.status_var.set(f\'\u2705 Verbunden  {ip}\'))',
+    '                self.after(0, lambda: self.canvas.delete(\'placeholder\'))',
+    '                self._snap_loop()',
+    '                self._update_ptz_pos()',
+    '            except Exception as e:',
+    '                self.after(0, lambda: self.status_var.set(f\'\u274c {e}\'))',
+    '            self.after(0, lambda: self.conn_btn.config(state=\'normal\'))',
+    '        threading.Thread(target=_c, daemon=True).start()',
+    '',
+    '    def _snap_loop(self):',
+    '        def _f():',
+    '            if not self.streaming:',
+    '                return',
+    '            try:',
+    '                r = requests.get(self.snap_url, auth=self.snap_auth, timeout=5)',
+    '                if r.status_code == 200:',
+    '                    img = Image.open(BytesIO(r.content))',
+    '                    img.thumbnail((640, 480))',
+    '                    photo = ImageTk.PhotoImage(img)',
+    '                    def _up():',
+    '                        self.canvas.delete(\'all\')',
+    '                        self.canvas.create_image(0, 0, anchor=\'nw\', image=photo)',
+    '                        self.canvas._photo = photo',
+    '                    self.after(0, _up)',
+    '                else:',
+    '                    self.after(0, lambda: self.status_var.set(f\'\u26a0 HTTP {r.status_code}\'))',
+    '            except Exception as e:',
+    '                self.after(0, lambda: self.status_var.set(f\'\u26a0 {str(e)[:40]}\'))',
+    '            if self.streaming:',
+    '                self.after(2000, lambda: threading.Thread(target=_f, daemon=True).start())',
+    '        threading.Thread(target=_f, daemon=True).start()',
+    '',
+    '    def _update_ptz_pos(self):',
+    '        if not self.ptz:',
+    '            return',
+    '        def _f():',
+    '            try:',
+    '                st = self.ptz.GetStatus({\'ProfileToken\': self.profile_token})',
+    '                pt = st.Position.PanTilt',
+    '                z  = st.Position.Zoom',
+    '                try: pan = f\'Pan:  {pt.x:+.3f}\'',
+    '                except Exception: pan = f\'Pan:  {str(pt)[:14]}\'',
+    '                try: tilt = f\'Tilt: {pt.y:+.3f}\'',
+    '                except Exception: tilt = \'Tilt: --\'',
+    '                try: zoom = f\'Zoom: {z.x:.3f}\'',
+    '                except Exception: zoom = \'Zoom: --\'',
+    '                self.after(0, lambda p=pan,t=tilt,z2=zoom: (',
+    '                    self.ptz_pan_var.set(p), self.ptz_tilt_var.set(t), self.ptz_zoom_var.set(z2)))',
+    '            except Exception:',
+    '                pass',
+    '        threading.Thread(target=_f, daemon=True).start()',
+    '',
+    '    def move(self, pan, tilt, zoom=0):',
+    '        if not self.ptz: return',
+    '        s = self.speed_var.get()',
+    '        def _m():',
+    '            try:',
+    '                req = self.ptz.create_type(\'ContinuousMove\')',
+    '                req.ProfileToken = self.profile_token',
+    '                req.Velocity = {\'PanTilt\': {\'x\': pan*s, \'y\': tilt*s}, \'Zoom\': {\'x\': zoom*s}}',
+    '                self.ptz.ContinuousMove(req)',
+    '                time.sleep(0.4)',
+    '                self.ptz.Stop({\'ProfileToken\': self.profile_token, \'PanTilt\': True, \'Zoom\': True})',
+    '                self._update_ptz_pos()',
+    '            except Exception as e:',
+    '                self.after(0, lambda: self.status_var.set(f\'PTZ: {e}\'))',
+    '        threading.Thread(target=_m, daemon=True).start()',
+    '',
+    '    def stop_cam(self):',
+    '        if self.ptz:',
+    '            threading.Thread(target=lambda: self.ptz.Stop(',
+    '                {\'ProfileToken\': self.profile_token, \'PanTilt\': True, \'Zoom\': True}), daemon=True).start()',
+    '',
+    '    def save_preset(self):',
+    '        if not self.ptz:',
+    '            messagebox.showwarning(\'Nicht verbunden\', \'Erst Kamera verbinden.\')',
+    '            return',
+    '        fn = next((f for f in self.functions if f[\'name\'] == self.fn_var.get()), None)',
+    '        if not fn:',
+    '            messagebox.showerror(\'Fehler\', \'Monitoring Function waehlen.\')',
+    '            return',
+    '        ip = self.ip_var.get().strip()',
+    '        user = self.user_var.get().strip()',
+    '        pw = self.pass_var.get()',
+    '        def _s():',
+    '            self.after(0, lambda: self.preset_lbl.set(\'Speichern...\'))',
+    '            try:',
+    '                h = {\'apikey\': SB_KEY, \'Authorization\': f\'Bearer {SB_KEY}\', \'Content-Type\': \'application/json\'}',
+    '                sr = requests.get(f\'{SB_URL}/rest/v1/cameras\',',
+    '                    params={\'camera_url\': f\'eq.{self.snap_url}\', \'select\': \'id\'},',
+    '                    headers={\'apikey\': SB_KEY}, timeout=5)',
+    '                cam_id = sr.json()[0][\'id\'] if sr.ok and sr.json() else None',
+    '                if not cam_id:',
+    '                    ins = requests.post(f\'{SB_URL}/rest/v1/cameras\',',
+    '                        headers={**h, \'Prefer\': \'return=representation\'},',
+    '                        json={\'name\': f\'Kamera {ip}\', \'camera_url\': self.snap_url,',
+    '                              \'camera_user\': user, \'camera_pass\': pw, \'active\': True}, timeout=10)',
+    '                    ins.raise_for_status()',
+    '                    cam_id = ins.json()[0][\'id\']',
+    '                pnum = 1',
+    '                try:',
+    '                    safe = fn[\'name\'].replace(\'\u00e4\',\'ae\').replace(\'\u00f6\',\'oe\').replace(\'\u00fc\',\'ue\').replace(\'\u00df\',\'ss\')',
+    '                    resp = self.ptz.SetPreset({\'ProfileToken\': self.profile_token, \'PresetName\': f\'MeDB-{safe}\'})',
+    '                    pnum = int(str(resp.PresetToken))',
+    '                except Exception:',
+    '                    pass',
+    '                requests.patch(f\'{SB_URL}/rest/v1/monitoring_functions\',',
+    '                    params={\'id\': f\'eq.{fn["id"]}\'},',
+    '                    headers={**h, \'Prefer\': \'return=minimal\'},',
+    '                    json={\'camera_id\': cam_id, \'ptz_preset\': pnum}, timeout=10).raise_for_status()',
+    '                msg = f\'\u2705 Preset {pnum} + Kamera gespeichert\'',
+    '                self.after(0, lambda: self.preset_lbl.set(msg))',
+    '                self.after(0, self._load_functions)',
+    '            except Exception as e:',
+    '                self.after(0, lambda: self.preset_lbl.set(f\'\u274c {str(e)[:60]}\'))',
+    '        threading.Thread(target=_s, daemon=True).start()',
+    '',
+    '    # \u2500\u2500 Monitoring \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
+    '    def _load_functions(self):',
+    '        def _f():',
+    '            try:',
+    '                r = requests.get(f\'{SB_URL}/rest/v1/monitoring_functions\',',
+    '                    params={\'active\': \'eq.true\', \'select\': \'*,camera:camera_id(*)\', \'order\': \'name\'},',
+    '                    headers={\'apikey\': SB_KEY}, timeout=10)',
+    '                if r.ok:',
+    '                    self.functions = r.json() or []',
+    '                    now = datetime.now()',
+    '                    for fn in self.functions:',
+    '                        if fn[\'id\'] not in self.next_runs:',
+    '                            self.next_runs[fn[\'id\']] = now + timedelta(minutes=fn[\'interval_min\'])',
+    '                    self.after(0, self._rebuild_cards)',
+    '                    self.after(0, lambda: self.fn_combo.configure(',
+    '                        values=[f[\'name\'] for f in self.functions]))',
+    '            except Exception as e:',
+    '                print(\'load_functions:\', e, flush=True)',
+    '        threading.Thread(target=_f, daemon=True).start()',
+    '',
+    '    def _rebuild_cards(self):',
+    '        for w in self.fn_cards.winfo_children():',
+    '            w.destroy()',
+    '        for fn in self.functions:',
+    '            card = tk.Frame(self.fn_cards, bg=\'#eef2ff\', pady=6, padx=8)',
+    '            card.pack(fill=\'x\', pady=3)',
+    '            tr = tk.Frame(card, bg=\'#eef2ff\')',
+    '            tr.pack(fill=\'x\')',
+    '            tk.Label(tr, text=fn[\'name\'], bg=\'#eef2ff\', fg=ACCENT,',
+    '                font=(\'Segoe UI\',9,\'bold\')).pack(side=\'left\')',
+    '            cam = fn.get(\'camera\')',
+    '            ctxt = cam.get(\'name\',\'\') if cam else \'keine Kamera\'',
+    '            tk.Label(tr, text=ctxt, bg=\'#eef2ff\', fg=\'#888\',',
+    '                font=(\'Segoe UI\',7)).pack(side=\'left\', padx=6)',
+    '            nxt_var = tk.StringVar(value=\'naechste: --\')',
+    '            tk.Label(card, textvariable=nxt_var, bg=\'#eef2ff\', fg=\'#666\',',
+    '                font=(\'Segoe UI\',8)).pack(anchor=\'w\')',
+    '            fn[\'_nxt_var\'] = nxt_var',
+    '            tk.Button(card, text=\'\\U0001f4f7 Jetzt auslesen\',',
+    '                bg=\'#1976d2\', fg=\'white\', font=(\'Segoe UI\',8,\'bold\'),',
+    '                relief=\'flat\', padx=8, pady=3,',
+    '                command=lambda f=fn: threading.Thread(',
+    '                    target=self._run_reading, args=(f,), daemon=True).start()',
+    '            ).pack(anchor=\'w\', pady=(4,0))',
+    '        if not self._countdown_started:',
+    '            self._countdown_started = True',
+    '            threading.Thread(target=self._countdown_thread, daemon=True).start()',
+    '',
+    '    def _countdown_thread(self):',
+    '        while True:',
+    '            now = datetime.now()',
+    '            for fn in self.functions:',
+    '                nv = fn.get(\'_nxt_var\')',
+    '                nxt = self.next_runs.get(fn[\'id\'])',
+    '                if nv and nxt:',
+    '                    delta = nxt - now',
+    '                    secs = int(delta.total_seconds())',
+    '                    if secs > 0:',
+    '                        m, s = divmod(secs, 60)',
+    '                        txt = f\'naechste: {m:02d}:{s:02d} | alle {fn["interval_min"]} min\'',
+    '                    else:',
+    '                        txt = \'naechste: bald...\'',
+    '                    self.after(0, lambda v=nv, t=txt: v.set(t))',
+    '            time.sleep(1)',
+    '',
+    '    def _run_reading(self, fn):',
+    '        cam = fn.get(\'camera\')',
+    '        if not cam:',
+    '            self.after(0, lambda: self.log(f\'SKIP {fn["name"]}: keine Kamera\'))',
+    '            return',
+    '        self.after(0, lambda: self.log(f\'--- {fn["name"]} ---\'))',
+    '        self.next_runs[fn[\'id\']] = datetime.now() + timedelta(minutes=fn[\'interval_min\'])',
+    '        try:',
+    '            if fn.get(\'ptz_preset\') is not None:',
+    '                base = cam[\'camera_url\'].rsplit(\'/\', 1)[0]',
+    '                try:',
+    '                    requests.get(f\'{base}/onvif/PTZ/GotoPreset?preset={fn["ptz_preset"]}\',',
+    '                        auth=(cam[\'camera_user\'], cam[\'camera_pass\']), timeout=5)',
+    '                    time.sleep(3)',
+    '                except Exception as e:',
+    '                    self.after(0, lambda: self.log(f\'  PTZ: {e}\'))',
+    '            r = requests.get(cam[\'camera_url\'],',
+    '                auth=(cam[\'camera_user\'], cam[\'camera_pass\']) if cam[\'camera_user\'] else None,',
+    '                timeout=15)',
+    '            r.raise_for_status()',
+    '            img_b64 = base64.b64encode(r.content).decode()',
+    '            img_path = None',
+    '            try:',
+    '                folder = fn[\'name\'].replace(\' \',\'_\').replace(\'/\',\'_\')',
+    '                ts_str = datetime.now(timezone.utc).strftime(\'%Y%m%dT%H%M%S\')',
+    '                img_path = f\'{folder}/{ts_str}.jpg\'',
+    '                st_h = {\'apikey\': SB_KEY, \'Authorization\': f\'Bearer {SB_KEY}\', \'Content-Type\': \'image/jpeg\'}',
+    '                requests.post(f\'{SB_URL}/storage/v1/object/meter-photos/{img_path}\',',
+    '                    headers=st_h, data=r.content, timeout=15).raise_for_status()',
+    '                self.after(0, lambda: self.log(f\'  Foto gespeichert\'))',
+    '                ls = requests.post(f\'{SB_URL}/storage/v1/object/list/meter-photos\',',
+    '                    headers={**st_h, \'Content-Type\': \'application/json\'},',
+    '                    json={\'prefix\': f\'{folder}/\', \'sortBy\': {\'column\': \'created_at\', \'order\': \'asc\'}}, timeout=10)',
+    '                fl = ls.json() if ls.ok else []',
+    '                if isinstance(fl, list) and len(fl) > 10:',
+    '                    old = [f\'{folder}/{f["name"]}\' for f in fl[:-10]]',
+    '                    requests.delete(f\'{SB_URL}/storage/v1/object/meter-photos\',',
+    '                        headers={**st_h, \'Content-Type\': \'application/json\'}, json=old, timeout=10)',
+    '            except Exception as pe:',
+    '                self.after(0, lambda: self.log(f\'  Foto-Fehler: {pe}\'))',
+    '            resp = requests.post(f\'{WORKER}/read-meter\',',
+    '                json={\'image_b64\': img_b64, \'media_type\': \'image/jpeg\', \'meter_type\': fn[\'meter_type\']},',
+    '                timeout=30).json()',
+    '            if not resp.get(\'success\'):',
+    '                raise Exception(resp.get(\'error\', \'Vision failed\'))',
+    '            value = resp[\'value\']',
+    '            h = {\'apikey\': SB_KEY, \'Authorization\': f\'Bearer {SB_KEY}\',',
+    '                 \'Content-Type\': \'application/json\', \'Prefer\': \'return=minimal\'}',
+    '            requests.post(f\'{SB_URL}/rest/v1/meter_readings\', headers=h,',
+    '                json={\'agent_name\': fn[\'name\'], \'meter_type\': fn[\'meter_type\'],',
+    '                      \'value\': value, \'unit\': fn[\'unit\'], \'raw_response\': resp[\'raw\'],',
+    '                      \'image_path\': img_path, \'monitoring_function_id\': fn[\'id\'],',
+    '                      \'captured_at\': datetime.now(timezone.utc).isoformat()},',
+    '                timeout=10).raise_for_status()',
+    '            self.after(0, lambda: self.log(f\'  OK: {value} {fn["unit"]}\'))',
+    '        except Exception as e:',
+    '            self.after(0, lambda: self.log(f\'  FEHLER: {e}\'))',
+    '',
+    '    def _poll_loop(self):',
+    '        while True:',
+    '            now = datetime.now()',
+    '            for fn in list(self.functions):',
+    '                nxt = self.next_runs.get(fn[\'id\'])',
+    '                if nxt and now >= nxt:',
+    '                    self.next_runs[fn[\'id\']] = now + timedelta(minutes=fn[\'interval_min\'])',
+    '                    threading.Thread(target=self._run_reading, args=(fn,), daemon=True).start()',
+    '            try:',
+    '                h = {\'apikey\': SB_KEY}',
+    '                r = requests.get(f\'{SB_URL}/rest/v1/monitoring_functions\',',
+    '                    params={\'manual_trigger\': \'eq.true\', \'active\': \'eq.true\',',
+    '                            \'select\': \'*,camera:camera_id(*)\'},',
+    '                    headers=h, timeout=5)',
+    '                if r.ok:',
+    '                    h2 = {\'apikey\': SB_KEY, \'Authorization\': f\'Bearer {SB_KEY}\',',
+    '                          \'Content-Type\': \'application/json\', \'Prefer\': \'return=minimal\'}',
+    '                    for fn in (r.json() or []):',
+    '                        fn_name = fn[\'name\']',
+    '                        self.after(0, lambda n=fn_name: self.log(f\'[MANUELL] {n}\'))',
+    '                        requests.patch(f\'{SB_URL}/rest/v1/monitoring_functions\',',
+    '                            params={\'id\': f\'eq.{fn["id"]}\'},',
+    '                            headers=h2, json={\'manual_trigger\': False}, timeout=5)',
+    '                        threading.Thread(target=self._run_reading, args=(fn,), daemon=True).start()',
+    '            except Exception:',
+    '                pass',
+    '            time.sleep(30)',
+    '',
+    '    def on_close(self):',
+    '        self.streaming = False',
+    '        self.destroy()',
+    '',
+    '',
+    'if __name__ == \'__main__\':',
+    '    app = App()',
+    '    app.protocol(\'WM_DELETE_WINDOW\', app.on_close)',
+    '    app.mainloop()',
+  ];
+  const py = lines.join('\n');
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
