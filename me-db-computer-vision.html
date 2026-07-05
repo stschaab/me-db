@@ -304,7 +304,7 @@ document.addEventListener('click', e => {
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   loadCams(); loadFunctions(); loadReadings(); loadAgentStatus();
-  setInterval(() => { loadAgentStatus(); loadReadings(); }, 60000);
+  setInterval(() => { loadAgentStatus(); loadReadings(); }, 30000);
 });
 
 function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -899,7 +899,7 @@ function downloadCameraSetup() {
   const lines = [
     'import sys',
     'sys.stdout.reconfigure(encoding=\'utf-8\', errors=\'replace\')',
-    'import os, json, base64, requests, time, threading, subprocess',
+    'import os, json, base64, requests, time, threading, subprocess, queue',
     'from datetime import datetime, timezone, timedelta',
     'from io import BytesIO',
     '',
@@ -934,17 +934,19 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v2.5\')',
+    '        self.title(\'MeDB CCTV v2.7\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
     '        self.snap_url = self.snap_auth = None',
     '        self.streaming = False',
     '        self.functions = []',
+    '        self._read_queue = queue.Queue()',
     '        self.next_runs = {}',
     '        self._countdown_started = False',
     '        self._build()',
     '        threading.Thread(target=self._poll_loop, daemon=True).start()',
+    '        threading.Thread(target=self._queue_worker, daemon=True).start()',
     '        self._load_functions()',
     '        self.after(800, self._load_camera_defaults)',
     '        self.after(1800, self._auto_connect)',
@@ -1441,13 +1443,18 @@ function downloadCameraSetup() {
     '            self.after(0, lambda err=str(e): self.log(f\'  FEHLER: {err}\'))',
     '',
     '    def _poll_loop(self):',
+    '        db_sync_ctr = 0',
     '        while True:',
     '            now = datetime.now()',
+    '            if db_sync_ctr <= 0:',
+    '                threading.Thread(target=self._sync_next_runs_from_db, daemon=True).start()',
+    '                db_sync_ctr = 10',
+    '            db_sync_ctr -= 1',
     '            for fn in list(self.functions):',
     '                nxt = self.next_runs.get(fn[\'id\'])',
     '                if nxt and now >= nxt:',
     '                    self.next_runs[fn[\'id\']] = now + timedelta(minutes=fn[\'interval_min\'])',
-    '                    threading.Thread(target=self._run_reading, args=(fn,), daemon=True).start()',
+    '                    self._read_queue.put(fn)',
     '            try:',
     '                h = {\'apikey\': SB_KEY}',
     '                r = requests.get(f\'{SB_URL}/rest/v1/monitoring_functions\',',
@@ -1463,10 +1470,48 @@ function downloadCameraSetup() {
     '                        requests.patch(f\'{SB_URL}/rest/v1/monitoring_functions\',',
     '                            params={\'id\': f\'eq.{fn["id"]}\'},',
     '                            headers=h2, json={\'manual_trigger\': False}, timeout=5)',
-    '                        threading.Thread(target=self._run_reading, args=(fn,), daemon=True).start()',
+    '                        self._read_queue.put(fn)',
     '            except Exception:',
     '                pass',
     '            time.sleep(30)',
+    '',
+    '    def _queue_worker(self):',
+    '        while True:',
+    '            fn = self._read_queue.get()',
+    '            try:',
+    '                self._run_reading(fn)',
+    '            finally:',
+    '                self._read_queue.task_done()',
+    '            time.sleep(30)',
+    '',
+    '    def _sync_next_runs_from_db(self):',
+    '        try:',
+    '            h = {\'apikey\': SB_KEY}',
+    '            r = requests.get(f\'{SB_URL}/rest/v1/meter_readings\',',
+    '                params={\'select\': \'monitoring_function_id,captured_at\',',
+    '                        \'order\': \'captured_at.desc\', \'limit\': \'200\'},',
+    '                headers=h, timeout=10)',
+    '            if not r.ok:',
+    '                return',
+    '            last_by_fn = {}',
+    '            for row in (r.json() or []):',
+    '                fid = row.get(\'monitoring_function_id\')',
+    '                if fid and fid not in last_by_fn:',
+    '                    last_by_fn[fid] = row[\'captured_at\']',
+    '            now = datetime.now()',
+    '            for fn in self.functions:',
+    '                fid = fn[\'id\']',
+    '                last_ts = last_by_fn.get(fid)',
+    '                if last_ts:',
+    '                    ts_utc = datetime.fromisoformat(last_ts.replace(\'Z\', \'+00:00\'))',
+    '                    ts_local = ts_utc.astimezone().replace(tzinfo=None)',
+    '                    next_due = ts_local + timedelta(minutes=fn[\'interval_min\'])',
+    '                    if next_due < now:',
+    '                        self.next_runs[fid] = now',
+    '                elif fid not in self.next_runs:',
+    '                    self.next_runs[fid] = now',
+    '        except Exception:',
+    '            pass',
     '',
     '    def on_close(self):',
     '        self.streaming = False',
@@ -1482,7 +1527,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v2.5.py';
+  a.download = 'medb-cctv-v2.7.py';
   a.click();
 }
 
@@ -1552,6 +1597,7 @@ async function deleteModalReading() {
   await db.from('meter_readings').delete().eq('id', currentModalReadingId);
   document.getElementById('row_' + currentModalReadingId)?.remove();
   closeReadingModal();
+  loadAgentStatus();
 }
 
 function closeReadingModal() {
