@@ -229,7 +229,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v2.9</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.0</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -934,7 +934,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v2.9\')',
+    '        self.title(\'MeDB CCTV v3.0\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1322,8 +1322,7 @@ function downloadCameraSetup() {
     '            tk.Button(btn_row, text=\'\\U0001f4f7 Jetzt auslesen\',',
     '                bg=\'#1976d2\', fg=\'white\', font=(\'Segoe UI\',8,\'bold\'),',
     '                relief=\'flat\', padx=8, pady=3,',
-    '                command=lambda f=fn: threading.Thread(',
-    '                    target=self._run_reading, args=(f,), daemon=True).start()',
+    '                command=lambda f=fn: self._read_queue.put(f)',
     '            ).pack(side=\'left\')',
     '        if not self._countdown_started:',
     '            self._countdown_started = True',
@@ -1532,7 +1531,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v2.9.py';
+  a.download = 'medb-cctv-v3.0.py';
   a.click();
 }
 
