@@ -515,16 +515,25 @@ async function loadReadings() {
   if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Ablesungen.</div>'; return; }
   allReadings = data;
   el.innerHTML = `<table>
-    <thead><tr><th>Zeitstempel</th><th>Name</th><th>Typ</th><th>Wert</th><th></th></tr></thead>
-    <tbody>${data.map(r => `<tr id="row_${r.id}" class="reading-row" onclick="openReadingDetail('${r.id}')">
+    <thead><tr><th>Zeitstempel</th><th>Name</th><th>Typ</th><th>Wert</th><th>Original KI</th><th></th></tr></thead>
+    <tbody>${data.map(r => {
+      const rawMatch = r.raw_response ? r.raw_response.match(/[\d]+[.,][\d]+|[\d]+/) : null;
+      const rawNum = rawMatch ? parseFloat(rawMatch[0].replace(',', '.')) : null;
+      const match = rawNum !== null && Math.abs(rawNum - (+r.value)) < 0.001;
+      const kiCell = rawNum !== null
+        ? `<span style="font-size:0.82rem;font-weight:600;color:${match ? '#2e7d32' : '#e65100'}">${rawNum.toFixed(3)}</span>`
+        : `<span style="color:#ccc;font-size:0.8rem">–</span>`;
+      return `<tr id="row_${r.id}" class="reading-row" onclick="openReadingDetail('${r.id}')">
       <td>${new Date(r.captured_at).toLocaleString('de-DE')}</td>
       <td>${esc(r.agent_name)}${r.image_path ? ' <span title="Foto vorhanden" style="font-size:0.75rem">📷</span>' : ''}</td>
       <td>${esc(r.meter_type)}</td>
       <td id="val_${r.id}"><span class="val-badge">${(+r.value).toFixed(3)}</span> <span style="color:#888;font-size:0.8rem">${esc(r.unit)}</span></td>
+      <td>${kiCell}</td>
       <td style="white-space:nowrap" onclick="event.stopPropagation()">
         <button class="icon-btn" onclick="deleteReading('${r.id}')" title="Löschen">🗑️</button>
       </td>
-    </tr>`).join('')}</tbody></table>`;
+    </tr>`;
+    }).join('')}</tbody></table>`;
 }
 
 function editReading(id, value, unit) {
