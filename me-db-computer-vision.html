@@ -229,7 +229,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.2</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.3</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -934,7 +934,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v3.2\')',
+    '        self.title(\'MeDB CCTV v3.3\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1262,13 +1262,15 @@ function downloadCameraSetup() {
     '                    ptz_zoom = float(getattr(z,  \'x\', None) or z.get(\'x\', 0)  if hasattr(z,  \'get\') else getattr(z,  \'x\', 0))',
     '                except Exception as pe:',
     '                    self.after(0, lambda: self.log(f\'  PTZ coords: {pe}\'))',
-    '                patch_data = {\'camera_id\': cam_id, \'ptz_preset\': pnum - 1}',
+    '                patch_data = {\'ptz_preset\': pnum - 1}',
     '                if ptz_pan is not None:',
     '                    patch_data.update({\'ptz_pan\': ptz_pan, \'ptz_tilt\': ptz_tilt, \'ptz_zoom\': ptz_zoom})',
-    '                requests.patch(f\'{SB_URL}/rest/v1/monitoring_functions\',',
+    '                pr = requests.patch(f\'{SB_URL}/rest/v1/monitoring_functions\',',
     '                    params={\'id\': f\'eq.{fn["id"]}\'},',
     '                    headers={**h, \'Prefer\': \'return=minimal\'},',
-    '                    json=patch_data, timeout=10).raise_for_status()',
+    '                    json=patch_data, timeout=10)',
+    '                if not pr.ok:',
+    '                    raise Exception(f\'Supabase {pr.status_code}: {pr.text[:120]}\')',
     '                coord_txt = f\' (Pan:{ptz_pan:.3f} Tilt:{ptz_tilt:.3f})\' if ptz_pan is not None else \'\'',
     '                msg = f\'\u2705 Preset gespeichert: {fn["name"]} \u2192 CGI id={pnum-1}{coord_txt}\'',
     '                self.after(0, lambda m=msg: self.preset_lbl.set(m))',
@@ -1535,7 +1537,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v3.2.py';
+  a.download = 'medb-cctv-v3.3.py';
   a.click();
 }
 
