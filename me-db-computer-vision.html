@@ -229,7 +229,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.3</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.4</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -934,7 +934,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v3.3\')',
+    '        self.title(\'MeDB CCTV v3.4\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1228,22 +1228,6 @@ function downloadCameraSetup() {
     '            self.after(0, lambda: self.preset_lbl.set(\'Speichern...\'))',
     '            try:',
     '                h = {\'apikey\': SB_KEY, \'Authorization\': f\'Bearer {SB_KEY}\', \'Content-Type\': \'application/json\'}',
-    '                sr = requests.get(f\'{SB_URL}/rest/v1/cameras\',',
-    '                    params={\'camera_url\': f\'eq.{self.snap_url}\', \'select\': \'id\'},',
-    '                    headers={\'apikey\': SB_KEY}, timeout=5)',
-    '                cam_id = sr.json()[0][\'id\'] if sr.ok and sr.json() else None',
-    '                if not cam_id:',
-    '                    ins = requests.post(f\'{SB_URL}/rest/v1/cameras\',',
-    '                        headers={**h, \'Prefer\': \'return=representation\'},',
-    '                        json={\'name\': f\'Kamera {ip}\', \'camera_url\': self.snap_url,',
-    '                              \'camera_user\': user, \'camera_pass\': pw, \'active\': True}, timeout=10)',
-    '                    ins.raise_for_status()',
-    '                    cam_id = ins.json()[0][\'id\']',
-    '                # Save ONVIF port on camera record',
-    '                requests.patch(f\'{SB_URL}/rest/v1/cameras\',',
-    '                    params={\'id\': f\'eq.{cam_id}\'},',
-    '                    headers={**h, \'Prefer\': \'return=minimal\'},',
-    '                    json={\'onvif_port\': int(self.port_var.get().strip() or \'8000\')}, timeout=5)',
     '                pnum = 1',
     '                ptz_pan, ptz_tilt, ptz_zoom = None, None, None',
     '                try:',
@@ -1537,7 +1521,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v3.3.py';
+  a.download = 'medb-cctv-v3.4.py';
   a.click();
 }
 
