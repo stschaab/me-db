@@ -229,7 +229,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.5</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.6</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -934,7 +934,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v3.5\')',
+    '        self.title(\'MeDB CCTV v3.6\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1232,13 +1232,26 @@ function downloadCameraSetup() {
     '            self.after(0, lambda: self.preset_lbl.set(\'Speichern...\'))',
     '            try:',
     '                h = {\'apikey\': SB_KEY, \'Authorization\': f\'Bearer {SB_KEY}\', \'Content-Type\': \'application/json\'}',
-    '                # Save current camera position to existing CGI preset slot via Reolink native API',
-    '                _body = f\'[{{"cmd":"PtzCtrl","action":0,"param":{{"channel":0,"op":"SetPos","speed":32,"id":{cgi_id}}}}}]\'',
+    '                # Save current camera position as named preset via Reolink SetPtzPreset (1-indexed)',
+    '                _pname = fn[\'name\'].replace(\'ä\',\'ae\').replace(\'ö\',\'oe\').replace(\'ü\',\'ue\').replace(\'ß\',\'ss\')',
+    '                _body = f\'[{{"cmd":"SetPtzPreset","action":0,"param":{{"channel":0,"preset":{{"id":{cgi_id},"name":"{_pname}","enable":1}}}}}}]\'',
     '                _r = requests.post(',
-    '                    f\'http://{ip}/api.cgi?cmd=PtzCtrl&user={user}&password={pw}\',',
+    '                    f\'http://{ip}/api.cgi?cmd=SetPtzPreset&user={user}&password={pw}\',',
     '                    data=_body, headers={\'Content-Type\': \'application/json\'}, timeout=10)',
     '                if not _r.ok:',
-    '                    raise Exception(f\'Reolink SetPos {_r.status_code}: {_r.text[:120]}\')',
+    '                    raise Exception(f\'SetPtzPreset {_r.status_code}: {_r.text[:120]}\')',
+    '                # Verify: read back all presets from camera',
+    '                _gb = f\'[{{"cmd":"GetPtzPreset","action":0,"param":{{"channel":0}}}}]\'',
+    '                _gr = requests.post(',
+    '                    f\'http://{ip}/api.cgi?cmd=GetPtzPreset&user={user}&password={pw}\',',
+    '                    data=_gb, headers={\'Content-Type\': \'application/json\'}, timeout=10)',
+    '                if _gr.ok:',
+    '                    try:',
+    '                        _all = _gr.json()[0][\'value\'][\'PtzPreset\'][\'preset\']',
+    '                        _ps = [f"id={p[\'id\']}:{p[\'name\']}" for p in _all if p.get(\'enable\')]',
+    '                        self.after(0, lambda ps=_ps: self.log(f\'  Kamera Presets: {ps}\'))',
+    '                    except Exception:',
+    '                        pass',
     '                ptz_pan, ptz_tilt, ptz_zoom = None, None, None',
     '                try:',
     '                    st = self.ptz.GetStatus({\'ProfileToken\': self.profile_token})',
@@ -1521,7 +1534,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v3.5.py';
+  a.download = 'medb-cctv-v3.6.py';
   a.click();
 }
 
