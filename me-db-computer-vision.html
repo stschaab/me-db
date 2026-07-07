@@ -230,7 +230,7 @@
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
       <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.6</small></button>
-      <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
+      <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.4 — nur einmalig nötig</small></button>
     </div>
   </div>
 
@@ -845,7 +845,7 @@ function downloadSetup() {
   ].join('\r\n');
 
   const ps1 = [
-    '# MeDB CCTV Setup v1.3 — ' + new Date().toLocaleString('de-DE'),
+    '# MeDB CCTV Setup v1.4 — ' + new Date().toLocaleString('de-DE'),
     '# Zuerst: "MeDB CCTV App herunterladen" auf der MeDB Computer Vision Seite klicken!',
     'if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {',
     '    Start-Process PowerShell -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs',
@@ -854,19 +854,47 @@ function downloadSetup() {
     'Set-ExecutionPolicy Bypass -Scope Process -Force',
     '',
     '$InstallDir = "' + installDir + '"',
-    '$AppFile   = "medb-cctv-v1.3.py"',
     '$TaskName  = "MeDB-CCTV"',
     '$Downloads = "$env:USERPROFILE\\Downloads"',
     '$ErrorActionPreference = "Stop"',
     '',
-    'Write-Host "=== MeDB CCTV Setup v1.3 ===" -ForegroundColor Cyan',
-    '$PyExe = (Get-Command py -ErrorAction SilentlyContinue).Source',
-    'if (-not $PyExe) { $PyExe = (Get-Command python -ErrorAction SilentlyContinue).Source }',
-    'if (-not $PyExe) { Write-Error "Python nicht gefunden. https://python.org"; exit 1 }',
+    'Write-Host "=== MeDB CCTV Setup v1.4 ===" -ForegroundColor Cyan',
+    '',
+    'function Find-RealPython {',
+    '    $paths = @()',
+    '    foreach ($c in (Get-Command py, python, python3 -ErrorAction SilentlyContinue)) {',
+    '        if ($c.Source -and $c.Source -notmatch "WindowsApps") { $paths += $c.Source }',
+    '    }',
+    '    $paths += Get-ChildItem "$env:LOCALAPPDATA\\Programs\\Python\\Python3*\\python.exe" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }',
+    '    foreach ($p in ($paths | Select-Object -Unique)) {',
+    '        try { $v = & $p --version 2>&1; if ($LASTEXITCODE -eq 0 -and $v -match "Python 3") { return $p } } catch {}',
+    '    }',
+    '    return $null',
+    '}',
+    '',
+    '$PyExe = Find-RealPython',
+    'if (-not $PyExe) {',
+    '    Write-Host "Python nicht gefunden - installiere via winget..." -ForegroundColor Yellow',
+    '    winget install --id Python.Python.3.12 -e --silent --accept-package-agreements --accept-source-agreements | Out-Null',
+    '    $PyExe = Find-RealPython',
+    '}',
+    'if (-not $PyExe) { Write-Error "Python-Installation fehlgeschlagen. Bitte manuell von https://python.org installieren, dann Setup erneut ausfuehren."; exit 1 }',
     'Write-Host "OK  Python: $PyExe" -ForegroundColor Green',
+    '',
+    '$pyDir = Split-Path $PyExe',
+    '$userPath = [Environment]::GetEnvironmentVariable("Path","User")',
+    'if ($userPath -notlike "*$pyDir*") {',
+    '    [Environment]::SetEnvironmentVariable("Path", "$userPath;$pyDir;$pyDir\\Scripts", "User")',
+    '    Write-Host "OK  PATH aktualisiert (wirkt in neuen Konsolen)" -ForegroundColor Green',
+    '}',
+    '',
     '& $PyExe -m pip install requests Pillow onvif-zeep --quiet',
+    'if ($LASTEXITCODE -ne 0) { Write-Error "pip install fehlgeschlagen"; exit 1 }',
     'Write-Host "OK  Pakete installiert" -ForegroundColor Green',
-    'if (-not (Test-Path "$Downloads\\$AppFile")) { Write-Error "Nicht gefunden: $Downloads\\$AppFile — bitte zuerst von der MeDB CV-Seite herunterladen!"; exit 1 }',
+    '',
+    '$AppFile = Get-ChildItem "$Downloads\\medb-cctv-v*.py" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty Name',
+    'if (-not $AppFile) { Write-Error "Keine medb-cctv-vX.Y.py in $Downloads gefunden — bitte zuerst `"CCTV App herunterladen`" auf der MeDB CV-Seite klicken!"; exit 1 }',
+    'Write-Host "OK  Gefunden: $AppFile" -ForegroundColor Green',
     'New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null',
     'Copy-Item "$Downloads\\$AppFile" "$InstallDir\\$AppFile" -Force',
     'Write-Host "OK  $AppFile nach $InstallDir kopiert" -ForegroundColor Green',
@@ -890,7 +918,7 @@ function downloadSetup() {
   const blob = new Blob(['﻿' + ps1], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'setup-medb-cctv-v1.3.ps1';
+  a.download = 'setup-medb-cctv-v1.4.ps1';
   a.click();
 }
 
