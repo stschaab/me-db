@@ -229,7 +229,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.6</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.7</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -934,7 +934,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v3.6\')',
+    '        self.title(\'MeDB CCTV v3.7\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1447,7 +1447,7 @@ function downloadCameraSetup() {
     '            now = datetime.now()',
     '            if db_sync_ctr <= 0:',
     '                threading.Thread(target=self._sync_next_runs_from_db, daemon=True).start()',
-    '                db_sync_ctr = 10',
+    '                db_sync_ctr = 4',
     '            db_sync_ctr -= 1',
     '            for fn in list(self.functions):',
     '                nxt = self.next_runs.get(fn[\'id\'])',
@@ -1492,11 +1492,14 @@ function downloadCameraSetup() {
     '            if rf.ok:',
     '                self.functions = rf.json() or []',
     '                self.after(0, self._rebuild_cards)',
+    '            else:',
+    '                self.after(0, lambda c=rf.status_code: self.log(f\'  Sync: Funktionen-Fetch fehlgeschlagen ({c})\'))',
     '            r = requests.get(f\'{SB_URL}/rest/v1/meter_readings\',',
     '                params={\'select\': \'monitoring_function_id,captured_at\',',
     '                        \'order\': \'captured_at.desc\', \'limit\': \'200\'},',
     '                headers=h, timeout=10)',
     '            if not r.ok:',
+    '                self.after(0, lambda c=r.status_code: self.log(f\'  Sync: Ablesungen-Fetch fehlgeschlagen ({c})\'))',
     '                return',
     '            last_by_fn = {}',
     '            for row in (r.json() or []):',
@@ -1505,20 +1508,23 @@ function downloadCameraSetup() {
     '                    last_by_fn[fid] = row[\'captured_at\']',
     '            now = datetime.now()',
     '            for fn in self.functions:',
-    '                fid = fn[\'id\']',
-    '                last_ts = last_by_fn.get(fid)',
-    '                if last_ts:',
-    '                    ts_utc = datetime.fromisoformat(last_ts.replace(\'Z\', \'+00:00\'))',
-    '                    ts_local = ts_utc.astimezone().replace(tzinfo=None)',
-    '                    next_due = ts_local + timedelta(minutes=fn[\'interval_min\'])',
-    '                    if next_due < now:',
+    '                try:',
+    '                    fid = fn[\'id\']',
+    '                    last_ts = last_by_fn.get(fid)',
+    '                    if last_ts:',
+    '                        ts_utc = datetime.fromisoformat(last_ts.replace(\'Z\', \'+00:00\'))',
+    '                        ts_local = ts_utc.astimezone().replace(tzinfo=None)',
+    '                        next_due = ts_local + timedelta(minutes=fn[\'interval_min\'])',
+    '                        if next_due < now:',
+    '                            self.next_runs[fid] = now',
+    '                        else:',
+    '                            self.next_runs[fid] = next_due',
+    '                    elif fid not in self.next_runs:',
     '                        self.next_runs[fid] = now',
-    '                    else:',
-    '                        self.next_runs[fid] = next_due',
-    '                elif fid not in self.next_runs:',
-    '                    self.next_runs[fid] = now',
-    '        except Exception:',
-    '            pass',
+    '                except Exception as e:',
+    '                    self.after(0, lambda n=fn.get(\'name\', \'?\'), err=str(e): self.log(f\'  Sync-Fehler {n}: {err}\'))',
+    '        except Exception as e:',
+    '            self.after(0, lambda err=str(e): self.log(f\'  Sync fehlgeschlagen: {err}\'))',
     '',
     '    def on_close(self):',
     '        self.streaming = False',
@@ -1534,7 +1540,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v3.6.py';
+  a.download = 'medb-cctv-v3.7.py';
   a.click();
 }
 
