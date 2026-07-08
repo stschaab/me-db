@@ -84,6 +84,8 @@
     .diff-badge { display: inline-block; font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; margin-left: 6px; font-weight: 600; }
     .diff-ok { background: #e8f5e9; color: #2e7d32; }
     .diff-warn { background: #fff3e0; color: #e65100; }
+    .readings-filter { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 16px 0; font-size: 0.82rem; color: #555; }
+    .readings-filter label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -509,15 +511,38 @@ async function deleteFn() {
 }
 
 // ── Readings ──────────────────────────────────────────────────────────────────
+let readingsFilter = new Set();
+let knownReadingAgents = new Set();
+
 async function loadReadings() {
   const { data, error } = await db.from('meter_readings').select('*').order('captured_at', { ascending: false }).limit(50);
   const el = document.getElementById('readings');
   if (error) { el.innerHTML = `<div class="empty">Fehler: ${esc(error.message)}</div>`; return; }
   if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Ablesungen.</div>'; return; }
   allReadings = data;
-  el.innerHTML = `<table>
+  renderReadingsTable();
+}
+
+function toggleReadingsFilter(name) {
+  if (readingsFilter.has(name)) readingsFilter.delete(name); else readingsFilter.add(name);
+  renderReadingsTable();
+}
+
+function renderReadingsTable() {
+  const el = document.getElementById('readings');
+  const agentNames = [...new Set(allReadings.map(r => r.agent_name))].sort();
+  // Neu auftauchende Agenten (z.B. eine 3. Monitoring Function) werden automatisch mit einbezogen
+  agentNames.forEach(n => { if (!knownReadingAgents.has(n)) { knownReadingAgents.add(n); readingsFilter.add(n); } });
+  const filterHtml = agentNames.length > 1
+    ? `<div class="readings-filter">${agentNames.map(n =>
+        `<label><input type="checkbox" ${readingsFilter.has(n) ? 'checked' : ''} onchange="toggleReadingsFilter('${esc(n).replace(/'/g, "\\'")}')"> ${esc(n)}</label>`
+      ).join('')}</div>`
+    : '';
+  const filtered = allReadings.filter(r => readingsFilter.has(r.agent_name));
+  if (!filtered.length) { el.innerHTML = filterHtml + '<div class="empty">Keine Ablesungen für diese Auswahl.</div>'; return; }
+  el.innerHTML = filterHtml + `<table>
     <thead><tr><th>Zeitstempel</th><th>Name</th><th>Typ</th><th>Wert</th><th>Original KI</th><th></th></tr></thead>
-    <tbody>${data.map(r => {
+    <tbody>${filtered.map(r => {
       const rawMatch = r.raw_response ? r.raw_response.match(/[\d]+[.,][\d]+|[\d]+/) : null;
       const rawNum = rawMatch ? parseFloat(rawMatch[0].replace(',', '.')) : null;
       const match = rawNum !== null && Math.abs(rawNum - (+r.value)) < 0.001;
