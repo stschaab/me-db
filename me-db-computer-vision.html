@@ -1596,13 +1596,9 @@ async function saveModalEdit() {
   btn.disabled = true; btn.textContent = '⏳…';
   const { error } = await db.from('meter_readings').update({ value: val }).eq('id', currentModalReadingId);
   if (error) { alert('Fehler: ' + error.message); btn.disabled = false; btn.textContent = '💾 Speichern'; return; }
-  // Update modal display
-  document.getElementById('modalCorrected').textContent = val.toFixed(3) + ' ' + currentModalUnit;
-  // Update table row
-  const valEl = document.getElementById('val_' + currentModalReadingId);
-  if (valEl) valEl.innerHTML = `<span class="val-badge">${val.toFixed(3)}</span> <span style="color:#888;font-size:0.8rem">${currentModalUnit}</span>`;
   btn.textContent = '✅ Gespeichert';
-  setTimeout(() => { btn.textContent = '💾 Speichern'; btn.disabled = false; }, 2500);
+  await loadReadings(); // Tabelle neu laden, damit "Original KI"-Färbung den korrigierten Wert widerspiegelt
+  setTimeout(closeReadingModal, 600);
 }
 
 async function deleteModalReading() {
