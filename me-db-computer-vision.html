@@ -563,19 +563,33 @@ function renderReadingsTable() {
 }
 
 function editReading(id, value, unit) {
+  const original = (+value).toFixed(3);
   document.getElementById('val_' + id).innerHTML = `
-    <input type="number" step="0.001" value="${(+value).toFixed(3)}" id="edit_${id}"
+    <input type="number" step="0.001" value="${original}" id="edit_${id}" data-original="${original}"
+      oninput="onEditInput('${id}')"
       style="width:110px;border:1.5px solid #1a1a2e;border-radius:6px;padding:4px 8px;font-size:0.88rem">
     <span style="color:#888;font-size:0.8rem">${esc(unit)}</span>
-    <button onclick="saveEdit('${id}')" style="border:none;background:#1a1a2e;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.78rem;margin-left:4px">✓</button>
+    <button id="saveBtn_${id}" onclick="saveEdit('${id}')" style="border:none;background:#1a1a2e;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.78rem;margin-left:4px;white-space:nowrap">✓ Confirm &amp; Close</button>
     <button onclick="loadReadings()" style="border:none;background:#eee;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:0.78rem">✕</button>`;
   document.getElementById('edit_' + id).focus();
 }
+function onEditInput(id) {
+  const input = document.getElementById('edit_' + id);
+  const btn = document.getElementById('saveBtn_' + id);
+  const changed = Math.abs(parseFloat(input.value || 0) - parseFloat(input.dataset.original)) > 0.0005;
+  btn.textContent = changed ? '✓ Save changes & close' : '✓ Confirm & Close';
+}
 async function saveEdit(id) {
-  const val = parseFloat(document.getElementById('edit_' + id).value);
+  const input = document.getElementById('edit_' + id);
+  const val = parseFloat(input.value);
   if (isNaN(val)) return;
   if (!await ensureSession()) return;
-  const { error } = await db.from('meter_readings').update({ value: val, is_example: true }).eq('id', id);
+  // Status wird unabhaengig vom Knopf-Label hier neu bestimmt - echter Wertevergleich, keine UI-Annahme.
+  const changed = Math.abs(val - parseFloat(input.dataset.original)) > 0.0005;
+  const payload = changed
+    ? { value: val, is_example: true, plausibility_status: 'corrected_by_human' }
+    : { plausibility_status: 'confirmed_by_human' };
+  const { error } = await db.from('meter_readings').update(payload).eq('id', id);
   if (error) { alert('Fehler: ' + error.message); return; }
   loadReadings();
 }
