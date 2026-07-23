@@ -228,7 +228,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.8</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.9</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -826,18 +826,33 @@ function downloadSetup() {
     "            print('  Foto: ' + img_path, flush=True)",
     '        except Exception as pe:',
     "            print('  Foto-Fehler: ' + str(pe), flush=True)",
+    "        last_val = None",
+    "        try:",
+    "            lr = requests.get(cfg['supabase_url'].rstrip('/') + '/rest/v1/meter_readings',",
+    "                params={'monitoring_function_id': 'eq.' + fn['id'], 'select': 'value',",
+    "                        'order': 'captured_at.desc', 'limit': '1'},",
+    "                headers={'apikey': cfg['supabase_anon_key']}, timeout=5)",
+    "            if lr.ok and lr.json():",
+    "                last_val = lr.json()[0]['value']",
+    '        except Exception:',
+    '            pass',
     "        resp = requests.post(cfg['worker_url'] + '/read-meter',",
-    "            json={'image_b64': img_b64, 'media_type': 'image/jpeg', 'meter_type': fn['meter_type']},",
+    "            json={'image_b64': img_b64, 'media_type': 'image/jpeg', 'meter_type': fn['meter_type'],",
+    "                  'last_value': last_val, 'max_increase': fn.get('max_increase_per_reading')},",
     '            timeout=30)',
     '        result = resp.json()',
     "        if not result.get('success'):",
     "            raise Exception(result.get('error', 'Vision failed'))",
     "        value, raw = result['value'], result['raw']",
+    "        status = 'ok_by_ai' if result.get('plausible', True) else 'flagged_by_ai'",
+    "        if not result.get('plausible', True):",
+    "            print('  WARNUNG - KI-Zweifel: ' + str(result.get('plausibility_note')), flush=True)",
     "        sb_url = cfg['supabase_url'].rstrip('/') + '/rest/v1/meter_readings'",
     "        h = {'apikey': cfg['supabase_anon_key'], 'Authorization': 'Bearer ' + cfg['supabase_anon_key'],",
     "             'Content-Type': 'application/json', 'Prefer': 'return=minimal'}",
     "        payload = {'agent_name': fn['name'], 'meter_type': fn['meter_type'],",
     "                   'value': value, 'unit': fn['unit'], 'raw_response': raw,",
+    "                   'plausibility_status': status,",
     "                   'image_path': img_path, 'monitoring_function_id': fn['id'],",
     "                   'captured_at': datetime.now(timezone.utc).isoformat()}",
     '        requests.post(sb_url, headers=h, json=payload, timeout=10).raise_for_status()',
@@ -974,7 +989,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v3.8\')',
+    '        self.title(\'MeDB CCTV v3.9\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1469,11 +1484,16 @@ function downloadCameraSetup() {
     '            if not resp.get(\'success\'):',
     '                raise Exception(resp.get(\'error\', \'Vision failed\'))',
     '            value = resp[\'value\']',
+    '            status = \'ok_by_ai\' if resp.get(\'plausible\', True) else \'flagged_by_ai\'',
+    '            if not resp.get(\'plausible\', True):',
+    '                note = resp.get(\'plausibility_note\')',
+    '                self.after(0, lambda n=note: self.log(f\'  WARNUNG - KI-Zweifel: {n} (trotzdem gespeichert, bitte pruefen)\'))',
     '            h = {\'apikey\': SB_KEY, \'Authorization\': f\'Bearer {SB_KEY}\',',
     '                 \'Content-Type\': \'application/json\', \'Prefer\': \'return=minimal\'}',
     '            requests.post(f\'{SB_URL}/rest/v1/meter_readings\', headers=h,',
     '                json={\'agent_name\': fn[\'name\'], \'meter_type\': fn[\'meter_type\'],',
     '                      \'value\': value, \'unit\': fn[\'unit\'], \'raw_response\': resp[\'raw\'],',
+    '                      \'plausibility_status\': status,',
     '                      \'image_path\': img_path, \'monitoring_function_id\': fn[\'id\'],',
     '                      \'captured_at\': datetime.now(timezone.utc).isoformat()},',
     '                timeout=10).raise_for_status()',
@@ -1580,7 +1600,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v3.8.py';
+  a.download = 'medb-cctv-v3.9.py';
   a.click();
 }
 
