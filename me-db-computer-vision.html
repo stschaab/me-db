@@ -541,7 +541,7 @@ function renderReadingsTable() {
   const filtered = allReadings.filter(r => readingsFilter.has(r.agent_name));
   if (!filtered.length) { el.innerHTML = filterHtml + '<div class="empty">Keine Ablesungen für diese Auswahl.</div>'; return; }
   el.innerHTML = filterHtml + `<table>
-    <thead><tr><th>Zeitstempel</th><th>Name</th><th>Typ</th><th>Wert</th><th>Original KI</th><th></th></tr></thead>
+    <thead><tr><th></th><th>Zeitstempel</th><th>Name</th><th>Typ</th><th>Wert</th><th>Original KI</th><th></th></tr></thead>
     <tbody>${filtered.map(r => {
       const rawMatch = r.raw_response ? r.raw_response.match(/[\d]+[.,][\d]+|[\d]+/) : null;
       const rawNum = rawMatch ? parseFloat(rawMatch[0].replace(',', '.')) : null;
@@ -549,49 +549,41 @@ function renderReadingsTable() {
       const kiCell = rawNum !== null
         ? `<span style="font-size:0.82rem;font-weight:600;color:${match ? '#2e7d32' : '#e65100'}">${rawNum.toFixed(3)}</span>`
         : `<span style="color:#ccc;font-size:0.8rem">–</span>`;
+      const isVerified = r.plausibility_status === 'corrected_by_human' || r.plausibility_status === 'confirmed_by_human';
       return `<tr id="row_${r.id}" class="reading-row" onclick="openReadingDetail('${r.id}')">
+      <td>${statusDot(r.plausibility_status)}</td>
       <td>${new Date(r.captured_at).toLocaleString('de-DE')}</td>
       <td>${esc(r.agent_name)}${r.image_path ? ' <span title="Foto vorhanden" style="font-size:0.75rem">📷</span>' : ''}</td>
       <td>${esc(r.meter_type)}</td>
       <td id="val_${r.id}"><span class="val-badge">${(+r.value).toFixed(3)}</span> <span style="color:#888;font-size:0.8rem">${esc(r.unit)}</span></td>
       <td>${kiCell}</td>
       <td style="white-space:nowrap" onclick="event.stopPropagation()">
+        ${isVerified ? '' : `<button class="icon-btn" onclick="confirmReading('${r.id}', event)" title="Bestätigen — Wert ist korrekt">✅</button>`}
         <button class="icon-btn" onclick="deleteReading('${r.id}')" title="Löschen">🗑️</button>
       </td>
     </tr>`;
     }).join('')}</tbody></table>`;
 }
 
-function editReading(id, value, unit) {
-  const original = (+value).toFixed(3);
-  document.getElementById('val_' + id).innerHTML = `
-    <input type="number" step="0.001" value="${original}" id="edit_${id}" data-original="${original}"
-      oninput="onEditInput('${id}')"
-      style="width:110px;border:1.5px solid #1a1a2e;border-radius:6px;padding:4px 8px;font-size:0.88rem">
-    <span style="color:#888;font-size:0.8rem">${esc(unit)}</span>
-    <button id="saveBtn_${id}" onclick="saveEdit('${id}')" style="border:none;background:#1a1a2e;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.78rem;margin-left:4px;white-space:nowrap">✓ Confirm &amp; Close</button>
-    <button onclick="loadReadings()" style="border:none;background:#eee;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:0.78rem">✕</button>`;
-  document.getElementById('edit_' + id).focus();
+// ── Plausibility-Status: Farbe/Label/Aktionen ──────────────────────────────────
+const STATUS_COLOR = { flagged_by_ai: '#c62828', corrected_by_human: '#2e7d32', confirmed_by_human: '#2e7d32', ok_by_ai: '#f9a825', unchecked: '#f9a825' };
+const STATUS_LABEL = {
+  flagged_by_ai: 'KI-Zweifel — noch ungeprüft', corrected_by_human: 'Von dir korrigiert', confirmed_by_human: 'Von dir bestätigt',
+  ok_by_ai: 'Automatisch plausibel — ungeprüft', unchecked: 'Ungeprüft'
+};
+function statusDot(status) {
+  const c = STATUS_COLOR[status] || STATUS_COLOR.unchecked;
+  const l = STATUS_LABEL[status] || STATUS_LABEL.unchecked;
+  return `<span title="${l}" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c};flex-shrink:0"></span>`;
 }
-function onEditInput(id) {
-  const input = document.getElementById('edit_' + id);
-  const btn = document.getElementById('saveBtn_' + id);
-  const changed = Math.abs(parseFloat(input.value || 0) - parseFloat(input.dataset.original)) > 0.0005;
-  btn.textContent = changed ? '✓ Save changes & close' : '✓ Confirm & Close';
-}
-async function saveEdit(id) {
-  const input = document.getElementById('edit_' + id);
-  const val = parseFloat(input.value);
-  if (isNaN(val)) return;
+async function confirmReading(id, ev) {
+  if (ev) ev.stopPropagation();
   if (!await ensureSession()) return;
-  // Status wird unabhaengig vom Knopf-Label hier neu bestimmt - echter Wertevergleich, keine UI-Annahme.
-  const changed = Math.abs(val - parseFloat(input.dataset.original)) > 0.0005;
-  const payload = changed
-    ? { value: val, is_example: true, plausibility_status: 'corrected_by_human' }
-    : { plausibility_status: 'confirmed_by_human' };
-  const { error } = await db.from('meter_readings').update(payload).eq('id', id);
+  const { error } = await db.from('meter_readings').update({ plausibility_status: 'confirmed_by_human' }).eq('id', id);
   if (error) { alert('Fehler: ' + error.message); return; }
-  loadReadings();
+  const r = allReadings.find(x => x.id === id);
+  if (r) r.plausibility_status = 'confirmed_by_human';
+  renderReadingsTable();
 }
 async function loadAgentStatus() {
   const { data: fns } = await db.from('monitoring_functions').select('id,name,meter_type,interval_min,active').eq('active', true).order('name');
@@ -1586,7 +1578,7 @@ function downloadCameraSetup() {
 
 // ── Reading detail modal ───────────────────────────────────────────────────────
 let allReadings = [];
-let currentModalReadingId = null, currentModalUnit = '';
+let currentModalReadingId = null, currentModalUnit = '', currentModalOriginalValue = null;
 
 async function openReadingDetail(id) {
   const r = allReadings.find(x => x.id === id);
@@ -1619,12 +1611,22 @@ async function openReadingDetail(id) {
   document.getElementById('modalCorrected').textContent = (+r.value).toFixed(3) + ' ' + r.unit;
   document.getElementById('modalDiff').innerHTML = diffBadge;
   document.getElementById('modalRaw').textContent = r.raw_response || '–';
+  document.getElementById('modalStatus').innerHTML = `${statusDot(r.plausibility_status)} <span style="font-size:0.82rem;color:#666">${STATUS_LABEL[r.plausibility_status] || STATUS_LABEL.unchecked}</span>`;
   // Edit fields
-  document.getElementById('modalEditValue').value = (+r.value).toFixed(3);
+  currentModalOriginalValue = (+r.value).toFixed(3);
+  document.getElementById('modalEditValue').value = currentModalOriginalValue;
   document.getElementById('modalEditUnit').textContent = r.unit;
   const saveBtn = document.getElementById('modalSaveBtn');
-  saveBtn.textContent = '💾 Speichern';
+  saveBtn.textContent = '✓ Bestätigen (unverändert)';
   saveBtn.disabled = false;
+  const isVerified = r.plausibility_status === 'corrected_by_human' || r.plausibility_status === 'confirmed_by_human';
+  document.getElementById('modalVerifiedNote').style.display = isVerified ? 'block' : 'none';
+}
+
+function onModalEditInput() {
+  const val = parseFloat(document.getElementById('modalEditValue').value || 0);
+  const changed = Math.abs(val - parseFloat(currentModalOriginalValue)) > 0.0005;
+  document.getElementById('modalSaveBtn').textContent = changed ? '💾 Änderung speichern' : '✓ Bestätigen (unverändert)';
 }
 
 async function saveModalEdit() {
@@ -1633,7 +1635,12 @@ async function saveModalEdit() {
   if (!await ensureSession()) return;
   const btn = document.getElementById('modalSaveBtn');
   btn.disabled = true; btn.textContent = '⏳…';
-  const { error } = await db.from('meter_readings').update({ value: val }).eq('id', currentModalReadingId);
+  // Status wird unabhaengig vom Knopf-Label hier neu bestimmt - echter Wertevergleich, keine UI-Annahme.
+  const changed = Math.abs(val - parseFloat(currentModalOriginalValue)) > 0.0005;
+  const payload = changed
+    ? { value: val, is_example: true, plausibility_status: 'corrected_by_human' }
+    : { plausibility_status: 'confirmed_by_human' };
+  const { error } = await db.from('meter_readings').update(payload).eq('id', currentModalReadingId);
   if (error) { alert('Fehler: ' + error.message); btn.disabled = false; btn.textContent = '💾 Speichern'; return; }
   btn.textContent = '✅ Gespeichert';
   await loadReadings(); // Tabelle neu laden, damit "Original KI"-Färbung den korrigierten Wert widerspiegelt
@@ -1676,12 +1683,17 @@ function closeReadingModal() {
           <span class="detail-val" id="modalCorrected">–</span>
           <span id="modalDiff"></span>
         </div>
+        <div class="detail-row">
+          <span class="detail-label">Status</span>
+          <div id="modalStatus" style="display:flex;align-items:center;gap:6px;margin-top:2px"></div>
+        </div>
         <div class="detail-row" style="background:#f0f7ff;border-radius:8px;padding:12px;margin-top:4px">
-          <span class="detail-label">Wert korrigieren</span>
+          <span class="detail-label">Wert prüfen / korrigieren</span>
+          <div id="modalVerifiedNote" style="display:none;font-size:0.75rem;color:#2e7d32;margin-top:4px">✓ Bereits von dir geprüft — erneutes Bestätigen ist nicht nötig, nur falls du nochmal draufschauen willst.</div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px">
-            <input id="modalEditValue" type="number" step="0.001">
+            <input id="modalEditValue" type="number" step="0.001" oninput="onModalEditInput()">
             <span id="modalEditUnit" style="color:#666;font-size:0.9rem"></span>
-            <button id="modalSaveBtn" class="btn btn-primary btn-sm" onclick="saveModalEdit()">💾 Speichern</button>
+            <button id="modalSaveBtn" class="btn btn-primary btn-sm" onclick="saveModalEdit()">✓ Bestätigen (unverändert)</button>
           </div>
         </div>
         <div class="detail-row">
