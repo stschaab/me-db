@@ -541,7 +541,7 @@ function renderReadingsTable() {
   const filtered = allReadings.filter(r => readingsFilter.has(r.agent_name));
   if (!filtered.length) { el.innerHTML = filterHtml + '<div class="empty">Keine Ablesungen für diese Auswahl.</div>'; return; }
   el.innerHTML = filterHtml + `<table>
-    <thead><tr><th></th><th>Zeitstempel</th><th>Name</th><th>Typ</th><th>Wert</th><th>Original KI</th><th></th></tr></thead>
+    <thead><tr><th>Status</th><th>Zeitstempel</th><th>Name</th><th>Typ</th><th>Wert</th><th>Original KI</th><th></th></tr></thead>
     <tbody>${filtered.map(r => {
       const rawMatch = r.raw_response ? r.raw_response.match(/[\d]+[.,][\d]+|[\d]+/) : null;
       const rawNum = rawMatch ? parseFloat(rawMatch[0].replace(',', '.')) : null;
@@ -549,16 +549,16 @@ function renderReadingsTable() {
       const kiCell = rawNum !== null
         ? `<span style="font-size:0.82rem;font-weight:600;color:${match ? '#2e7d32' : '#e65100'}">${rawNum.toFixed(3)}</span>`
         : `<span style="color:#ccc;font-size:0.8rem">–</span>`;
-      const isVerified = r.plausibility_status === 'corrected_by_human' || r.plausibility_status === 'confirmed_by_human';
+      const resolved = isHumanResolved(r.plausibility_status);
       return `<tr id="row_${r.id}" class="reading-row" onclick="openReadingDetail('${r.id}')">
-      <td>${statusDot(r.plausibility_status)}</td>
+      <td style="white-space:nowrap">${statusBadge(r.plausibility_status)}</td>
       <td>${new Date(r.captured_at).toLocaleString('de-DE')}</td>
       <td>${esc(r.agent_name)}${r.image_path ? ' <span title="Foto vorhanden" style="font-size:0.75rem">📷</span>' : ''}</td>
       <td>${esc(r.meter_type)}</td>
       <td id="val_${r.id}"><span class="val-badge">${(+r.value).toFixed(3)}</span> <span style="color:#888;font-size:0.8rem">${esc(r.unit)}</span></td>
       <td>${kiCell}</td>
       <td style="white-space:nowrap" onclick="event.stopPropagation()">
-        ${isVerified ? '' : `<button class="icon-btn" onclick="confirmReading('${r.id}', event)" title="Bestätigen — Wert ist korrekt">✅</button>`}
+        ${resolved ? '' : `<button class="icon-btn" onclick="confirmReading('${r.id}', event)" title="Bestätigen — Wert ist korrekt">✅</button>`}
         <button class="icon-btn" onclick="deleteReading('${r.id}')" title="Löschen">🗑️</button>
       </td>
     </tr>`;
@@ -566,15 +566,24 @@ function renderReadingsTable() {
 }
 
 // ── Plausibility-Status: Farbe/Label/Aktionen ──────────────────────────────────
-const STATUS_COLOR = { flagged_by_ai: '#c62828', corrected_by_human: '#2e7d32', confirmed_by_human: '#2e7d32', ok_by_ai: '#f9a825', unchecked: '#f9a825' };
+// 4 eindeutige, sich nicht überlappende Zustände. corrected != confirmed (unterschiedliche Aussage, unterschiedliche Farbe).
+// flagged_by_ai wird aktuell von KEINEM laufenden Mechanismus gesetzt (die harte Worker-Ablehnung erzeugt gar keine Zeile) -
+// bleibt hier definiert fuer den Tag, an dem der Klassifikations-Trigger gebaut wird, taucht bis dahin aber nie live auf.
+const STATUS_COLOR = { corrected_by_human: '#c62828', confirmed_by_human: '#2e7d32', flagged_by_ai: '#1565c0', ok_by_ai: '#f9a825', unchecked: '#f9a825' };
 const STATUS_LABEL = {
-  flagged_by_ai: 'KI-Zweifel — noch ungeprüft', corrected_by_human: 'Von dir korrigiert', confirmed_by_human: 'Von dir bestätigt',
-  ok_by_ai: 'Automatisch plausibel — ungeprüft', unchecked: 'Ungeprüft'
+  corrected_by_human: 'Corrected by Human', confirmed_by_human: 'Confirmed by Human',
+  flagged_by_ai: 'KI-Zweifel — ungeprüft', ok_by_ai: 'Automatisch plausibel — ungeprüft', unchecked: 'Ungeprüft'
 };
+function isHumanResolved(status) { return status === 'corrected_by_human' || status === 'confirmed_by_human'; }
 function statusDot(status) {
   const c = STATUS_COLOR[status] || STATUS_COLOR.unchecked;
   const l = STATUS_LABEL[status] || STATUS_LABEL.unchecked;
   return `<span title="${l}" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c};flex-shrink:0"></span>`;
+}
+function statusBadge(status) {
+  const c = STATUS_COLOR[status] || STATUS_COLOR.unchecked;
+  const l = STATUS_LABEL[status] || STATUS_LABEL.unchecked;
+  return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:600;color:${c}">${statusDot(status)}${l}</span>`;
 }
 async function confirmReading(id, ev) {
   if (ev) ev.stopPropagation();
@@ -1611,7 +1620,7 @@ async function openReadingDetail(id) {
   document.getElementById('modalCorrected').textContent = (+r.value).toFixed(3) + ' ' + r.unit;
   document.getElementById('modalDiff').innerHTML = diffBadge;
   document.getElementById('modalRaw').textContent = r.raw_response || '–';
-  document.getElementById('modalStatus').innerHTML = `${statusDot(r.plausibility_status)} <span style="font-size:0.82rem;color:#666">${STATUS_LABEL[r.plausibility_status] || STATUS_LABEL.unchecked}</span>`;
+  document.getElementById('modalStatus').innerHTML = statusBadge(r.plausibility_status);
   // Edit fields
   currentModalOriginalValue = (+r.value).toFixed(3);
   document.getElementById('modalEditValue').value = currentModalOriginalValue;
