@@ -81,9 +81,6 @@
     .detail-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: #999; letter-spacing: 0.04em; }
     .detail-val { font-size: 1.1rem; font-weight: 700; color: #1a1a2e; }
     .detail-raw { font-size: 0.82rem; color: #555; line-height: 1.5; background: #f9f9fb; border-radius: 8px; padding: 10px 12px; }
-    .diff-badge { display: inline-block; font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; margin-left: 6px; font-weight: 600; }
-    .diff-ok { background: #e8f5e9; color: #2e7d32; }
-    .diff-warn { background: #fff3e0; color: #e65100; }
     .readings-filter { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 16px 0; font-size: 0.82rem; color: #555; }
     .readings-filter label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
   </style>
@@ -543,11 +540,13 @@ function renderReadingsTable() {
   el.innerHTML = filterHtml + `<table>
     <thead><tr><th>Status</th><th>Zeitstempel</th><th>Name</th><th>Typ</th><th>Wert</th><th>Original KI</th><th></th></tr></thead>
     <tbody>${filtered.map(r => {
+      // Reiner Referenzwert, keine Ampel-Farbe mehr - "weicht ab" ist kein verlaessliches Urteil
+      // (kann auch von automatischer Halte-Logik kommen, s. offene-aufgaben.md). Das einzige
+      // verlaessliche Urteil ist die Status-Spalte (plausibility_status).
       const rawMatch = r.raw_response ? r.raw_response.match(/[\d]+[.,][\d]+|[\d]+/) : null;
       const rawNum = rawMatch ? parseFloat(rawMatch[0].replace(',', '.')) : null;
-      const match = rawNum !== null && Math.abs(rawNum - (+r.value)) < 0.001;
       const kiCell = rawNum !== null
-        ? `<span style="font-size:0.82rem;font-weight:600;color:${match ? '#2e7d32' : '#e65100'}">${rawNum.toFixed(3)}</span>`
+        ? `<span style="font-size:0.82rem;color:#888">${rawNum.toFixed(3)}</span>`
         : `<span style="color:#ccc;font-size:0.8rem">–</span>`;
       const resolved = isHumanResolved(r.plausibility_status);
       return `<tr id="row_${r.id}" class="reading-row" onclick="openReadingDetail('${r.id}')">
@@ -1610,15 +1609,11 @@ async function openReadingDetail(id) {
   } else {
     photoEl.innerHTML = '<div class="no-photo">📷 Kein Foto gespeichert</div>';
   }
-  // Values comparison
-  const rawMatch = r.raw_response ? r.raw_response.match(/[\d]+[.,][\d]+|[\d]+/) : null;
-  const rawNum = rawMatch ? parseFloat(rawMatch[0].replace(',', '.')) : null;
-  const match = rawNum !== null && Math.abs(rawNum - (+r.value)) < 0.001;
-  const diffBadge = rawNum !== null
-    ? `<span class="diff-badge ${match ? 'diff-ok' : 'diff-warn'}">${match ? '✓ identisch' : '≠ korrigiert'}</span>`
-    : '';
+  // Status ist die EINZIGE Quelle fuer "ist dieser Wert vertrauenswuerdig" - kein zweites,
+  // moeglicherweise widersprechendes Signal mehr aus einem rohtext<->wert-Vergleich (gab frueher
+  // Verwirrung: "≠ korrigiert" klang nach menschlicher Pruefung, war aber nur "Zahl weicht ab",
+  // was z.B. auch von automatischer Halte-Logik kommen kann, ohne dass je ein Mensch draufsah).
   document.getElementById('modalCorrected').textContent = (+r.value).toFixed(3) + ' ' + r.unit;
-  document.getElementById('modalDiff').innerHTML = diffBadge;
   document.getElementById('modalRaw').textContent = r.raw_response || '–';
   document.getElementById('modalStatus').innerHTML = statusBadge(r.plausibility_status);
   // Edit fields
@@ -1690,7 +1685,6 @@ function closeReadingModal() {
         <div class="detail-row">
           <span class="detail-label">Gespeicherter Wert</span>
           <span class="detail-val" id="modalCorrected">–</span>
-          <span id="modalDiff"></span>
         </div>
         <div class="detail-row">
           <span class="detail-label">Status</span>
