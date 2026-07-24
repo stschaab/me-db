@@ -228,7 +228,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.9</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.10</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -801,10 +801,22 @@ function downloadSetup() {
     "    ls_resp = requests.post(ls_url, headers={**st_h, 'Content-Type': 'application/json'},",
     "        json={'prefix': folder + '/', 'sortBy': {'column': 'created_at', 'order': 'asc'}}, timeout=10)",
     "    files_list = ls_resp.json() if ls_resp.ok else []",
-    "    if isinstance(files_list, list) and len(files_list) > 10:",
-    "        old = [folder + '/' + f['name'] for f in files_list[:-10]]",
-    "        rm_url = cfg['supabase_url'].rstrip('/') + '/storage/v1/object/meter-photos'",
-    "        requests.delete(rm_url, headers={**st_h, 'Content-Type': 'application/json'}, json={'prefixes': old}, timeout=10).raise_for_status()",
+    "    if isinstance(files_list, list) and len(files_list) > 100:",
+    "        # Fotos von corrected_by_human Ablesungen sind Trainingsdaten - nie loeschen",
+    "        protected = set()",
+    "        try:",
+    "            pr = requests.get(cfg['supabase_url'].rstrip('/') + '/rest/v1/meter_readings',",
+    "                params={'monitoring_function_id': 'eq.' + fn['id'], 'plausibility_status': 'eq.corrected_by_human',",
+    "                        'select': 'image_path'}, headers={'apikey': cfg['supabase_anon_key']}, timeout=10)",
+    "            if pr.ok:",
+    "                protected = {r['image_path'] for r in pr.json() if r.get('image_path')}",
+    "        except Exception:",
+    "            pass",
+    "        candidates = [folder + '/' + f['name'] for f in files_list if (folder + '/' + f['name']) not in protected]",
+    "        old = candidates[:-100] if len(candidates) > 100 else []",
+    "        if old:",
+    "            rm_url = cfg['supabase_url'].rstrip('/') + '/storage/v1/object/meter-photos'",
+    "            requests.delete(rm_url, headers={**st_h, 'Content-Type': 'application/json'}, json={'prefixes': old}, timeout=10).raise_for_status()",
     "    return img_path",
     '',
     'def run_function(fn):',
@@ -989,7 +1001,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v3.9\')',
+    '        self.title(\'MeDB CCTV v3.10\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1457,10 +1469,22 @@ function downloadCameraSetup() {
     '                    headers={**st_h, \'Content-Type\': \'application/json\'},',
     '                    json={\'prefix\': f\'{folder}/\', \'sortBy\': {\'column\': \'created_at\', \'order\': \'asc\'}}, timeout=10)',
     '                fl = ls.json() if ls.ok else []',
-    '                if isinstance(fl, list) and len(fl) > 10:',
-    '                    old = [f\'{folder}/{f["name"]}\' for f in fl[:-10]]',
-    '                    requests.delete(f\'{SB_URL}/storage/v1/object/meter-photos\',',
-    '                        headers={**st_h, \'Content-Type\': \'application/json\'}, json={\'prefixes\': old}, timeout=10).raise_for_status()',
+    '                if isinstance(fl, list) and len(fl) > 100:',
+    '                    # Fotos von corrected_by_human Ablesungen sind Trainingsdaten - nie loeschen',
+    '                    protected = set()',
+    '                    try:',
+    '                        pr = requests.get(f\'{SB_URL}/rest/v1/meter_readings\',',
+    '                            params={\'monitoring_function_id\': f\'eq.{fn["id"]}\', \'plausibility_status\': \'eq.corrected_by_human\',',
+    '                                    \'select\': \'image_path\'}, headers={\'apikey\': SB_KEY}, timeout=10)',
+    '                        if pr.ok:',
+    '                            protected = {r[\'image_path\'] for r in pr.json() if r.get(\'image_path\')}',
+    '                    except Exception:',
+    '                        pass',
+    '                    candidates = [f\'{folder}/{f["name"]}\' for f in fl if f\'{folder}/{f["name"]}\' not in protected]',
+    '                    old = candidates[:-100] if len(candidates) > 100 else []',
+    '                    if old:',
+    '                        requests.delete(f\'{SB_URL}/storage/v1/object/meter-photos\',',
+    '                            headers={**st_h, \'Content-Type\': \'application/json\'}, json={\'prefixes\': old}, timeout=10).raise_for_status()',
     '            except Exception as pe:',
     '                self.after(0, lambda: self.log(f\'  Foto-Fehler: {pe}\'))',
     '            # Fetch last known value for plausibility check',
@@ -1600,7 +1624,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v3.9.py';
+  a.download = 'medb-cctv-v3.10.py';
   a.click();
 }
 
