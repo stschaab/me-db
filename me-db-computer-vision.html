@@ -200,6 +200,14 @@
           <label title="Rollierend, älteste zuerst gelöscht. Fotos von korrigierten Ablesungen (corrected_by_human) sind davon ausgenommen und werden nie gelöscht.">Fotos behalten ⓘ</label>
           <input id="fKeepPhotos" type="number" min="1" value="100" placeholder="z.B. 100">
         </div>
+        <div class="fg">
+          <label title="Welches Claude-Modell diese Kamera zum Ablesen verwendet. Haiku = günstig/schnell, Sonnet/Opus = genauer, teurer.">KI-Modell ⓘ</label>
+          <select id="fVlmModel">
+            <option value="claude-haiku-4-5-20251001">Haiku 4.5 — günstig/schnell (Standard)</option>
+            <option value="claude-sonnet-5">Sonnet 5 — genauer</option>
+            <option value="claude-opus-4-8">Opus 4.8 — am genauesten, teuer</option>
+          </select>
+        </div>
         <div class="fg" style="padding-top:18px">
           <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:0.88rem;cursor:pointer">
             <input id="fActive" type="checkbox" checked style="width:auto"> Aktiv
@@ -232,7 +240,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.11</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.12</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -419,7 +427,7 @@ async function loadFunctions() {
   if (error) { el.innerHTML = `<div class="empty">Fehler: ${esc(error.message)}</div>`; return; }
   if (!allFunctions.length) { el.innerHTML = '<div class="empty">Noch keine Monitoring Functions.</div>'; return; }
   el.innerHTML = `<table>
-    <thead><tr><th>Name</th><th>Kamera</th><th>Typ</th><th>PTZ</th><th>Intervall</th><th>Fotos</th><th>Aktiv</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>Kamera</th><th>Typ</th><th>PTZ</th><th>Intervall</th><th>Fotos</th><th>Modell</th><th>Aktiv</th><th></th></tr></thead>
     <tbody>${allFunctions.map(f => `<tr>
       <td><strong>${esc(f.name)}</strong></td>
       <td>${f.camera ? `<span class="cam-badge">#${f.camera.number}</span>${esc(f.camera.name)}` : '<span style="color:#ccc">–</span>'}</td>
@@ -427,6 +435,7 @@ async function loadFunctions() {
       <td style="color:#888;font-size:0.82rem">${f.ptz_preset ?? '–'}</td>
       <td style="color:#888;font-size:0.82rem">${f.interval_min} min</td>
       <td style="color:#888;font-size:0.82rem">${f.keep_photos_count ?? 100}</td>
+      <td style="color:#888;font-size:0.78rem">${(f.vlm_model || 'claude-haiku-4-5-20251001').replace('claude-','').replace('-20251001','')}</td>
       <td><label class="toggle"><input type="checkbox" ${f.active ? 'checked' : ''} onchange="toggleFn('${f.id}',this.checked)"><span class="slider"></span></label></td>
       <td style="display:flex;gap:4px">
         <button class="icon-btn" onclick="openFnForm('${f.id}')" title="Bearbeiten">✏️</button>
@@ -457,11 +466,13 @@ function openFnForm(id) {
       document.getElementById('fPtz').value       = f.ptz_preset ?? '';
       document.getElementById('fInterval').value  = f.interval_min;
       document.getElementById('fKeepPhotos').value = f.keep_photos_count ?? 100;
+      document.getElementById('fVlmModel').value  = f.vlm_model || 'claude-haiku-4-5-20251001';
       document.getElementById('fActive').checked  = f.active;
     });
   } else {
     ['fName','fPtz'].forEach(i => document.getElementById(i).value = '');
     document.getElementById('fKeepPhotos').value = 100;
+    document.getElementById('fVlmModel').value = 'claude-haiku-4-5-20251001';
     document.getElementById('fCamId').value = '';
     document.getElementById('fActive').checked = true;
     syncUnit();
@@ -485,6 +496,7 @@ async function saveFn() {
     unit:         document.getElementById('fUnit').value.trim(),
     interval_min: parseInt(document.getElementById('fInterval').value),
     keep_photos_count: parseInt(document.getElementById('fKeepPhotos').value) || 100,
+    vlm_model:    document.getElementById('fVlmModel').value,
     ptz_preset:   document.getElementById('fPtz').value ? parseInt(document.getElementById('fPtz').value) : null,
     active:       document.getElementById('fActive').checked,
     updated_at:   new Date().toISOString(),
@@ -859,6 +871,7 @@ function downloadSetup() {
     '            pass',
     "        resp = requests.post(cfg['worker_url'] + '/read-meter',",
     "            json={'image_b64': img_b64, 'media_type': 'image/jpeg', 'meter_type': fn['meter_type'],",
+    "                  'model': fn.get('vlm_model') or 'claude-haiku-4-5-20251001',",
     "                  'last_value': last_val, 'max_increase': fn.get('max_increase_per_reading')},",
     '            timeout=30)',
     '        result = resp.json()',
@@ -1010,7 +1023,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v3.11\')',
+    '        self.title(\'MeDB CCTV v3.12\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1512,6 +1525,7 @@ function downloadCameraSetup() {
     '            resp = requests.post(f\'{WORKER}/read-meter\',',
     '                json={\'image_b64\': img_b64, \'media_type\': \'image/jpeg\',',
     '                      \'meter_type\': fn[\'meter_type\'],',
+    '                      \'model\': fn.get(\'vlm_model\') or \'claude-haiku-4-5-20251001\',',
     '                      \'last_value\': last_val,',
     '                      \'max_increase\': fn.get(\'max_increase_per_reading\')},',
     '                timeout=30).json()',
@@ -1634,7 +1648,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v3.11.py';
+  a.download = 'medb-cctv-v3.12.py';
   a.click();
 }
 
