@@ -298,6 +298,11 @@
   <!-- READINGS -->
   <div class="card">
     <div class="card-hdr"><div class="card-title">📊 Letzte Ablesungen</div></div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:0.85rem">
+      <label style="display:flex;align-items:center;gap:4px">Von <input type="date" id="readingsFrom" onchange="onReadingsDateChange()"></label>
+      <label style="display:flex;align-items:center;gap:4px">Bis <input type="date" id="readingsTo" onchange="onReadingsDateChange()"></label>
+      <button class="btn btn-outline btn-sm" onclick="clearReadingsDateFilter()">Zurücksetzen</button>
+    </div>
     <div id="readings"><div class="empty">Noch keine Ablesungen.</div></div>
   </div>
 </main>
@@ -530,14 +535,39 @@ async function deleteFn() {
 // ── Readings ──────────────────────────────────────────────────────────────────
 let readingsFilter = new Set();
 let knownReadingAgents = new Set();
+let readingsPageSize = 50;
+let readingsHasMore = false;
 
 async function loadReadings() {
-  const { data, error } = await db.from('meter_readings').select('*').order('captured_at', { ascending: false }).limit(50);
+  const from = document.getElementById('readingsFrom')?.value || null;
+  const to = document.getElementById('readingsTo')?.value || null;
+  let q = db.from('meter_readings').select('*').order('captured_at', { ascending: false }).limit(readingsPageSize);
+  if (from) q = q.gte('captured_at', from + 'T00:00:00');
+  if (to) q = q.lte('captured_at', to + 'T23:59:59');
+  const { data, error } = await q;
   const el = document.getElementById('readings');
   if (error) { el.innerHTML = `<div class="empty">Fehler: ${esc(error.message)}</div>`; return; }
-  if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Ablesungen.</div>'; return; }
+  if (!data?.length) { el.innerHTML = '<div class="empty">Noch keine Ablesungen für diese Auswahl.</div>'; return; }
+  readingsHasMore = data.length === readingsPageSize;
   allReadings = data;
   renderReadingsTable();
+}
+
+function onReadingsDateChange() {
+  readingsPageSize = 50;
+  loadReadings();
+}
+
+function clearReadingsDateFilter() {
+  document.getElementById('readingsFrom').value = '';
+  document.getElementById('readingsTo').value = '';
+  readingsPageSize = 50;
+  loadReadings();
+}
+
+function loadMoreReadings() {
+  readingsPageSize += 50;
+  loadReadings();
 }
 
 function toggleReadingsFilter(name) {
@@ -583,7 +613,8 @@ function renderReadingsTable() {
         <button class="icon-btn" onclick="deleteReading('${r.id}')" title="Löschen">🗑️</button>
       </td>
     </tr>`;
-    }).join('')}</tbody></table>`;
+    }).join('')}</tbody></table>`
+    + (readingsHasMore ? `<div style="text-align:center;margin-top:10px"><button class="btn btn-outline btn-sm" onclick="loadMoreReadings()">Mehr laden…</button></div>` : '');
 }
 
 // ── Plausibility-Status: Farbe/Label/Aktionen ──────────────────────────────────
