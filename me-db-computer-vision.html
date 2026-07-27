@@ -240,7 +240,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.12</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.13</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -565,9 +565,11 @@ function renderReadingsTable() {
       // verlaessliche Urteil ist die Status-Spalte (plausibility_status).
       const rawMatch = r.raw_response ? r.raw_response.match(/[\d]+[.,][\d]+|[\d]+/) : null;
       const rawNum = rawMatch ? parseFloat(rawMatch[0].replace(',', '.')) : null;
-      const kiCell = rawNum !== null
+      const modelShort = r.model_used ? r.model_used.replace('claude-', '').replace('-20251001', '') : null;
+      const kiCell = (rawNum !== null
         ? `<span style="font-size:0.82rem;color:#888">${rawNum.toFixed(3)}</span>`
-        : `<span style="color:#ccc;font-size:0.8rem">–</span>`;
+        : `<span style="color:#ccc;font-size:0.8rem">–</span>`)
+        + (modelShort ? `<br><span style="font-size:0.7rem;color:#aaa">${esc(modelShort)}</span>` : '');
       const resolved = isHumanResolved(r.plausibility_status);
       return `<tr id="row_${r.id}" class="reading-row" onclick="openReadingDetail('${r.id}')">
       <td style="white-space:nowrap">${statusBadge(r.plausibility_status)}</td>
@@ -886,7 +888,7 @@ function downloadSetup() {
     "             'Content-Type': 'application/json', 'Prefer': 'return=minimal'}",
     "        payload = {'agent_name': fn['name'], 'meter_type': fn['meter_type'],",
     "                   'value': value, 'unit': fn['unit'], 'raw_response': raw,",
-    "                   'plausibility_status': status,",
+    "                   'plausibility_status': status, 'model_used': result.get('model'),",
     "                   'image_path': img_path, 'monitoring_function_id': fn['id'],",
     "                   'captured_at': datetime.now(timezone.utc).isoformat()}",
     '        requests.post(sb_url, headers=h, json=payload, timeout=10).raise_for_status()',
@@ -1023,7 +1025,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v3.12\')',
+    '        self.title(\'MeDB CCTV v3.13\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1541,7 +1543,7 @@ function downloadCameraSetup() {
     '            requests.post(f\'{SB_URL}/rest/v1/meter_readings\', headers=h,',
     '                json={\'agent_name\': fn[\'name\'], \'meter_type\': fn[\'meter_type\'],',
     '                      \'value\': value, \'unit\': fn[\'unit\'], \'raw_response\': resp[\'raw\'],',
-    '                      \'plausibility_status\': status,',
+    '                      \'plausibility_status\': status, \'model_used\': resp.get(\'model\'),',
     '                      \'image_path\': img_path, \'monitoring_function_id\': fn[\'id\'],',
     '                      \'captured_at\': datetime.now(timezone.utc).isoformat()},',
     '                timeout=10).raise_for_status()',
@@ -1648,7 +1650,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v3.12.py';
+  a.download = 'medb-cctv-v3.13.py';
   a.click();
 }
 
@@ -1683,6 +1685,7 @@ async function openReadingDetail(id) {
   // was z.B. auch von automatischer Halte-Logik kommen kann, ohne dass je ein Mensch draufsah).
   document.getElementById('modalCorrected').textContent = (+r.value).toFixed(3) + ' ' + r.unit;
   document.getElementById('modalRaw').textContent = r.raw_response || '–';
+  document.getElementById('modalModel').textContent = r.model_used || '–';
   document.getElementById('modalStatus').innerHTML = statusBadge(r.plausibility_status);
   // Edit fields
   currentModalOriginalValue = (+r.value).toFixed(3);
@@ -1770,6 +1773,10 @@ function closeReadingModal() {
         <div class="detail-row">
           <span class="detail-label">KI-Rohtext</span>
           <div class="detail-raw" id="modalRaw">–</div>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">KI-Modell</span>
+          <div class="detail-raw" id="modalModel" style="color:#888;font-size:0.85rem">–</div>
         </div>
         <div style="margin-top:8px">
           <button class="btn btn-danger btn-sm" onclick="deleteModalReading()">🗑️ Ablesung löschen</button>
