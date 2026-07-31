@@ -240,7 +240,7 @@
       🔄 <strong>Update:</strong> Nur CCTV App herunterladen → nach <code>C:\MeDB-Agents\</code> kopieren (überschreiben) → App neu starten
     </div>
     <div class="btn-row" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.13</small></button>
+      <button class="btn btn-outline" onclick="downloadCameraSetup()" style="font-size:0.95rem">🎥 CCTV App herunterladen (.py) <small style="opacity:0.55">v3.14</small></button>
       <button class="btn btn-primary" onclick="downloadSetup()" style="font-size:0.85rem;opacity:0.8">📥 Ersteinrichtung (.ps1) <small style="opacity:0.7">v1.3 — nur einmalig nötig</small></button>
     </div>
   </div>
@@ -1056,7 +1056,7 @@ function downloadCameraSetup() {
     'class App(tk.Tk):',
     '    def __init__(self):',
     '        super().__init__()',
-    '        self.title(\'MeDB CCTV v3.13\')',
+    '        self.title(\'MeDB CCTV v3.14\')',
     '        self.configure(bg=BG)',
     '        self.cam = self.ptz = self.media = None',
     '        self.profile_token = None',
@@ -1064,6 +1064,7 @@ function downloadCameraSetup() {
     '        self.streaming = False',
     '        self.functions = []',
     '        self._read_queue = queue.Queue()',
+    '        self._inflight_fn_ids = set()',
     '        self.next_runs = {}',
     '        self._countdown_started = False',
     '        self._build()',
@@ -1447,7 +1448,7 @@ function downloadCameraSetup() {
     '            tk.Button(btn_row, text=\'\\U0001f4f7 Jetzt auslesen\',',
     '                bg=\'#1976d2\', fg=\'white\', font=(\'Segoe UI\',8,\'bold\'),',
     '                relief=\'flat\', padx=8, pady=3,',
-    '                command=lambda f=fn: self._read_queue.put(f)',
+    '                command=lambda f=fn: self._enqueue_reading(f)',
     '            ).pack(side=\'left\')',
     '        if not self._countdown_started:',
     '            self._countdown_started = True',
@@ -1582,6 +1583,13 @@ function downloadCameraSetup() {
     '        except Exception as e:',
     '            self.after(0, lambda err=str(e): self.log(f\'  FEHLER: {err}\'))',
     '',
+    '    def _enqueue_reading(self, fn):',
+    '        # Zentral markieren, dass fuer diese Funktion gerade eine Ablesung laeuft/wartet -',
+    '        # verhindert, dass _sync_next_runs_from_db() den Termin waehrenddessen ueberschreibt',
+    '        # (Race Condition, hat bisher regelmaessig Doppel-Ablesungen ausgeloest).',
+    '        self._inflight_fn_ids.add(fn[\'id\'])',
+    '        self._read_queue.put(fn)',
+    '',
     '    def _poll_loop(self):',
     '        db_sync_ctr = 0',
     '        while True:',
@@ -1594,7 +1602,7 @@ function downloadCameraSetup() {
     '                nxt = self.next_runs.get(fn[\'id\'])',
     '                if nxt and now >= nxt:',
     '                    self.next_runs[fn[\'id\']] = now + timedelta(minutes=fn[\'interval_min\'])',
-    '                    self._read_queue.put(fn)',
+    '                    self._enqueue_reading(fn)',
     '            try:',
     '                h = {\'apikey\': SB_KEY}',
     '                r = requests.get(f\'{SB_URL}/rest/v1/monitoring_functions\',',
@@ -1610,7 +1618,7 @@ function downloadCameraSetup() {
     '                        requests.patch(f\'{SB_URL}/rest/v1/monitoring_functions\',',
     '                            params={\'id\': f\'eq.{fn["id"]}\'},',
     '                            headers=h2, json={\'manual_trigger\': False}, timeout=5)',
-    '                        self._read_queue.put(fn)',
+    '                        self._enqueue_reading(fn)',
     '            except Exception:',
     '                pass',
     '            time.sleep(30)',
@@ -1622,6 +1630,7 @@ function downloadCameraSetup() {
     '                self._run_reading(fn)',
     '            finally:',
     '                self._read_queue.task_done()',
+    '                self._inflight_fn_ids.discard(fn[\'id\'])',
     '            time.sleep(30)',
     '',
     '    def _sync_next_runs_from_db(self):',
@@ -1651,6 +1660,8 @@ function downloadCameraSetup() {
     '            for fn in self.functions:',
     '                try:',
     '                    fid = fn[\'id\']',
+    '                    if fid in self._inflight_fn_ids:',
+    '                        continue  # Ablesung laeuft/wartet bereits - Termin nicht anfassen (sonst Doppel-Ablesung)',
     '                    last_ts = last_by_fn.get(fid)',
     '                    if last_ts:',
     '                        ts_utc = datetime.fromisoformat(last_ts.replace(\'Z\', \'+00:00\'))',
@@ -1681,7 +1692,7 @@ function downloadCameraSetup() {
   const blob = new Blob([py], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'medb-cctv-v3.13.py';
+  a.download = 'medb-cctv-v3.14.py';
   a.click();
 }
 
