@@ -263,8 +263,9 @@ function renderValves() {
       </div>
     </div>`;
   }).join('') + `
-    <div style="grid-column:1/-1;display:flex;gap:8px">
+    <div style="grid-column:1/-1;display:flex;gap:8px;align-items:center">
       <button class="vbtn open" style="flex:1" onclick="sendCommand('both','open')">Beide auf</button>
+      <input class="dur-input" type="number" min="1" max="120" value="15" id="manualdur-both" title="Minuten (gilt fuer 'Beide auf')">
       <button class="vbtn close" style="flex:1" onclick="sendCommand('both','close')">Beide zu</button>
     </div>`;
   for (const v of valvesData) renderValveState(v.id);
