@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Sprinkler</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; }
+header h1 { font-size: 1.4rem; font-weight: 600; }
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; color: #7ec8e3; text-decoration: none; background: none; border-top: none; cursor: pointer; }
+.navdrop { width: 100%; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+.container { max-width: 900px; margin: 24px auto; padding: 0 20px 60px; }
+
+.card { background: white; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 18px; padding: 20px 24px; }
+.card-title { font-weight: 700; font-size: 1rem; color: #1a1a2e; margin-bottom: 14px; }
+
+.status-row { display: flex; gap: 28px; flex-wrap: wrap; align-items: center; }
+.status-row .n { font-size: 2rem; font-weight: 800; }
+.status-row .u { font-size: 0.85rem; color: #aaa; font-weight: 500; margin-left: 3px; }
+.status-row .lbl { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin-top: 2px; }
+
+.badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 0.95rem; }
+.badge.rec-yes { background: #e8f5e9; color: #2e7d32; }
+.badge.rec-no { background: #fdecea; color: #c62828; }
+
+.updated { font-size: 0.75rem; color: #aaa; margin-top: 10px; }
+
+.valves { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+.valve-card { border: 1px solid #eee; border-radius: 12px; padding: 16px; text-align: center; }
+.valve-card h3 { font-size: 0.95rem; margin-bottom: 10px; color: #1a1a2e; }
+.valve-state { font-size: 0.78rem; color: #888; margin-bottom: 12px; min-height: 1.2em; }
+.valve-btns { display: flex; gap: 8px; justify-content: center; }
+.vbtn { border: none; border-radius: 10px; padding: 10px 18px; font-size: 0.9rem; font-weight: 600; cursor: pointer; flex: 1; }
+.vbtn.open { background: #1976d2; color: white; }
+.vbtn.close { background: #eee; color: #333; }
+.vbtn:disabled { opacity: 0.5; cursor: default; }
+.vbtn:hover:not(:disabled) { filter: brightness(1.1); }
+
+.history { font-size: 0.82rem; }
+.history table { width: 100%; border-collapse: collapse; }
+.history th { text-align: left; padding: 6px 8px; font-size: 0.7rem; text-transform: uppercase; color: #888; border-bottom: 1px solid #eee; }
+.history td { padding: 6px 8px; border-bottom: 1px solid #f5f5f5; }
+.status-pill { padding: 2px 9px; border-radius: 10px; font-size: 0.72rem; font-weight: 600; }
+.status-pill.done { background: #e8f5e9; color: #2e7d32; }
+.status-pill.pending { background: #fff8e1; color: #f57f17; }
+.status-pill.error { background: #fdecea; color: #c62828; }
+.loading { text-align: center; padding: 40px; color: #aaa; }
+
+@media (max-width: 600px) {
+  header { padding: 12px 14px; }
+  header h1 { font-size: 0.95rem; }
+  .container { padding: 0 10px 60px; margin: 12px auto; }
+  .valves { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Sprinkler</span></h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Activities</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Reports</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Values</a>
+    </div></div>
+    <a href="me-db-pv.html">PV Plant</a>
+    <a href="me-db-sprinkler.html">🌱 Sprinkler</a>
+    <a href="me-db-computer-vision.html">CCTV</a>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-abos.html">Subscriptions</a>
+    <a href="me-db-supplements.html">Supplements</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <div class="card" id="statusCard"><div class="loading">Lädt…</div></div>
+
+  <div class="card">
+    <div class="card-title">Ventile</div>
+    <div class="valves">
+      <div class="valve-card">
+        <h3>Ventil 1</h3>
+        <div class="valve-state" id="state-1">–</div>
+        <div class="valve-btns">
+          <button class="vbtn open" onclick="sendCommand('1','open')">Auf</button>
+          <button class="vbtn close" onclick="sendCommand('1','close')">Zu</button>
+        </div>
+      </div>
+      <div class="valve-card">
+        <h3>Ventil 2</h3>
+        <div class="valve-state" id="state-2">–</div>
+        <div class="valve-btns">
+          <button class="vbtn open" onclick="sendCommand('2','open')">Auf</button>
+          <button class="vbtn close" onclick="sendCommand('2','close')">Zu</button>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <button class="vbtn open" style="width:100%" onclick="sendCommand('both','open')">Beide auf</button>
+    </div>
+    <div style="margin-top:8px">
+      <button class="vbtn close" style="width:100%" onclick="sendCommand('both','close')">Beide zu</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Verlauf</div>
+    <div class="history" id="history"><div class="loading">Lädt…</div></div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  loadStatus();
+});
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+async function loadStatus() {
+  try {
+    const resp = await fetch(`${WORKER_URL}/sprinkler-status`);
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'unknown error');
+    renderStatus(data);
+    renderValveStates(data.recent_commands || []);
+    renderHistory(data.recent_commands || []);
+  } catch (e) {
+    document.getElementById('statusCard').innerHTML = `<div style="color:#c62828">Fehler beim Laden: ${e.message}</div>`;
+  }
+}
+
+function renderStatus(data) {
+  const badgeClass = data.recommend_water ? 'rec-yes' : 'rec-no';
+  const badgeText = data.recommend_water ? '💧 Sprenkeln empfohlen' : '☔ Heute nicht nötig';
+  const updated = data.latest_observed_at
+    ? new Date(data.latest_observed_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : '–';
+  document.getElementById('statusCard').innerHTML = `
+    <div class="card-title">Regen heute · Nürnberg Flughafen</div>
+    <div class="status-row">
+      <div>
+        <div class="n">${data.rain_today_mm}<span class="u">mm</span></div>
+        <div class="lbl">Niederschlag heute</div>
+      </div>
+      <div class="badge ${badgeClass}">${badgeText}</div>
+    </div>
+    <div class="updated">Schwelle: ${data.rain_threshold_mm} mm · Letzte DWD-Meldung: ${updated}</div>`;
+}
+
+function renderValveStates(commands) {
+  for (const v of ['1', '2']) {
+    const last = commands.find(c => c.valve === v || c.valve === 'both');
+    const el = document.getElementById('state-' + v);
+    if (!last) { el.textContent = 'Kein Befehl bisher'; continue; }
+    el.innerHTML = `Zuletzt: <b>${last.action === 'open' ? 'auf' : 'zu'}</b> ${statusPill(last.status)}`;
+  }
+}
+
+function statusPill(status) {
+  const label = status === 'done' ? 'ausgeführt' : status === 'pending' ? 'wartet auf Agent' : 'Fehler';
+  return `<span class="status-pill ${status}">${label}</span>`;
+}
+
+function renderHistory(commands) {
+  if (!commands.length) { document.getElementById('history').innerHTML = '<div style="color:#aaa">Noch keine Befehle.</div>'; return; }
+  document.getElementById('history').innerHTML = `
+    <table>
+      <thead><tr><th>Zeit</th><th>Ventil</th><th>Aktion</th><th>Status</th></tr></thead>
+      <tbody>${commands.map(c => `
+        <tr>
+          <td>${new Date(c.requested_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+          <td>${c.valve === 'both' ? 'Beide' : c.valve}</td>
+          <td>${c.action === 'open' ? 'Auf' : 'Zu'}</td>
+          <td>${statusPill(c.status)}</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+async function sendCommand(valve, action) {
+  const btns = document.querySelectorAll('.vbtn');
+  btns.forEach(b => b.disabled = true);
+  try {
+    const resp = await fetch(`${WORKER_URL}/sprinkler-command`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ valve, action, requested_by: 'dashboard' }),
+    });
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'unknown error');
+    await loadStatus();
+    pollUntilDone(data.command.id);
+  } catch (e) {
+    alert('Fehler: ' + e.message);
+  } finally {
+    btns.forEach(b => b.disabled = false);
+  }
+}
+
+function pollUntilDone(commandId, attempts = 0) {
+  if (attempts > 10) return; // ~30s, Agent laeuft evtl. gerade nicht
+  setTimeout(async () => {
+    await loadStatus();
+    const resp = await fetch(`${WORKER_URL}/sprinkler-status`);
+    const data = await resp.json();
+    const cmd = (data.recent_commands || []).find(c => c.id === commandId);
+    if (cmd && cmd.status === 'pending') pollUntilDone(commandId, attempts + 1);
+  }, 3000);
+}
+</script>
+</body>
+</html>
