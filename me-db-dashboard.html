@@ -135,6 +135,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-supplements.html">Supplements</a>
 
     <a href="me-db-pv.html">PV Plant</a>
+    <a href="me-db-sprinkler.html">🌱 Sprinkler</a>
     <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-architecture.html">Architecture</a>
@@ -216,6 +217,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div id="pvStat">…</div>
     </a>
 
+    <a class="tile" href="me-db-sprinkler.html">
+      <div class="icon">🌱</div>
+      <div class="title">Sprinkler</div>
+      <div class="desc">RainPoint irrigation, regen-aware via DWD Nürnberg Flughafen</div>
+      <div id="sprinklerStat">…</div>
+    </a>
+
     <a class="tile" href="me-db-trendviewer.html">
       <div class="icon">📈</div>
       <div class="title">Trend Viewer</div>
@@ -250,7 +258,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'me-db-login.html';
-  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); }
+  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); }
 });
 
 async function logout() {
@@ -515,6 +523,20 @@ async function loadPvStat() {
       <div style="font-size:0.65rem;color:#aaa;margin-top:2px">last 30 days</div>`;
   } catch (e) {
     document.getElementById('pvStat').innerHTML = '';
+  }
+}
+
+async function loadSprinklerStat() {
+  try {
+    const resp = await fetch('https://health-db-ai.st-schaab.workers.dev/sprinkler-status');
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'no data');
+    const cls = data.recommend_water ? 'up' : 'down';
+    const label = data.recommend_water ? '💧 empfohlen' : '☔ genug Regen';
+    document.getElementById('sprinklerStat').innerHTML = `
+      <div class="stat"><span class="n">${data.rain_today_mm}</span><span class="u">mm heute</span> <span class="trend ${cls}">${label}</span></div>`;
+  } catch (e) {
+    document.getElementById('sprinklerStat').innerHTML = '';
   }
 }
 
