@@ -180,7 +180,29 @@ let valvesData = [];
 let schedulesData = [];
 
 async function loadAll() {
-  await Promise.all([loadStatus(), loadValvesAndSchedules(), loadRules()]);
+  await Promise.all([loadStatus(), loadValvesAndSchedules(), loadRules(), loadLiveDeviceStatus()]);
+}
+
+async function loadLiveDeviceStatus() {
+  try {
+    const resp = await fetch(`${WORKER_URL}/sprinkler-device-status`);
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'unknown error');
+    for (const [id, v] of Object.entries(data.valves)) {
+      const el = document.getElementById('livestate-' + id);
+      if (!el) continue;
+      if (v.error) { el.textContent = 'Live-Status: ' + v.error; continue; }
+      const s = v.status || {};
+      const on = s.switch;
+      const mins = s.countdown ? Math.ceil(s.countdown / 60) : null;
+      const modeNote = s.work_state === 'auto' ? ' · Achtung: läuft im geräteeigenen "auto"-Modus, nicht von unserem Zeitplan' : '';
+      el.textContent = on
+        ? `Live: läuft gerade${mins ? ` (noch ~${mins} min)` : ''}${modeNote}`
+        : `Live: aus (Batterie ${s.battery_percentage ?? '?'}%)`;
+    }
+  } catch (e) {
+    // still ok - regular history above already works without this
+  }
 }
 
 async function loadStatus() {
@@ -233,6 +255,7 @@ async function loadValvesAndSchedules() {
     valvesData = vRes.data || [];
     schedulesData = sRes.data || [];
     renderValves();
+    if (window.__lastCommands) renderHistory(window.__lastCommands);
   } catch (e) {
     document.getElementById('valves').innerHTML = `<div style="color:#c62828">Fehler: ${e.message}</div>`;
   }
@@ -252,6 +275,7 @@ function renderValves() {
         </label>
       </div>
       <div class="valve-state" id="state-${v.id}">–</div>
+      <div class="valve-state" id="livestate-${v.id}" style="color:#1976d2">–</div>
       <div class="valve-btns">
         <button class="vbtn open" onclick="sendCommand('${v.id}','open')">Auf</button>
         <input class="dur-input" type="number" min="1" max="120" value="15" id="manualdur-${v.id}" title="Minuten">
@@ -316,7 +340,7 @@ function renderHistory(commands) {
           <td>${new Date(c.requested_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
             ${c.note ? `<div class="note">${escapeHtml(c.note)}</div>` : ''}
           </td>
-          <td>${c.valve === 'both' ? 'Beide' : c.valve}</td>
+          <td>${valveLabel(c.valve)}</td>
           <td>${c.action === 'open' ? 'Auf' : c.action === 'close' ? 'Zu' : 'Übersprungen'} ${c.requested_by === 'scheduler' ? '<span style="color:#aaa">(Plan)</span>' : ''}</td>
           <td>${c.duration_min ? c.duration_min + ' min' + untilHtml(c) : '–'}</td>
           <td>${statusPill(c.status)}</td>
@@ -420,6 +444,12 @@ async function saveRules() {
   msg.textContent = 'Gespeichert ✓';
   setTimeout(() => { msg.textContent = ''; }, 3000);
   await loadStatus();
+}
+
+function valveLabel(valveId) {
+  if (valveId === 'both') return 'Beide';
+  const v = valvesData.find(x => x.id === valveId);
+  return v ? v.name : valveId;
 }
 
 function untilHtml(c) {
