@@ -318,7 +318,7 @@ function renderHistory(commands) {
           </td>
           <td>${c.valve === 'both' ? 'Beide' : c.valve}</td>
           <td>${c.action === 'open' ? 'Auf' : c.action === 'close' ? 'Zu' : 'Übersprungen'} ${c.requested_by === 'scheduler' ? '<span style="color:#aaa">(Plan)</span>' : ''}</td>
-          <td>${c.duration_min ? c.duration_min + ' min' : '–'}</td>
+          <td>${c.duration_min ? c.duration_min + ' min' + untilHtml(c) : '–'}</td>
           <td>${statusPill(c.status)}</td>
         </tr>`).join('')}</tbody>
     </table>`;
@@ -420,6 +420,14 @@ async function saveRules() {
   msg.textContent = 'Gespeichert ✓';
   setTimeout(() => { msg.textContent = ''; }, 3000);
   await loadStatus();
+}
+
+function untilHtml(c) {
+  if (c.action !== 'open' || !c.duration_min) return '';
+  const closeAt = new Date(new Date(c.requested_at).getTime() + c.duration_min * 60000);
+  const timeStr = closeAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  const stillRunning = closeAt.getTime() > Date.now();
+  return `<div class="note">${stillRunning ? 'läuft bis' : 'schloss um'} ${timeStr} (Ventil-Countdown, kein separater Log-Eintrag)</div>`;
 }
 
 function escapeHtml(s) {
