@@ -251,13 +251,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <text x="1560" y="514" text-anchor="middle" fill="#5ecfcf" font-size="9.5" font-family="monospace">/sprinkler-status · -command</text>
         <text x="1560" y="529" text-anchor="middle" fill="#5ecfcf" font-size="9.5" font-family="monospace">/sync-dwd-rain · -schedule-check</text>
         <line x1="1450" y1="538" x2="1670" y2="538" stroke="#5a3000"/>
-        <text x="1560" y="553" text-anchor="middle" fill="#ffe7c7" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">scheduled(): 05:00 täglich (Strava+PV)</text>
-        <text x="1560" y="567" text-anchor="middle" fill="#5ecfcf" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">+ stündlich (Regen) + alle 5 Min (Sprinkler)</text>
+        <text x="1560" y="553" text-anchor="middle" fill="#ffe7c7" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">scheduled(): 05:00 daily (Strava+PV)</text>
+        <text x="1560" y="567" text-anchor="middle" fill="#5ecfcf" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">+ hourly (rain) + every 5 min (sprinkler)</text>
         <line x1="1450" y1="577" x2="1670" y2="577" stroke="#5a3000"/>
         <text x="1560" y="594" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">ANTHROPIC_API_KEY</text>
         <text x="1560" y="610" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">SUPABASE_SERVICE_KEY</text>
         <text x="1560" y="626" text-anchor="middle" fill="#ffe7c7" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">STRAVA_CLIENT_SECRET · SMA-Login</text>
-        <text x="1560" y="642" text-anchor="middle" fill="#5ecfcf" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Tuya-Session in Supabase (kein Secret)</text>
+        <text x="1560" y="642" text-anchor="middle" fill="#5ecfcf" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Tuya session in Supabase (not a secret)</text>
         <text x="1560" y="663" text-anchor="middle" fill="#ffcd9e" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">deployed via raw API (no wrangler)</text>
       </g>
 
@@ -335,9 +335,9 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <g>
         <rect x="1410" y="1000" width="220" height="90" rx="10" fill="white" stroke="#f38020" stroke-width="1.5" stroke-dasharray="4 3"/>
         <text x="1520" y="1023" text-anchor="middle" fill="#f38020" font-size="11.5" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">⏱ CF Cron Trigger (3×)</text>
-        <text x="1520" y="1040" text-anchor="middle" fill="#c87a3a" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">05:00 UTC täglich · Strava+PV+DWD</text>
-        <text x="1520" y="1055" text-anchor="middle" fill="#5ecfcf" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">stündlich · DWD-Live-Regen</text>
-        <text x="1520" y="1070" text-anchor="middle" fill="#5ecfcf" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">alle 5 Min · Sprinkler-Zeitplan-Check</text>
+        <text x="1520" y="1040" text-anchor="middle" fill="#c87a3a" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">05:00 UTC daily · Strava+PV+DWD</text>
+        <text x="1520" y="1055" text-anchor="middle" fill="#5ecfcf" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">hourly · DWD live rain</text>
+        <text x="1520" y="1070" text-anchor="middle" fill="#5ecfcf" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">every 5 min · sprinkler schedule check</text>
       </g>
 
       <!-- ===== COMPUTER VISION ZONE ===== -->
@@ -449,19 +449,19 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <text x="320" y="1370">📥 .py herunterladen</text>
       </g>
 
-      <!-- ===== SPRINKLER ZONE (seit 2026-08-02) ===== -->
+      <!-- ===== SPRINKLER ZONE (since 2026-08-02) ===== -->
       <rect x="850" y="1140" width="1000" height="440" rx="18" fill="#0d4f4f" fill-opacity="0.04" stroke="#0d4f4f" stroke-width="1.5" stroke-dasharray="7 4"/>
-      <text x="871" y="1163" fill="#0d4f4f" font-size="12" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">🌱  Sprinkler / Bewässerung</text>
+      <text x="871" y="1163" fill="#0d4f4f" font-size="12" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">🌱  Sprinkler / Irrigation</text>
 
       <!-- Sprinkler edges -->
       <g stroke="#8a8fa3" stroke-width="2" fill="none" marker-end="url(#arrow)">
-        <!-- DWD Live-Wetter -> Worker (hourly sync) -->
+        <!-- DWD Live Weather -> Worker (hourly sync) -->
         <path d="M980,1175 C 1150,1050 1300,800 1430,660" stroke="#f38020" marker-end="url(#arrowCron)"/>
         <!-- Worker -> Tuya Cloud (commands, signed+encrypted) -->
         <path d="M1500,650 C 1450,900 1400,1050 1360,1175"/>
         <!-- Tuya Cloud -> Worker (status shadow read back) -->
         <path d="M1310,1175 C 1350,1000 1400,780 1445,655" marker-start="url(#arrow)" marker-end="none" stroke-dasharray="5 3"/>
-        <!-- Tuya Cloud <-> Gateway+Ventile -->
+        <!-- Tuya Cloud <-> Gateway+Valves -->
         <path d="M1440,1250 L 1500,1250" marker-start="url(#arrow)"/>
         <!-- CF Cron -> Worker (5-min schedule check, extra to existing daily trigger) -->
         <path d="M1520,1090 C 1510,930 1495,780 1470,660" stroke="#f38020" stroke-dasharray="3 2" marker-end="url(#arrowCron)"/>
@@ -471,21 +471,21 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
       <!-- Sprinkler edge labels -->
       <g font-size="10" fill="#6b7280" font-family="-apple-system,Segoe UI,sans-serif">
-        <text x="1010" y="980" fill="#f38020">/sync-dwd-rain · stündlich</text>
-        <text x="1355" y="920">Befehl (signiert+verschlüsselt)</text>
-        <text x="1355" y="1000" fill="#999">Status-Shadow (letzter gemeldeter Zustand)</text>
+        <text x="1010" y="980" fill="#f38020">/sync-dwd-rain · hourly</text>
+        <text x="1355" y="920">command (signed+encrypted)</text>
+        <text x="1355" y="1000" fill="#999">status shadow (last reported state)</text>
         <text x="1442" y="1243">BLE (Bluetooth Mesh)</text>
-        <text x="1150" y="1230" fill="#999" font-size="9">Fallback: sprinkler_agent.py (normalerweise nicht nötig)</text>
+        <text x="1150" y="1230" fill="#999" font-size="9">Fallback: sprinkler_agent.py (normally not needed)</text>
       </g>
 
-      <!-- DWD Live-Wetter -->
+      <!-- DWD Live Weather -->
       <g>
         <rect x="870" y="1175" width="220" height="120" rx="12" fill="#2a2a40" stroke="#2a2a40"/>
-        <text x="980" y="1203" text-anchor="middle" fill="#a0a8d0" font-size="13" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">🌦 DWD Live-Wetter</text>
-        <text x="980" y="1221" text-anchor="middle" fill="#8890b8" font-size="9" font-family="monospace">POI-Feed 10763-BEOB.csv</text>
-        <text x="980" y="1237" text-anchor="middle" fill="#8890b8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Nürnberg Flughafen (DWD 3668)</text>
+        <text x="980" y="1203" text-anchor="middle" fill="#a0a8d0" font-size="13" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">🌦 DWD Live Weather</text>
+        <text x="980" y="1221" text-anchor="middle" fill="#8890b8" font-size="9" font-family="monospace">POI feed 10763-BEOB.csv</text>
+        <text x="980" y="1237" text-anchor="middle" fill="#8890b8" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">Nuremberg Airport (DWD 3668)</text>
         <line x1="888" y1="1248" x2="1072" y2="1248" stroke="#3a3a5a"/>
-        <text x="980" y="1265" text-anchor="middle" fill="#8890b8" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">Regen (mm/h) + Temperatur</text>
+        <text x="980" y="1265" text-anchor="middle" fill="#8890b8" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">Rain (mm/h) + temperature</text>
         <text x="980" y="1281" text-anchor="middle" fill="#8890b8" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">→ dwd_precip_hourly</text>
       </g>
 
@@ -495,27 +495,27 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <text x="1245" y="1203" text-anchor="middle" fill="#5ecfcf" font-size="13" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">☁️ Tuya Cloud</text>
         <text x="1245" y="1220" text-anchor="middle" fill="#9edede" font-size="9" font-family="monospace">apigw.tuyaeu.com</text>
         <line x1="1148" y1="1231" x2="1342" y2="1231" stroke="#0a5a5a"/>
-        <text x="1245" y="1248" text-anchor="middle" fill="#c5eded" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">Session = QR-Login Tuya-Smart-App</text>
-        <text x="1245" y="1263" text-anchor="middle" fill="#c5eded" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">(nicht offizielle Dev-Cloud, s. unten)</text>
+        <text x="1245" y="1248" text-anchor="middle" fill="#c5eded" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">Session = QR login via Tuya Smart App</text>
+        <text x="1245" y="1263" text-anchor="middle" fill="#c5eded" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">(not Tuya's official Developer Cloud)</text>
         <line x1="1148" y1="1274" x2="1342" y2="1274" stroke="#0a5a5a"/>
-        <text x="1245" y="1291" text-anchor="middle" fill="#9edede" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">Signierung im Worker nachgebaut:</text>
+        <text x="1245" y="1291" text-anchor="middle" fill="#9edede" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">Signing reimplemented in Worker:</text>
         <text x="1245" y="1305" text-anchor="middle" fill="#9edede" font-size="8.5" font-family="monospace">MD5 + HMAC-SHA256 + AES-128-GCM</text>
-        <text x="1245" y="1321" text-anchor="middle" fill="#9edede" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">Token-Refresh → tuya_session (Supabase)</text>
+        <text x="1245" y="1321" text-anchor="middle" fill="#9edede" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">Token refresh → tuya_session (Supabase)</text>
       </g>
 
-      <!-- Gateway + Ventile -->
+      <!-- Gateway + Valves -->
       <g>
         <rect x="1400" y="1175" width="280" height="180" rx="12" fill="#37404d" stroke="#37404d"/>
         <text x="1540" y="1203" text-anchor="middle" fill="white" font-size="13" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">📡 TWG009BW Gateway</text>
-        <text x="1540" y="1220" text-anchor="middle" fill="#c4cdd9" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">RainPoint · WLAN, bei Stefan zuhause</text>
+        <text x="1540" y="1220" text-anchor="middle" fill="#c4cdd9" font-size="9" font-family="-apple-system,Segoe UI,sans-serif">RainPoint · WiFi, at Stefan's home</text>
         <line x1="1418" y1="1231" x2="1662" y2="1231" stroke="#4a5568"/>
-        <text x="1540" y="1249" text-anchor="middle" fill="#cdd6e0" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">💧 Ventil 1 "Gemüsegarten" (TTV102B)</text>
-        <text x="1540" y="1266" text-anchor="middle" fill="#cdd6e0" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">💧 Ventil 2 "Blumenwiese" (TTV102B)</text>
-        <text x="1540" y="1282" text-anchor="middle" fill="#c4cdd9" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">beide per BLE-Mesh am Gateway</text>
+        <text x="1540" y="1249" text-anchor="middle" fill="#cdd6e0" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">💧 Valve 1 "Vegetable Garden" (TTV102B)</text>
+        <text x="1540" y="1266" text-anchor="middle" fill="#cdd6e0" font-size="9.5" font-family="-apple-system,Segoe UI,sans-serif">💧 Valve 2 "Flower Meadow" (TTV102B)</text>
+        <text x="1540" y="1282" text-anchor="middle" fill="#c4cdd9" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">both via BLE mesh on gateway</text>
         <line x1="1418" y1="1293" x2="1662" y2="1293" stroke="#4a5568"/>
-        <text x="1540" y="1310" text-anchor="middle" fill="#c4cdd9" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">switch + countdown-DP (Geräte-Auto-Stopp)</text>
-        <text x="1540" y="1326" text-anchor="middle" fill="#e0a0a0" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">⚠ App-eigener Zeitplan kann parallel laufen!</text>
-        <text x="1540" y="1342" text-anchor="middle" fill="#c4cdd9" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">local_key nicht erhältlich → kein LAN-Weg</text>
+        <text x="1540" y="1310" text-anchor="middle" fill="#c4cdd9" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">switch + countdown DP (device auto-stop)</text>
+        <text x="1540" y="1326" text-anchor="middle" fill="#e0a0a0" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">⚠ app's own schedule can run in parallel!</text>
+        <text x="1540" y="1342" text-anchor="middle" fill="#c4cdd9" font-size="8.5" font-family="-apple-system,Segoe UI,sans-serif">local_key unobtainable → no LAN path</text>
       </g>
 
     </svg>
@@ -538,7 +538,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="row"><div class="sw" style="background:#2a1810"></div>Camera Setup Tool (einmalig)</div>
   <div class="row"><div class="sw" style="background:#1e1040"></div>Smartphone (manuelles Foto)</div>
   <div class="row"><div class="sw" style="background:#003d3d"></div>Tuya Cloud (Sprinkler)</div>
-  <div class="row"><div class="sw" style="background:#0d4f4f"></div>Sprinkler-Zone (Gateway, DWD Live)</div>
+  <div class="row"><div class="sw" style="background:#0d4f4f"></div>Sprinkler zone (Gateway, DWD Live)</div>
   <div class="hint">Scroll/pinch to zoom · drag to pan · buttons bottom-right</div>
 </div>
 
