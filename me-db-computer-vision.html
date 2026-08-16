@@ -322,6 +322,9 @@ db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   loadCams(); loadFunctions(); loadReadings(); loadAgentStatus();
   setInterval(() => { loadAgentStatus(); loadReadings(); }, 30000);
+  // Direktsprung aus dem Trend Viewer (?edit=<meter_reading id>) → sofort Korrektur-Modal öffnen
+  const editId = new URLSearchParams(location.search).get('edit');
+  if (editId) openReadingDetail(editId);
 });
 
 function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -1701,8 +1704,15 @@ let allReadings = [];
 let currentModalReadingId = null, currentModalUnit = '', currentModalOriginalValue = null;
 
 async function openReadingDetail(id) {
-  const r = allReadings.find(x => x.id === id);
-  if (!r) return;
+  let r = allReadings.find(x => x.id === id);
+  if (!r) {
+    // Nicht in der aktuell geladenen Seite/Filterung (z.B. Sprung aus dem Trend Viewer
+    // auf eine ältere Ablesung) → direkt per ID nachladen.
+    const { data } = await db.from('meter_readings').select('*').eq('id', id).single();
+    if (!data) { alert('Ablesung nicht gefunden (evtl. gelöscht).'); return; }
+    r = data;
+    allReadings.push(r);
+  }
   currentModalReadingId = id;
   currentModalUnit = r.unit;
   const overlay = document.getElementById('readingModal');
