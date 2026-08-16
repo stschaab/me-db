@@ -130,7 +130,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <button class="rbtn" onclick="setRange(365, this)">1Y</button>
     <button class="rbtn active" onclick="setRange(0, this)">All</button>
     <button class="reset-btn" onclick="resetZoom()">⟲ Reset zoom</button>
-    <span class="hint">Scroll to zoom · Drag to pan · Double-click to reset</span>
+    <span class="hint">Scroll to zoom · Drag to pan · Double-click to reset · Zähler-Punkt anklicken → Korrektur in Computer Vision</span>
   </div>
 
   <div class="series-panel" id="seriesPanel">
@@ -222,6 +222,7 @@ async function loadMeterCatalog() {
     id: 'meter_' + r.agent_name.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g,''),
     label: r.agent_name, unit: r.unit || 'm3', category: r.meter_type || '',
     load: () => loadMeterData(r.agent_name),
+    cvLink: true, // Punkte sind einzelne meter_readings-Zeilen → anklickbar, springt zur Korrektur in Computer Vision
   }))});
   renderPanel();
 }
@@ -229,8 +230,8 @@ async function loadMeterCatalog() {
 async function loadMeterData(agentName) {
   const key = 'meter_' + agentName;
   if (tableCache[key]) return tableCache[key];
-  const { data } = await db.from('meter_readings').select('captured_at,value').eq('agent_name', agentName).order('captured_at', { ascending: true });
-  tableCache[key] = (data || []).map(r => ({ x: new Date(r.captured_at).getTime(), y: +r.value }));
+  const { data } = await db.from('meter_readings').select('id,captured_at,value').eq('agent_name', agentName).order('captured_at', { ascending: true });
+  tableCache[key] = (data || []).map(r => ({ x: new Date(r.captured_at).getTime(), y: +r.value, id: r.id }));
   return tableCache[key];
 }
 
@@ -458,12 +459,13 @@ function rebuildChart() {
 
     traces.push({
       x: xs, y: ys,
+      customdata: s.def.cvLink ? pts.map(p => p.id) : undefined,
       mode: pts.length < 100 ? 'lines+markers' : 'lines',
       name: s.def.label,
       line: { color: s.color, width: 2 },
       marker: { color: s.color, size: 5 },
       yaxis: yref,
-      hovertemplate: `<b>${esc(s.def.label)}</b>: %{y:.4g} ${s.def.unit}<br>%{x|%d %b %Y %H:%M}<extra></extra>`,
+      hovertemplate: `<b>${esc(s.def.label)}</b>: %{y:.4g} ${s.def.unit}<br>%{x|%d %b %Y %H:%M}${s.def.cvLink ? '<br><i>Klick → Korrektur in Computer Vision</i>' : ''}<extra></extra>`,
     });
   });
 
@@ -475,11 +477,17 @@ function rebuildChart() {
     doubleClick: 'autosize',
   };
 
+  const chartEl = document.getElementById('trendChart');
   if (plotInited) {
     Plotly.react('trendChart', traces, layout, config);
   } else {
     Plotly.newPlot('trendChart', traces, layout, config);
     plotInited = true;
+    chartEl.on('plotly_click', function (ev) {
+      const pt = ev.points && ev.points[0];
+      if (!pt || pt.customdata == null) return;
+      window.open('me-db-computer-vision.html?edit=' + encodeURIComponent(pt.customdata), '_blank');
+    });
   }
 }
 
