@@ -163,12 +163,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <div class="dfield"><label>Name</label><input id="dName"></div>
     <div class="dfield"><label>Product / Model</label><input id="dProductName" placeholder="e.g. Creatin Monohydrat 500g"></div>
     <div class="dgrid">
-      <div class="dfield"><label>Amount/Day</label><input id="dAmount" type="number" step="0.01"></div>
-      <div class="dfield"><label>Unit</label><input id="dUnit" placeholder="capsules, mg…"></div>
+      <div class="dfield"><label>Amount/Day</label><input id="dAmount" type="number" step="0.01" oninput="updateElementalPreview()"></div>
+      <div class="dfield"><label>Unit</label><input id="dUnit" placeholder="capsules, mg…" oninput="updateElementalPreview()"></div>
     </div>
-    <div class="dgrid">
-      <div class="dfield"><label>Elemental Amount</label><input id="dElementalAmount" type="number" step="0.01" placeholder="e.g. 140.9"></div>
-      <div class="dfield"><label>Elemental Unit</label><input id="dElementalUnit" placeholder="mg"></div>
+    <div class="dfield">
+      <label>Elemental content (mg per g compound)</label>
+      <input id="dElementalPerGram" type="number" step="0.01" placeholder="e.g. 140.9 for Mg-bisglycinate" oninput="updateElementalPreview()">
+      <div id="elementalPreview" style="font-size:0.78rem;color:#888;margin-top:4px;"></div>
     </div>
     <div class="dfield"><label>When</label><input id="dTiming" placeholder="morning…"></div>
     <div class="dfield"><label>Manufacturer</label><input id="dManufacturer"></div>
@@ -249,6 +250,34 @@ function dailyCost(s) {
   return (pp / pa) * da;
 }
 
+// mg elemental mineral per day = daily_amount (converted to grams) × elemental_mg_per_gram.
+// Not stored — computed live so it never goes stale when daily_amount changes, same pattern as dailyCost().
+function gramsPerDay(daily_amount, unit) {
+  const da = parseFloat(daily_amount);
+  if (!da) return null;
+  const u = (unit || '').trim().toLowerCase();
+  if (u === 'g') return da;
+  if (u === 'mg') return da / 1000;
+  return null; // unit not mass-based (capsules, ml, …) — can't derive grams
+}
+
+function elementalDaily(s) {
+  const perGram = parseFloat(s.elemental_mg_per_gram);
+  if (!perGram) return null;
+  const g = gramsPerDay(s.daily_amount, s.unit);
+  if (g == null) return null;
+  return g * perGram;
+}
+
+function updateElementalPreview() {
+  const perGram = parseFloat(document.getElementById('dElementalPerGram').value);
+  const el = document.getElementById('elementalPreview');
+  if (!perGram) { el.textContent = ''; return; }
+  const g = gramsPerDay(document.getElementById('dAmount').value, document.getElementById('dUnit').value);
+  if (g == null) { el.textContent = '→ daily amount needs to be in g or mg to compute the daily dose'; return; }
+  el.textContent = `→ ${(g * perGram).toFixed(1)} mg elemental / day`;
+}
+
 async function loadSupps() {
   const { data, error } = await db.from('supplements').select('*').order('name');
   if (error) { document.getElementById('content').innerHTML = `<div class="empty">Error: ${error.message}</div>`; return; }
@@ -289,7 +318,8 @@ function supRow(s) {
   const cost = dailyCost(s);
   const meta = [];
   if (s.daily_amount) meta.push(`${s.daily_amount}${s.unit ? ' '+esc(s.unit) : 'x'}/day`);
-  if (s.elemental_amount) meta.push(`${s.elemental_amount}${s.elemental_unit ? ' '+esc(s.elemental_unit) : ''} elemental`);
+  const elDaily = elementalDaily(s);
+  if (elDaily != null) meta.push(`${elDaily.toFixed(1)}mg elemental`);
   if (s.timing) meta.push(esc(s.timing));
   if (s.manufacturer) meta.push(esc(s.manufacturer));
   if (s.package_amount) meta.push(`Package: ${s.package_amount}${s.package_unit ? ' '+esc(s.package_unit) : ''}`);
@@ -314,8 +344,7 @@ function openDetail(id) {
   document.getElementById('dName').value = s.name || '';
   document.getElementById('dAmount').value = s.daily_amount ?? '';
   document.getElementById('dUnit').value = s.unit || '';
-  document.getElementById('dElementalAmount').value = s.elemental_amount ?? '';
-  document.getElementById('dElementalUnit').value = s.elemental_unit || '';
+  document.getElementById('dElementalPerGram').value = s.elemental_mg_per_gram ?? '';
   document.getElementById('dProductName').value = s.product_name || '';
   document.getElementById('dTiming').value = s.timing || '';
   document.getElementById('dManufacturer').value = s.manufacturer || '';
@@ -335,6 +364,7 @@ function openDetail(id) {
   document.getElementById('scanBtnWrap').style.display = 'none';
   document.getElementById('scanStatus').textContent = '';
   if (!isNew) loadPhotoUrls(s);
+  updateElementalPreview();
   document.getElementById('overlay').classList.add('show');
 }
 
@@ -350,8 +380,7 @@ async function saveDetail() {
     name,
     daily_amount: document.getElementById('dAmount').value === '' ? null : parseFloat(document.getElementById('dAmount').value),
     unit: document.getElementById('dUnit').value.trim() || null,
-    elemental_amount: document.getElementById('dElementalAmount').value === '' ? null : parseFloat(document.getElementById('dElementalAmount').value),
-    elemental_unit: document.getElementById('dElementalUnit').value.trim() || null,
+    elemental_mg_per_gram: document.getElementById('dElementalPerGram').value === '' ? null : parseFloat(document.getElementById('dElementalPerGram').value),
     product_name: document.getElementById('dProductName').value.trim() || null,
     timing: document.getElementById('dTiming').value.trim() || null,
     manufacturer: document.getElementById('dManufacturer').value.trim() || null,
@@ -501,10 +530,10 @@ async function scanWithAI() {
     if (r.manufacturer) document.getElementById('dManufacturer').value = r.manufacturer;
     if (r.daily_amount != null) document.getElementById('dAmount').value = r.daily_amount;
     if (r.unit) document.getElementById('dUnit').value = r.unit;
-    if (r.elemental_amount != null) document.getElementById('dElementalAmount').value = r.elemental_amount;
-    if (r.elemental_unit) document.getElementById('dElementalUnit').value = r.elemental_unit;
+    if (r.elemental_mg_per_gram != null) document.getElementById('dElementalPerGram').value = r.elemental_mg_per_gram;
     if (r.package_amount != null) document.getElementById('dPackageAmount').value = r.package_amount;
     if (r.package_unit) document.getElementById('dPackageUnit').value = r.package_unit;
+    updateElementalPreview();
 
     statusEl.style.color = '#2e7d32';
     statusEl.textContent = '✓ Fields filled — please review and save';
