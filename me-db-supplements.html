@@ -166,6 +166,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div class="dfield"><label>Amount/Day</label><input id="dAmount" type="number" step="0.01"></div>
       <div class="dfield"><label>Unit</label><input id="dUnit" placeholder="capsules, mg…"></div>
     </div>
+    <div class="dgrid">
+      <div class="dfield"><label>Elemental Amount</label><input id="dElementalAmount" type="number" step="0.01" placeholder="e.g. 140.9"></div>
+      <div class="dfield"><label>Elemental Unit</label><input id="dElementalUnit" placeholder="mg"></div>
+    </div>
     <div class="dfield"><label>When</label><input id="dTiming" placeholder="morning…"></div>
     <div class="dfield"><label>Manufacturer</label><input id="dManufacturer"></div>
     <div class="dgrid">
@@ -285,6 +289,7 @@ function supRow(s) {
   const cost = dailyCost(s);
   const meta = [];
   if (s.daily_amount) meta.push(`${s.daily_amount}${s.unit ? ' '+esc(s.unit) : 'x'}/day`);
+  if (s.elemental_amount) meta.push(`${s.elemental_amount}${s.elemental_unit ? ' '+esc(s.elemental_unit) : ''} elemental`);
   if (s.timing) meta.push(esc(s.timing));
   if (s.manufacturer) meta.push(esc(s.manufacturer));
   if (s.package_amount) meta.push(`Package: ${s.package_amount}${s.package_unit ? ' '+esc(s.package_unit) : ''}`);
@@ -309,6 +314,8 @@ function openDetail(id) {
   document.getElementById('dName').value = s.name || '';
   document.getElementById('dAmount').value = s.daily_amount ?? '';
   document.getElementById('dUnit').value = s.unit || '';
+  document.getElementById('dElementalAmount').value = s.elemental_amount ?? '';
+  document.getElementById('dElementalUnit').value = s.elemental_unit || '';
   document.getElementById('dProductName').value = s.product_name || '';
   document.getElementById('dTiming').value = s.timing || '';
   document.getElementById('dManufacturer').value = s.manufacturer || '';
@@ -343,6 +350,8 @@ async function saveDetail() {
     name,
     daily_amount: document.getElementById('dAmount').value === '' ? null : parseFloat(document.getElementById('dAmount').value),
     unit: document.getElementById('dUnit').value.trim() || null,
+    elemental_amount: document.getElementById('dElementalAmount').value === '' ? null : parseFloat(document.getElementById('dElementalAmount').value),
+    elemental_unit: document.getElementById('dElementalUnit').value.trim() || null,
     product_name: document.getElementById('dProductName').value.trim() || null,
     timing: document.getElementById('dTiming').value.trim() || null,
     manufacturer: document.getElementById('dManufacturer').value.trim() || null,
@@ -492,6 +501,8 @@ async function scanWithAI() {
     if (r.manufacturer) document.getElementById('dManufacturer').value = r.manufacturer;
     if (r.daily_amount != null) document.getElementById('dAmount').value = r.daily_amount;
     if (r.unit) document.getElementById('dUnit').value = r.unit;
+    if (r.elemental_amount != null) document.getElementById('dElementalAmount').value = r.elemental_amount;
+    if (r.elemental_unit) document.getElementById('dElementalUnit').value = r.elemental_unit;
     if (r.package_amount != null) document.getElementById('dPackageAmount').value = r.package_amount;
     if (r.package_unit) document.getElementById('dPackageUnit').value = r.package_unit;
 
