@@ -192,6 +192,29 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <button class="scan-btn" onclick="scanWithAI()">🤖 AI Scan – fill fields from photos</button>
       <div id="scanStatus" style="font-size:0.78rem;color:#888;margin-top:6px"></div>
     </div>
+    <div class="dfield">
+      <label>Lieferanten (KI-Suche)</label>
+      <button class="scan-btn" id="findSuppliersBtn" onclick="findSuppliers()">🔍 3 Lieferanten mit KI finden</button>
+      <div id="supplierStatus" style="font-size:0.78rem;color:#888;margin-top:6px"></div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+        <div style="display:grid;grid-template-columns:1.3fr 0.7fr;gap:6px">
+          <input id="sup0Name" placeholder="Shop 1">
+          <input id="sup0Price" type="number" step="0.01" placeholder="€">
+        </div>
+        <input id="sup0Url" placeholder="Link zum Produkt">
+        <div style="display:grid;grid-template-columns:1.3fr 0.7fr;gap:6px;margin-top:6px">
+          <input id="sup1Name" placeholder="Shop 2">
+          <input id="sup1Price" type="number" step="0.01" placeholder="€">
+        </div>
+        <input id="sup1Url" placeholder="Link zum Produkt">
+        <div style="display:grid;grid-template-columns:1.3fr 0.7fr;gap:6px;margin-top:6px">
+          <input id="sup2Name" placeholder="Shop 3">
+          <input id="sup2Price" type="number" step="0.01" placeholder="€">
+        </div>
+        <input id="sup2Url" placeholder="Link zum Produkt">
+      </div>
+    </div>
+    <div class="dfield"><label>Manueller Lieferant</label><input id="dManualSupplier" placeholder="z.B. aus Mail-Bestellung, Filiale…"></div>
     <div class="detail-actions">
       <button class="del-btn" id="delBtn" onclick="deleteSup()">Delete</button>
       <button class="save-btn" onclick="saveDetail()">Save</button>
@@ -214,6 +237,7 @@ let saveTimers = {};
 let photoFiles = [null, null, null];
 let photoUrls  = [null, null, null];
 let photoSlotPicking = null;
+let currentAiCheckedAt = null;
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
@@ -352,6 +376,17 @@ function openDetail(id) {
   document.getElementById('dPackageUnit').value = s.package_unit || '';
   document.getElementById('dPackagePrice').value = s.package_price ?? '';
   document.getElementById('dActive').checked = isNew ? true : !!s.active;
+  for (let i = 0; i < 3; i++) {
+    document.getElementById('sup'+i+'Name').value  = s['ai_supplier_'+(i+1)+'_name']  || '';
+    document.getElementById('sup'+i+'Price').value = s['ai_supplier_'+(i+1)+'_price'] ?? '';
+    document.getElementById('sup'+i+'Url').value   = s['ai_supplier_'+(i+1)+'_url']   || '';
+  }
+  document.getElementById('dManualSupplier').value = s.manual_supplier || '';
+  currentAiCheckedAt = s.ai_suppliers_checked_at || null;
+  document.getElementById('supplierStatus').style.color = '#888';
+  document.getElementById('supplierStatus').textContent = currentAiCheckedAt
+    ? 'Zuletzt per KI geprüft: ' + new Date(currentAiCheckedAt).toLocaleDateString('de-DE')
+    : '';
   document.querySelector('.detail-card h2 span').textContent = isNew ? 'New Supplement' : 'Edit Supplement';
   document.getElementById('delBtn').style.display = isNew ? 'none' : '';
   // reset photo slots
@@ -388,6 +423,17 @@ async function saveDetail() {
     package_unit: document.getElementById('dPackageUnit').value.trim() || null,
     package_price: document.getElementById('dPackagePrice').value === '' ? null : parseFloat(document.getElementById('dPackagePrice').value),
     active: document.getElementById('dActive').checked,
+    ai_supplier_1_name:  document.getElementById('sup0Name').value.trim() || null,
+    ai_supplier_1_price: document.getElementById('sup0Price').value === '' ? null : parseFloat(document.getElementById('sup0Price').value),
+    ai_supplier_1_url:   document.getElementById('sup0Url').value.trim() || null,
+    ai_supplier_2_name:  document.getElementById('sup1Name').value.trim() || null,
+    ai_supplier_2_price: document.getElementById('sup1Price').value === '' ? null : parseFloat(document.getElementById('sup1Price').value),
+    ai_supplier_2_url:   document.getElementById('sup1Url').value.trim() || null,
+    ai_supplier_3_name:  document.getElementById('sup2Name').value.trim() || null,
+    ai_supplier_3_price: document.getElementById('sup2Price').value === '' ? null : parseFloat(document.getElementById('sup2Price').value),
+    ai_supplier_3_url:   document.getElementById('sup2Url').value.trim() || null,
+    ai_suppliers_checked_at: currentAiCheckedAt,
+    manual_supplier: document.getElementById('dManualSupplier').value.trim() || null,
     updated_at: new Date().toISOString(),
   };
   if (detailId == null) {
@@ -540,6 +586,49 @@ async function scanWithAI() {
   } catch (e) {
     statusEl.style.color = '#c62828';
     statusEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function findSuppliers() {
+  const statusEl = document.getElementById('supplierStatus');
+  const btn = document.getElementById('findSuppliersBtn');
+  const name = document.getElementById('dName').value.trim();
+  if (!name) { showToast('Bitte zuerst einen Namen eingeben'); return; }
+  btn.disabled = true;
+  statusEl.style.color = '#888';
+  statusEl.textContent = '🔎 Claude durchsucht das Web nach Lieferanten… (kann bis zu 45s dauern)';
+  try {
+    const resp = await fetch(WORKER_URL + '/find-suppliers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        product_name: document.getElementById('dProductName').value.trim() || null,
+        manufacturer: document.getElementById('dManufacturer').value.trim() || null,
+        package_amount: document.getElementById('dPackageAmount').value || null,
+        package_unit: document.getElementById('dPackageUnit').value.trim() || null,
+      }),
+    });
+    const d = await resp.json();
+    if (!d.success) throw new Error(d.error);
+    if (!d.suppliers.length) {
+      statusEl.style.color = '#c62828';
+      statusEl.textContent = 'Keine Lieferanten gefunden — bitte manuell eintragen.';
+      return;
+    }
+    d.suppliers.slice(0, 3).forEach((s, i) => {
+      document.getElementById('sup'+i+'Name').value  = s.name || '';
+      document.getElementById('sup'+i+'Price').value = s.price ?? '';
+      document.getElementById('sup'+i+'Url').value   = s.url || '';
+    });
+    currentAiCheckedAt = new Date().toISOString();
+    statusEl.style.color = '#2e7d32';
+    statusEl.textContent = `✓ ${d.suppliers.length} Lieferant(en) gefunden — bitte Preise prüfen und speichern`;
+  } catch (e) {
+    statusEl.style.color = '#c62828';
+    statusEl.textContent = 'Fehler: ' + e.message;
   } finally {
     btn.disabled = false;
   }
