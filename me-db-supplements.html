@@ -205,22 +205,43 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <label>Lieferanten (KI-Suche)</label>
       <button class="scan-btn" id="findSuppliersBtn" onclick="findSuppliers()">🔍 3 Lieferanten mit KI finden</button>
       <div id="supplierStatus" style="font-size:0.78rem;color:#888;margin-top:6px"></div>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
-        <div style="display:grid;grid-template-columns:1.3fr 0.7fr;gap:6px">
-          <input id="sup0Name" placeholder="Shop 1">
-          <input id="sup0Price" type="number" step="0.01" placeholder="€">
+      <div style="display:flex;flex-direction:column;gap:14px;margin-top:10px">
+        <div style="border:1px solid #eee;border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:grid;grid-template-columns:1.3fr 0.7fr;gap:6px">
+            <input id="sup0Name" placeholder="Shop 1">
+            <input id="sup0Price" type="number" step="0.01" placeholder="€">
+          </div>
+          <div style="display:grid;grid-template-columns:0.7fr 0.7fr;gap:6px">
+            <input id="sup0PackageAmount" type="number" step="1" placeholder="Menge, z.B. 90">
+            <input id="sup0PackageUnit" placeholder="Einheit, z.B. capsules">
+          </div>
+          <input id="sup0Url" placeholder="Link zum Produkt">
+          <button style="align-self:flex-start;border:1px solid #d8d8d8;background:white;border-radius:16px;padding:5px 13px;font-size:0.78rem;cursor:pointer;color:#555" onclick="applySupplier(0)">↳ Übernehmen (Menge + Preis)</button>
         </div>
-        <input id="sup0Url" placeholder="Link zum Produkt">
-        <div style="display:grid;grid-template-columns:1.3fr 0.7fr;gap:6px;margin-top:6px">
-          <input id="sup1Name" placeholder="Shop 2">
-          <input id="sup1Price" type="number" step="0.01" placeholder="€">
+        <div style="border:1px solid #eee;border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:grid;grid-template-columns:1.3fr 0.7fr;gap:6px">
+            <input id="sup1Name" placeholder="Shop 2">
+            <input id="sup1Price" type="number" step="0.01" placeholder="€">
+          </div>
+          <div style="display:grid;grid-template-columns:0.7fr 0.7fr;gap:6px">
+            <input id="sup1PackageAmount" type="number" step="1" placeholder="Menge, z.B. 90">
+            <input id="sup1PackageUnit" placeholder="Einheit, z.B. capsules">
+          </div>
+          <input id="sup1Url" placeholder="Link zum Produkt">
+          <button style="align-self:flex-start;border:1px solid #d8d8d8;background:white;border-radius:16px;padding:5px 13px;font-size:0.78rem;cursor:pointer;color:#555" onclick="applySupplier(1)">↳ Übernehmen (Menge + Preis)</button>
         </div>
-        <input id="sup1Url" placeholder="Link zum Produkt">
-        <div style="display:grid;grid-template-columns:1.3fr 0.7fr;gap:6px;margin-top:6px">
-          <input id="sup2Name" placeholder="Shop 3">
-          <input id="sup2Price" type="number" step="0.01" placeholder="€">
+        <div style="border:1px solid #eee;border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:grid;grid-template-columns:1.3fr 0.7fr;gap:6px">
+            <input id="sup2Name" placeholder="Shop 3">
+            <input id="sup2Price" type="number" step="0.01" placeholder="€">
+          </div>
+          <div style="display:grid;grid-template-columns:0.7fr 0.7fr;gap:6px">
+            <input id="sup2PackageAmount" type="number" step="1" placeholder="Menge, z.B. 90">
+            <input id="sup2PackageUnit" placeholder="Einheit, z.B. capsules">
+          </div>
+          <input id="sup2Url" placeholder="Link zum Produkt">
+          <button style="align-self:flex-start;border:1px solid #d8d8d8;background:white;border-radius:16px;padding:5px 13px;font-size:0.78rem;cursor:pointer;color:#555" onclick="applySupplier(2)">↳ Übernehmen (Menge + Preis)</button>
         </div>
-        <input id="sup2Url" placeholder="Link zum Produkt">
       </div>
     </div>
     <div class="dfield"><label>Manueller Lieferant</label><input id="dManualSupplier" placeholder="z.B. aus Mail-Bestellung, Filiale…"></div>
@@ -430,6 +451,8 @@ function openDetail(id) {
     document.getElementById('sup'+i+'Name').value  = s['ai_supplier_'+(i+1)+'_name']  || '';
     document.getElementById('sup'+i+'Price').value = s['ai_supplier_'+(i+1)+'_price'] ?? '';
     document.getElementById('sup'+i+'Url').value   = s['ai_supplier_'+(i+1)+'_url']   || '';
+    document.getElementById('sup'+i+'PackageAmount').value = s['ai_supplier_'+(i+1)+'_package_amount'] ?? '';
+    document.getElementById('sup'+i+'PackageUnit').value   = s['ai_supplier_'+(i+1)+'_package_unit']   || '';
   }
   document.getElementById('dManualSupplier').value = s.manual_supplier || '';
   currentAiCheckedAt = s.ai_suppliers_checked_at || null;
@@ -478,12 +501,18 @@ async function saveDetail() {
     ai_supplier_1_name:  document.getElementById('sup0Name').value.trim() || null,
     ai_supplier_1_price: document.getElementById('sup0Price').value === '' ? null : parseFloat(document.getElementById('sup0Price').value),
     ai_supplier_1_url:   document.getElementById('sup0Url').value.trim() || null,
+    ai_supplier_1_package_amount: document.getElementById('sup0PackageAmount').value === '' ? null : parseFloat(document.getElementById('sup0PackageAmount').value),
+    ai_supplier_1_package_unit:   document.getElementById('sup0PackageUnit').value.trim() || null,
     ai_supplier_2_name:  document.getElementById('sup1Name').value.trim() || null,
     ai_supplier_2_price: document.getElementById('sup1Price').value === '' ? null : parseFloat(document.getElementById('sup1Price').value),
     ai_supplier_2_url:   document.getElementById('sup1Url').value.trim() || null,
+    ai_supplier_2_package_amount: document.getElementById('sup1PackageAmount').value === '' ? null : parseFloat(document.getElementById('sup1PackageAmount').value),
+    ai_supplier_2_package_unit:   document.getElementById('sup1PackageUnit').value.trim() || null,
     ai_supplier_3_name:  document.getElementById('sup2Name').value.trim() || null,
     ai_supplier_3_price: document.getElementById('sup2Price').value === '' ? null : parseFloat(document.getElementById('sup2Price').value),
     ai_supplier_3_url:   document.getElementById('sup2Url').value.trim() || null,
+    ai_supplier_3_package_amount: document.getElementById('sup2PackageAmount').value === '' ? null : parseFloat(document.getElementById('sup2PackageAmount').value),
+    ai_supplier_3_package_unit:   document.getElementById('sup2PackageUnit').value.trim() || null,
     ai_suppliers_checked_at: currentAiCheckedAt,
     manual_supplier: document.getElementById('dManualSupplier').value.trim() || null,
     updated_at: new Date().toISOString(),
@@ -674,16 +703,33 @@ async function findSuppliers() {
       document.getElementById('sup'+i+'Name').value  = s.name || '';
       document.getElementById('sup'+i+'Price').value = s.price ?? '';
       document.getElementById('sup'+i+'Url').value   = s.url || '';
+      document.getElementById('sup'+i+'PackageAmount').value = s.package_amount ?? '';
+      document.getElementById('sup'+i+'PackageUnit').value   = s.package_unit || '';
     });
     currentAiCheckedAt = new Date().toISOString();
     statusEl.style.color = '#2e7d32';
-    statusEl.textContent = `✓ ${d.suppliers.length} Lieferant(en) gefunden — bitte Preise prüfen und speichern`;
+    statusEl.textContent = `✓ ${d.suppliers.length} Lieferant(en) gefunden — bitte Preise/Mengen prüfen und speichern`;
   } catch (e) {
     statusEl.style.color = '#c62828';
     statusEl.textContent = 'Fehler: ' + e.message;
   } finally {
     btn.disabled = false;
   }
+}
+
+// Copies one AI-found (or manually filled-in) supplier row's Menge + Preis into
+// the main Package Amount / Package Unit / Price fields, then refreshes the
+// €/Tag preview — the supplier row itself is left untouched.
+function applySupplier(i) {
+  const price = document.getElementById('sup'+i+'Price').value;
+  const pkgAmount = document.getElementById('sup'+i+'PackageAmount').value;
+  const pkgUnit = document.getElementById('sup'+i+'PackageUnit').value;
+  if (price === '' && pkgAmount === '') { showToast('Dieser Lieferant hat weder Preis noch Menge'); return; }
+  if (price !== '') document.getElementById('dPackagePrice').value = price;
+  if (pkgAmount !== '') document.getElementById('dPackageAmount').value = pkgAmount;
+  if (pkgUnit.trim() !== '') document.getElementById('dPackageUnit').value = pkgUnit.trim();
+  updateDailyCostPreview();
+  showToast('Menge + Preis übernommen ✓');
 }
 
 async function deleteSup() {
