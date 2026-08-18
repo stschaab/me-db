@@ -399,10 +399,11 @@ async function loadContext() {
   document.getElementById('ctxDot').className = 'context-dot';
   document.getElementById('ctxText').textContent = 'Loading health data...';
 
-  const [measRes, actRes, hrvRes] = await Promise.all([
+  const [measRes, actRes, hrvRes, suppRes] = await Promise.all([
     authDb.from('measurements').select('measured_at,value,value_si,value_text,unit,parameters(name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)').order('measured_at', { ascending: false }).limit(2000),
     authDb.from('activities').select('date,type,duration_sec,distance_m,avg_heartrate,calories').order('date', { ascending: false }).limit(50),
     authDb.from('hrv_measurements').select('measured_at,duration_sec,mean_hr,sdnn,rmssd,pnn50,source,notes').order('measured_at', { ascending: false }).limit(60),
+    authDb.from('supplements').select('name,manufacturer,product_name,daily_amount,unit,timing,elemental_mg_per_gram,active').order('active', { ascending: false }).order('name'),
   ]);
 
   const byParam = {};
@@ -444,10 +445,37 @@ async function loadContext() {
     return `${h.measured_at} HR:${h.mean_hr}bpm SDNN:${h.sdnn}ms RMSSD:${h.rmssd}ms pNN50:${h.pnn50}% [${h.duration_sec}s, ${h.source}]${note}`;
   });
 
-  contextData = `BLUTWERTE (alle Messwerte pro Parameter, neuester zuerst):\n${measLines.join('\n')}\n\nAKTIVITÄTEN (letzte 20):\n${actLines.join('\n')}\n\nHRV-MESSUNGEN (Polar H10, neueste zuerst):\n${hrvLines.join('\n')}`;
+  // g conversion for elemental-dose display below — same rule as me-db-supplements.html's
+  // toGrams(): only g/mg are convertible, other units (capsules, ml, …) are left as-is.
+  function toGramsForChat(amount, unit) {
+    const a = parseFloat(amount);
+    if (!a) return null;
+    const u = (unit || '').trim().toLowerCase();
+    if (u === 'g') return a;
+    if (u === 'mg') return a / 1000;
+    return null;
+  }
+  const allSupps = suppRes.data || [];
+  const activeSupps = allSupps.filter(s => s.active);
+  const pausedCount = allSupps.length - activeSupps.length;
+  const suppLines = activeSupps.map(s => {
+    const label = [s.product_name, s.manufacturer].filter(Boolean).join(' · ');
+    const dose = s.daily_amount != null ? `${s.daily_amount}${s.unit ? ' ' + s.unit : ''}/Tag` : 'Dosis unbekannt';
+    const perGram = parseFloat(s.elemental_mg_per_gram);
+    let elemental = '';
+    if (perGram) {
+      const g = toGramsForChat(s.daily_amount, s.unit);
+      if (g != null) elemental = ` (${(g * perGram).toFixed(1)}mg elementar/Tag)`;
+    }
+    const timing = s.timing ? ` [${s.timing}]` : '';
+    return `${s.name}${label ? ' (' + label + ')' : ''}: ${dose}${elemental}${timing}`;
+  });
+  const suppSection = `SUPPLEMENTPLAN (${activeSupps.length} aktiv${pausedCount ? `, ${pausedCount} pausiert (nicht aufgelistet)` : ''}):\n${suppLines.join('\n') || 'Keine aktiven Supplements erfasst.'}`;
+
+  contextData = `BLUTWERTE (alle Messwerte pro Parameter, neuester zuerst):\n${measLines.join('\n')}\n\n${suppSection}\n\nAKTIVITÄTEN (letzte 20):\n${actLines.join('\n')}\n\nHRV-MESSUNGEN (Polar H10, neueste zuerst):\n${hrvLines.join('\n')}`;
 
   document.getElementById('ctxDot').className = 'context-dot loaded';
-  document.getElementById('ctxText').textContent = `${Object.keys(byParam).length} parameters + ${actRes.data?.length || 0} activities + ${hrvRes.data?.length || 0} HRV measurements loaded`;
+  document.getElementById('ctxText').textContent = `${Object.keys(byParam).length} parameters + ${activeSupps.length} supplements + ${actRes.data?.length || 0} activities + ${hrvRes.data?.length || 0} HRV measurements loaded`;
 }
 
 // ── Nachricht senden ─────────────────────────────────────────────
