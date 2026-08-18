@@ -163,8 +163,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <div class="dfield"><label>Name</label><input id="dName"></div>
     <div class="dfield"><label>Product / Model</label><input id="dProductName" placeholder="e.g. Creatin Monohydrat 500g"></div>
     <div class="dgrid">
-      <div class="dfield"><label>Amount/Day</label><input id="dAmount" type="number" step="0.01" oninput="updateElementalPreview()"></div>
-      <div class="dfield"><label>Unit</label><input id="dUnit" placeholder="capsules, mg…" oninput="updateElementalPreview()"></div>
+      <div class="dfield"><label>Amount/Day</label><input id="dAmount" type="number" step="0.01" oninput="updateElementalPreview();updateDailyCostPreview()"></div>
+      <div class="dfield"><label>Unit</label><input id="dUnit" placeholder="capsules, mg…" oninput="updateElementalPreview();updateDailyCostPreview()"></div>
     </div>
     <div class="dfield">
       <label>Elemental content (mg per g compound)</label>
@@ -174,10 +174,14 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <div class="dfield"><label>When</label><input id="dTiming" placeholder="morning…"></div>
     <div class="dfield"><label>Manufacturer</label><input id="dManufacturer"></div>
     <div class="dgrid">
-      <div class="dfield"><label>Package (Amount)</label><input id="dPackageAmount" type="number" step="1" placeholder="e.g. 90"></div>
-      <div class="dfield"><label>Package Unit</label><input id="dPackageUnit" placeholder="g, ml, pieces…"></div>
+      <div class="dfield"><label>Package (Amount)</label><input id="dPackageAmount" type="number" step="1" placeholder="e.g. 90" oninput="updateDailyCostPreview()"></div>
+      <div class="dfield"><label>Package Unit</label><input id="dPackageUnit" placeholder="g, ml, pieces…" oninput="updateDailyCostPreview()"></div>
     </div>
-    <div class="dfield"><label>Price/Package €</label><input id="dPackagePrice" type="number" step="0.01"></div>
+    <div class="dfield">
+      <label>Price/Package €</label>
+      <input id="dPackagePrice" type="number" step="0.01" oninput="updateDailyCostPreview()">
+      <div id="dailyCostPreview" style="font-size:0.78rem;color:#888;margin-top:4px;"></div>
+    </div>
     <div class="dfield"><label><input type="checkbox" id="dActive" style="width:auto;display:inline-block;margin-right:6px;"> Active</label></div>
     <div class="dfield">
       <label>Photos</label>
@@ -268,21 +272,37 @@ async function logout() { await db.auth.signOut(); window.location.href = 'me-db
 function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1500); }
 
+// Converts an amount + unit to grams, if the unit is mass-based (g/mg).
+// null for non-mass units (capsules, ml, …) — those can't be converted.
+function toGrams(amount, unit) {
+  const a = parseFloat(amount);
+  if (!a) return null;
+  const u = (unit || '').trim().toLowerCase();
+  if (u === 'g') return a;
+  if (u === 'mg') return a / 1000;
+  return null;
+}
+
+// price/day = (package_price / package_amount) × daily_amount — but only directly
+// valid if daily_amount and package_amount share the same unit. If they differ
+// (e.g. daily dose in mg, package size in g), convert both to grams first so a
+// mg/g mismatch doesn't silently produce a price off by a factor of 1000.
+// If the units are incompatible (e.g. capsules vs g), the ratio can't be computed.
 function dailyCost(s) {
   const pp = parseFloat(s.package_price), pa = parseFloat(s.package_amount), da = parseFloat(s.daily_amount);
   if (!pp || !pa || !da) return null;
-  return (pp / pa) * da;
+  const unit = (s.unit || '').trim().toLowerCase();
+  const packageUnit = (s.package_unit || '').trim().toLowerCase();
+  if (unit === packageUnit) return (pp / pa) * da;
+  const dailyG = toGrams(da, unit), packageG = toGrams(pa, packageUnit);
+  if (dailyG != null && packageG != null) return (pp / packageG) * dailyG;
+  return null; // incompatible units — can't safely compute
 }
 
 // mg elemental mineral per day = daily_amount (converted to grams) × elemental_mg_per_gram.
 // Not stored — computed live so it never goes stale when daily_amount changes, same pattern as dailyCost().
 function gramsPerDay(daily_amount, unit) {
-  const da = parseFloat(daily_amount);
-  if (!da) return null;
-  const u = (unit || '').trim().toLowerCase();
-  if (u === 'g') return da;
-  if (u === 'mg') return da / 1000;
-  return null; // unit not mass-based (capsules, ml, …) — can't derive grams
+  return toGrams(daily_amount, unit);
 }
 
 function elementalDaily(s) {
@@ -300,6 +320,26 @@ function updateElementalPreview() {
   const g = gramsPerDay(document.getElementById('dAmount').value, document.getElementById('dUnit').value);
   if (g == null) { el.textContent = '→ daily amount needs to be in g or mg to compute the daily dose'; return; }
   el.textContent = `→ ${(g * perGram).toFixed(1)} mg elemental / day`;
+}
+
+function updateDailyCostPreview() {
+  const el = document.getElementById('dailyCostPreview');
+  const pp = document.getElementById('dPackagePrice').value;
+  const pa = document.getElementById('dPackageAmount').value;
+  const da = document.getElementById('dAmount').value;
+  if (pp === '' || pa === '' || da === '') { el.textContent = ''; return; }
+  const cost = dailyCost({
+    package_price: pp, package_amount: pa, daily_amount: da,
+    unit: document.getElementById('dUnit').value,
+    package_unit: document.getElementById('dPackageUnit').value,
+  });
+  if (cost == null) {
+    el.style.color = '#c62828';
+    el.textContent = '→ Unit/Package Unit nicht vergleichbar (z.B. capsules vs. g) — Preis/Tag kann nicht berechnet werden';
+    return;
+  }
+  el.style.color = '#888';
+  el.textContent = `→ ${cost.toFixed(3)} €/Tag (≈ ${(cost * 30).toFixed(2)} €/Monat)`;
 }
 
 async function loadSupps() {
@@ -400,6 +440,7 @@ function openDetail(id) {
   document.getElementById('scanStatus').textContent = '';
   if (!isNew) loadPhotoUrls(s);
   updateElementalPreview();
+  updateDailyCostPreview();
   document.getElementById('overlay').classList.add('show');
 }
 
