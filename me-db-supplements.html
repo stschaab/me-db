@@ -182,6 +182,11 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <input id="dPackagePrice" type="number" step="0.01" oninput="updateDailyCostPreview()">
       <div id="dailyCostPreview" style="font-size:0.78rem;color:#888;margin-top:4px;"></div>
     </div>
+    <div class="dfield">
+      <label>Preis/Tag manuell überschreiben (€)</label>
+      <input id="dDailyCostOverride" type="number" step="0.001" placeholder="leer lassen = automatisch berechnet" oninput="updateDailyCostPreview()">
+      <div style="font-size:0.72rem;color:#aaa;margin-top:4px">Wird genutzt, wenn Tagesdosis und Packungsgröße nicht vergleichbare Einheiten haben (z.B. Tropfen vs. ml) — auch der KI-Chat kann dieses Feld auf Anfrage befüllen.</div>
+    </div>
     <div class="dfield"><label><input type="checkbox" id="dActive" style="width:auto;display:inline-block;margin-right:6px;"> Active</label></div>
     <div class="dfield">
       <label>Photos</label>
@@ -287,8 +292,10 @@ function toGrams(amount, unit) {
 // valid if daily_amount and package_amount share the same unit. If they differ
 // (e.g. daily dose in mg, package size in g), convert both to grams first so a
 // mg/g mismatch doesn't silently produce a price off by a factor of 1000.
-// If the units are incompatible (e.g. capsules vs g), the ratio can't be computed.
+// If the units are incompatible (e.g. capsules vs g), the ratio can't be computed —
+// daily_cost_override (manual, or set by the AI chat) takes precedence when present.
 function dailyCost(s) {
+  if (s.daily_cost_override != null && s.daily_cost_override !== '') return parseFloat(s.daily_cost_override);
   const pp = parseFloat(s.package_price), pa = parseFloat(s.package_amount), da = parseFloat(s.daily_amount);
   if (!pp || !pa || !da) return null;
   const unit = (s.unit || '').trim().toLowerCase();
@@ -324,22 +331,24 @@ function updateElementalPreview() {
 
 function updateDailyCostPreview() {
   const el = document.getElementById('dailyCostPreview');
+  const override = document.getElementById('dDailyCostOverride').value;
   const pp = document.getElementById('dPackagePrice').value;
   const pa = document.getElementById('dPackageAmount').value;
   const da = document.getElementById('dAmount').value;
-  if (pp === '' || pa === '' || da === '') { el.textContent = ''; return; }
+  if (override === '' && (pp === '' || pa === '' || da === '')) { el.textContent = ''; return; }
   const cost = dailyCost({
+    daily_cost_override: override,
     package_price: pp, package_amount: pa, daily_amount: da,
     unit: document.getElementById('dUnit').value,
     package_unit: document.getElementById('dPackageUnit').value,
   });
   if (cost == null) {
     el.style.color = '#c62828';
-    el.textContent = '→ Unit/Package Unit nicht vergleichbar (z.B. capsules vs. g) — Preis/Tag kann nicht berechnet werden';
+    el.textContent = '→ Unit/Package Unit nicht vergleichbar (z.B. capsules vs. g) — Preis/Tag kann nicht berechnet werden, bitte oben manuell setzen';
     return;
   }
   el.style.color = '#888';
-  el.textContent = `→ ${cost.toFixed(3)} €/Tag (≈ ${(cost * 30).toFixed(2)} €/Monat)`;
+  el.textContent = `→ ${cost.toFixed(3)} €/Tag (≈ ${(cost * 30).toFixed(2)} €/Monat)${override !== '' ? ' — manuell/KI gesetzt' : ''}`;
 }
 
 async function loadSupps() {
@@ -415,6 +424,7 @@ function openDetail(id) {
   document.getElementById('dPackageAmount').value = s.package_amount ?? '';
   document.getElementById('dPackageUnit').value = s.package_unit || '';
   document.getElementById('dPackagePrice').value = s.package_price ?? '';
+  document.getElementById('dDailyCostOverride').value = s.daily_cost_override ?? '';
   document.getElementById('dActive').checked = isNew ? true : !!s.active;
   for (let i = 0; i < 3; i++) {
     document.getElementById('sup'+i+'Name').value  = s['ai_supplier_'+(i+1)+'_name']  || '';
@@ -463,6 +473,7 @@ async function saveDetail() {
     package_amount: document.getElementById('dPackageAmount').value === '' ? null : parseFloat(document.getElementById('dPackageAmount').value),
     package_unit: document.getElementById('dPackageUnit').value.trim() || null,
     package_price: document.getElementById('dPackagePrice').value === '' ? null : parseFloat(document.getElementById('dPackagePrice').value),
+    daily_cost_override: document.getElementById('dDailyCostOverride').value === '' ? null : parseFloat(document.getElementById('dDailyCostOverride').value),
     active: document.getElementById('dActive').checked,
     ai_supplier_1_name:  document.getElementById('sup0Name').value.trim() || null,
     ai_supplier_1_price: document.getElementById('sup0Price').value === '' ? null : parseFloat(document.getElementById('sup0Price').value),
