@@ -403,7 +403,7 @@ async function loadContext() {
     authDb.from('measurements').select('measured_at,value,value_si,value_text,unit,parameters(name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)').order('measured_at', { ascending: false }).limit(2000),
     authDb.from('activities').select('date,type,duration_sec,distance_m,avg_heartrate,calories').order('date', { ascending: false }).limit(50),
     authDb.from('hrv_measurements').select('measured_at,duration_sec,mean_hr,sdnn,rmssd,pnn50,source,notes').order('measured_at', { ascending: false }).limit(60),
-    authDb.from('supplements').select('name,manufacturer,product_name,daily_amount,unit,timing,elemental_mg_per_gram,active').order('active', { ascending: false }).order('name'),
+    authDb.from('supplements').select('name,manufacturer,product_name,daily_amount,unit,timing,elemental_mg_per_gram,active,package_amount,package_unit,package_price,daily_cost_override').order('active', { ascending: false }).order('name'),
   ]);
 
   const byParam = {};
@@ -455,6 +455,20 @@ async function loadContext() {
     if (u === 'mg') return a / 1000;
     return null;
   }
+  // Same rule as me-db-supplements.html's dailyCost(): override wins; else same-unit
+  // ratio; else convert both to grams if daily_amount/package_amount units differ
+  // (e.g. mg vs g); else not computable (e.g. Tropfen vs. ml — no fixed conversion).
+  function dailyCostForChat(s) {
+    if (s.daily_cost_override != null) return parseFloat(s.daily_cost_override);
+    const pp = parseFloat(s.package_price), pa = parseFloat(s.package_amount), da = parseFloat(s.daily_amount);
+    if (!pp || !pa || !da) return null;
+    const unit = (s.unit || '').trim().toLowerCase();
+    const packageUnit = (s.package_unit || '').trim().toLowerCase();
+    if (unit === packageUnit) return (pp / pa) * da;
+    const dailyG = toGramsForChat(da, unit), packageG = toGramsForChat(pa, packageUnit);
+    if (dailyG != null && packageG != null) return (pp / packageG) * dailyG;
+    return null;
+  }
   const allSupps = suppRes.data || [];
   const activeSupps = allSupps.filter(s => s.active);
   const pausedCount = allSupps.length - activeSupps.length;
@@ -468,7 +482,13 @@ async function loadContext() {
       if (g != null) elemental = ` (${(g * perGram).toFixed(1)}mg elementar/Tag)`;
     }
     const timing = s.timing ? ` [${s.timing}]` : '';
-    return `${s.name}${label ? ' (' + label + ')' : ''}: ${dose}${elemental}${timing}`;
+    const cost = dailyCostForChat(s);
+    const costNote = cost != null
+      ? ` — Preis/Tag: ${cost.toFixed(3)}€${s.daily_cost_override != null ? ' (manuell/KI gesetzt)' : ''}`
+      : (s.package_price != null && s.package_amount != null
+          ? ` — Preis/Tag: nicht berechenbar (Einheiten "${s.unit || '?'}" vs. "${s.package_unit || '?'}" nicht vergleichbar, z.B. Tropfen vs. ml — kannst du mit set_supplement_daily_cost schätzen)`
+          : '');
+    return `${s.name}${label ? ' (' + label + ')' : ''}: ${dose}${elemental}${timing}${costNote}`;
   });
   const suppSection = `SUPPLEMENTPLAN (${activeSupps.length} aktiv${pausedCount ? `, ${pausedCount} pausiert (nicht aufgelistet)` : ''}):\n${suppLines.join('\n') || 'Keine aktiven Supplements erfasst.'}`;
 
