@@ -555,7 +555,7 @@ async function handlePhotoSelected(event) {
   const file = event.target.files[0];
   if (!file || photoSlotPicking === null) return;
   const slot = photoSlotPicking;
-  const compressed = await compressImage(file, 1200, 0.82);
+  const compressed = await compressImage(file, 2400, 0.92);
   photoFiles[slot] = compressed;
   showSlotPreview(slot, URL.createObjectURL(compressed));
   updateScanBtn();
