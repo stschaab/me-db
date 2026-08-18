@@ -482,13 +482,16 @@ async function loadContext() {
       if (g != null) elemental = ` (${(g * perGram).toFixed(1)}mg elementar/Tag)`;
     }
     const timing = s.timing ? ` [${s.timing}]` : '';
+    const packageInfo = (s.package_amount != null || s.package_price != null)
+      ? ` [Packung: ${s.package_amount ?? '?'}${s.package_unit ? ' ' + s.package_unit : ''} für ${s.package_price != null ? s.package_price + '€' : '? €'}]`
+      : '';
     const cost = dailyCostForChat(s);
     const costNote = cost != null
       ? ` — Preis/Tag: ${cost.toFixed(3)}€${s.daily_cost_override != null ? ' (manuell/KI gesetzt)' : ''}`
       : (s.package_price != null && s.package_amount != null
-          ? ` — Preis/Tag: nicht berechenbar (Einheiten "${s.unit || '?'}" vs. "${s.package_unit || '?'}" nicht vergleichbar, z.B. Tropfen vs. ml — kannst du mit set_supplement_daily_cost schätzen)`
+          ? ` — Preis/Tag: nicht berechenbar (Einheiten "${s.unit || '?'}" vs. "${s.package_unit || '?'}" nicht direkt vergleichbar, z.B. Tropfen vs. ml — schätze bei Bedarf eine plausible Umrechnung und setze das Ergebnis mit set_supplement_daily_cost)`
           : '');
-    return `${s.name}${label ? ' (' + label + ')' : ''}: ${dose}${elemental}${timing}${costNote}`;
+    return `${s.name}${label ? ' (' + label + ')' : ''}: ${dose}${elemental}${timing}${packageInfo}${costNote}`;
   });
   const suppSection = `SUPPLEMENTPLAN (${activeSupps.length} aktiv${pausedCount ? `, ${pausedCount} pausiert (nicht aufgelistet)` : ''}):\n${suppLines.join('\n') || 'Keine aktiven Supplements erfasst.'}`;
 
