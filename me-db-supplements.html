@@ -150,6 +150,9 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <button class="chip active" data-f="all" onclick="setFilter('all')">All</button>
     <button class="chip" data-f="active" onclick="setFilter('active')">Active</button>
     <button class="chip" data-f="inactive" onclick="setFilter('inactive')">Paused</button>
+    <span style="width:1px;background:#e0e0e0;align-self:stretch;margin:0 4px"></span>
+    <button class="chip active" data-s="name" onclick="setSort('name')">A–Z</button>
+    <button class="chip" data-s="cost" onclick="setSort('cost')">€/Tag</button>
     <div class="right"><button class="btn-add" onclick="openDetail(null)">+ Supplement</button></div>
   </div>
 
@@ -263,6 +266,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 let userId = null;
 let allSupps = [];
 let filter = 'all';
+let sortBy = 'name';
 let saveTimers = {};
 let photoFiles = [null, null, null];
 let photoUrls  = [null, null, null];
@@ -394,7 +398,13 @@ function renderTotal() {
 
 function setFilter(f) {
   filter = f;
-  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.f === f));
+  document.querySelectorAll('.chip[data-f]').forEach(c => c.classList.toggle('active', c.dataset.f === f));
+  render();
+}
+
+function setSort(s) {
+  sortBy = s;
+  document.querySelectorAll('.chip[data-s]').forEach(c => c.classList.toggle('active', c.dataset.s === s));
   render();
 }
 
@@ -404,6 +414,20 @@ function render() {
   if (filter === 'inactive') list = list.filter(s => !s.active);
 
   if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">No supplements in this view.</div>'; return; }
+
+  list = list.slice();
+  if (sortBy === 'cost') {
+    // Highest cost first; supplements with no computable price/day sort to the end.
+    list.sort((a, b) => {
+      const ca = dailyCost(a), cb = dailyCost(b);
+      if (ca == null && cb == null) return a.name.localeCompare(b.name);
+      if (ca == null) return 1;
+      if (cb == null) return -1;
+      return cb - ca;
+    });
+  } else {
+    list.sort((a, b) => a.name.localeCompare(b.name));
+  }
 
   document.getElementById('content').innerHTML = list.map(supRow).join('');
 }
