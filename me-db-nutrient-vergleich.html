@@ -1,90 +1,131 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MeDB &middot; Nährstoff-Vergleich</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a2e; }
-nav { background: #1a1a2e; color: white; padding: 0 20px; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 100; gap: 12px; }
-.nav-brand { font-weight: 700; font-size: 1.05rem; color: white; text-decoration: none; }
-.nav-crumb { font-size: 0.78rem; opacity: 0.6; flex: 1; }
-.ham-btn { background: none; border: none; color: white; font-size: 1.4rem; cursor: pointer; padding: 6px; }
-.ham-menu { display: none; position: fixed; top: 52px; right: 0; background: white; width: 220px; box-shadow: -2px 0 12px rgba(0,0,0,0.15); z-index: 200; border-radius: 0 0 0 12px; max-height: calc(100vh - 52px); overflow-y: auto; }
-.ham-menu.open { display: block; }
-.ham-menu a { display: block; padding: 11px 20px; text-decoration: none; color: #1a1a2e; font-size: 0.88rem; border-bottom: 1px solid #f0f0f0; }
-.ham-menu a:hover { background: #f5f5f5; }
-main { max-width: 900px; margin: 0 auto; padding: 24px 16px 60px; }
-h1 { font-size: 1.4rem; margin-bottom: 4px; }
-.subtitle { color: #777; font-size: 0.85rem; margin-bottom: 20px; }
-.card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 6px rgba(0,0,0,0.08); margin-bottom: 18px; }
-.callout { border-left: 3px solid #f0a500; background: #fffbea; border-radius: 0 8px 8px 0; padding: 12px 16px; font-size: 0.85rem; color: #555; line-height: 1.55; margin-bottom: 18px; }
-.callout.bad { border-left-color: #e53935; background: #fff5f5; }
-.callout b { color: #1a1a2e; }
-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-th { text-align: left; padding: 8px 10px; border-bottom: 2px solid #f0f0f0; font-size: 0.72rem; text-transform: uppercase; color: #999; font-weight: 700; white-space: nowrap; }
-th.num, td.num { text-align: right; }
-td { padding: 7px 10px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
-tr.group-row td { padding-top: 16px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #aaa; font-weight: 700; border-bottom: none; }
-.pct { font-size: 0.72rem; color: #aaa; display: block; }
-.est { color: #e65100; font-size: 0.68rem; font-weight: 700; margin-left: 3px; cursor: help; }
-.dash { color: #ccc; }
-.legend { font-size: 0.75rem; color: #999; margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; }
-.legend span { display: inline-flex; align-items: center; gap: 4px; }
-.loading, .empty { text-align: center; padding: 40px; color: #aaa; }
-@media (max-width: 600px) {
-  main { padding: 16px 10px 60px; }
-  table { font-size: 0.76rem; }
-  th, td { padding: 6px 5px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 900px; margin: 28px auto; padding: 0 24px 60px; }
+
+  .card { background: white; border-radius: 14px; padding: 22px 26px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 18px; }
+  .callout { border-left: 3px solid #f0a500; background: #fffbea; border-radius: 0 8px 8px 0; padding: 12px 16px; font-size: 0.85rem; color: #555; line-height: 1.55; margin-bottom: 16px; }
+  .callout.bad { border-left-color: #e53935; background: #fff5f5; }
+  .callout b { color: #1a1a2e; }
+  .callout a { color: #1a1a2e; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { text-align: left; padding: 8px 10px; border-bottom: 2px solid #f0f0f0; font-size: 0.72rem; text-transform: uppercase; color: #999; font-weight: 700; white-space: nowrap; }
+  th.num, td.num { text-align: right; }
+  td { padding: 7px 10px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
+  tr.group-row td { padding-top: 16px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #aaa; font-weight: 700; border-bottom: none; }
+  .pct { font-size: 0.72rem; color: #aaa; display: block; }
+  .est { color: #e65100; font-size: 0.68rem; font-weight: 700; margin-left: 3px; cursor: help; }
+  .dash { color: #ccc; }
+  .legend { font-size: 0.75rem; color: #999; margin-top: 14px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .loading, .empty { text-align: center; padding: 50px; color: #aaa; }
+
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+/* === Hamburger-Navigation (immer aktiv) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 0.95rem; flex-wrap: wrap; }
+  .container { padding: 0 14px 60px; margin: 18px auto; }
 }
 </style>
 </head>
 <body>
-<nav>
-  <a class="nav-brand" href="me-db-dashboard.html">MeDB</a>
-  <span class="nav-crumb">› Supplements › Nährstoff-Vergleich</span>
-  <button class="ham-btn" onclick="document.getElementById('ham').classList.toggle('open')">☰</button>
-</nav>
-<div class="ham-menu" id="ham">
-  <a href="me-db-dashboard.html">🏠 Dashboard</a>
-  <a href="me-db-supplements.html">💊 Supplements</a>
-  <a href="me-db-nutrient-vergleich.html" style="font-weight:700">🧪 Nährstoff-Vergleich</a>
-  <a href="me-db-lab-dashboard.html">🧪 Lab</a>
-  <a href="me-db-chat.html">💬 KI-Chat</a>
-</div>
 
-<main>
-  <h1>🧪 Nährstoff-Vergleich</h1>
-  <p class="subtitle">Dein aktiver Vitamin-/Mineralstoff-Stack vs. AG1 vs. LaVita — pro Tagesdosis</p>
+<header>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Nährstoff-Vergleich</span></h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Activities</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Reports</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Values</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-abos.html">Subscriptions</a>
+    <a href="me-db-supplements.html">Supplements</a>
+    <a href="me-db-nutrient-vergleich.html">Nährstoff-Vergleich</a>
+    <a href="me-db-ag-me.html">AG-Me Mix</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
 
   <div class="callout">
     <b>ORAC-Wert:</b> bewusst nicht als Zahl ausgewiesen. Die USDA-ORAC-Datenbank wurde 2012 wegen unzuverlässiger In-vivo-Korrelation zurückgezogen — es gibt keine verlässliche aktuelle Quelle mehr für ORAC-Werte einzelner Zutaten. Isolierte Vitamin-/Mineralstoff-Präparate (dein Stack) liefern ohnehin kaum ORAC — der Wert kommt überwiegend aus Pflanzenstoffen/Polyphenolen in Frucht-/Gemüse-Extrakten, wie sie in AG1/LaVita stecken. Beide Hersteller werben selbst nicht mit einem ORAC-Wert. Ein erfundener Zahlenwert wäre hier irreführender als gar keiner.
   </div>
   <div class="callout bad">
-    <b>Zum Kontext:</b> LaVita hat 2026 den <a href="https://www.foodwatch.org" target="_blank" rel="noopener">"Goldenen Windbeutel"</a> von Foodwatch gewonnen — Deutschlands Negativpreis für die irreführendste Werbung des Jahres.
+    <b>Zum Kontext:</b> LaVita hat 2026 den "Goldenen Windbeutel" von Foodwatch gewonnen — Deutschlands Negativpreis für die irreführendste Werbung des Jahres.
   </div>
 
   <div class="card">
     <div id="content"><div class="loading">Lädt…</div></div>
     <div class="legend">
-      <span><span class="est">*</span> geschätzt (keine exakte Etikettenangabe gefunden, s. Begründung beim Hovern)</span>
+      <span><span class="est">*</span> geschätzt (keine exakte Etikettenangabe gefunden)</span>
       <span><span class="dash">–</span> nicht enthalten / keine Angabe</span>
       <span>% = Anteil am EU-Referenzwert (NRV)</span>
     </div>
   </div>
-</main>
+
+</div>
 
 <script>
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
-document.addEventListener('click', e => {
-  if (!e.target.closest('#ham') && !e.target.closest('.ham-btn'))
-    document.getElementById('ham').classList.remove('open');
-});
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
 
 // Canonical row order. `keys` lists every nutrient_name variant in the DB that
 // should be summed into this one display row (e.g. Vitamin K1 vs K2 sources
@@ -117,8 +158,6 @@ const NUTRIENT_ROWS = [
   { label: 'Kalium', keys: ['Kalium'], group: 'Mineralstoffe' },
 ];
 
-function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
-
 // Sums amount_per_day (and pct_nrv) across every row whose nutrient_name is
 // in `keys`; flags the cell as estimated if any contributing row is.
 function aggregate(rows, keys) {
@@ -135,15 +174,12 @@ function aggregate(rows, keys) {
 function fmtCell(cell) {
   if (!cell) return '<span class="dash">–</span>';
   const num = cell.amount >= 100 ? Math.round(cell.amount) : cell.amount.toFixed(cell.amount >= 10 ? 1 : 2);
-  const est = cell.estimated ? '<span class="est" title="Keine exakte Etikettenangabe gefunden — grobe Schätzung, siehe Chat-Verlauf für Herleitung">*</span>' : '';
+  const est = cell.estimated ? '<span class="est" title="Keine exakte Etikettenangabe gefunden — grobe Schätzung">*</span>' : '';
   const pct = cell.pct != null ? `<span class="pct">${Math.round(cell.pct)}% NRV</span>` : '';
   return `${num} ${esc(cell.unit)}${est}${pct}`;
 }
 
 async function load() {
-  const { data: sess } = await db.auth.getSession();
-  if (!sess.session) { window.location.href = 'me-db-login.html'; return; }
-
   const [{ data: refs }, { data: myRows }] = await Promise.all([
     db.from('supplements').select('id,name').in('name', ['AG1', 'LaVita']),
     db.from('supplement_nutrients').select('nutrient_name,amount_per_day,unit,pct_nrv,confidence,supplements!inner(active)').eq('supplements.active', true),
@@ -187,7 +223,10 @@ async function load() {
   document.getElementById('content').innerHTML = html;
 }
 
-load();
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  load();
+});
 </script>
 </body>
 </html>
