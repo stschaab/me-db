@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Nährstoff-Vergleich</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a2e; }
+nav { background: #1a1a2e; color: white; padding: 0 20px; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 100; gap: 12px; }
+.nav-brand { font-weight: 700; font-size: 1.05rem; color: white; text-decoration: none; }
+.nav-crumb { font-size: 0.78rem; opacity: 0.6; flex: 1; }
+.ham-btn { background: none; border: none; color: white; font-size: 1.4rem; cursor: pointer; padding: 6px; }
+.ham-menu { display: none; position: fixed; top: 52px; right: 0; background: white; width: 220px; box-shadow: -2px 0 12px rgba(0,0,0,0.15); z-index: 200; border-radius: 0 0 0 12px; max-height: calc(100vh - 52px); overflow-y: auto; }
+.ham-menu.open { display: block; }
+.ham-menu a { display: block; padding: 11px 20px; text-decoration: none; color: #1a1a2e; font-size: 0.88rem; border-bottom: 1px solid #f0f0f0; }
+.ham-menu a:hover { background: #f5f5f5; }
+main { max-width: 900px; margin: 0 auto; padding: 24px 16px 60px; }
+h1 { font-size: 1.4rem; margin-bottom: 4px; }
+.subtitle { color: #777; font-size: 0.85rem; margin-bottom: 20px; }
+.card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 6px rgba(0,0,0,0.08); margin-bottom: 18px; }
+.callout { border-left: 3px solid #f0a500; background: #fffbea; border-radius: 0 8px 8px 0; padding: 12px 16px; font-size: 0.85rem; color: #555; line-height: 1.55; margin-bottom: 18px; }
+.callout.bad { border-left-color: #e53935; background: #fff5f5; }
+.callout b { color: #1a1a2e; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th { text-align: left; padding: 8px 10px; border-bottom: 2px solid #f0f0f0; font-size: 0.72rem; text-transform: uppercase; color: #999; font-weight: 700; white-space: nowrap; }
+th.num, td.num { text-align: right; }
+td { padding: 7px 10px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
+tr.group-row td { padding-top: 16px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #aaa; font-weight: 700; border-bottom: none; }
+.pct { font-size: 0.72rem; color: #aaa; display: block; }
+.est { color: #e65100; font-size: 0.68rem; font-weight: 700; margin-left: 3px; cursor: help; }
+.dash { color: #ccc; }
+.legend { font-size: 0.75rem; color: #999; margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.loading, .empty { text-align: center; padding: 40px; color: #aaa; }
+@media (max-width: 600px) {
+  main { padding: 16px 10px 60px; }
+  table { font-size: 0.76rem; }
+  th, td { padding: 6px 5px; }
+}
+</style>
+</head>
+<body>
+<nav>
+  <a class="nav-brand" href="me-db-dashboard.html">MeDB</a>
+  <span class="nav-crumb">› Supplements › Nährstoff-Vergleich</span>
+  <button class="ham-btn" onclick="document.getElementById('ham').classList.toggle('open')">☰</button>
+</nav>
+<div class="ham-menu" id="ham">
+  <a href="me-db-dashboard.html">🏠 Dashboard</a>
+  <a href="me-db-supplements.html">💊 Supplements</a>
+  <a href="me-db-nutrient-vergleich.html" style="font-weight:700">🧪 Nährstoff-Vergleich</a>
+  <a href="me-db-lab-dashboard.html">🧪 Lab</a>
+  <a href="me-db-chat.html">💬 KI-Chat</a>
+</div>
+
+<main>
+  <h1>🧪 Nährstoff-Vergleich</h1>
+  <p class="subtitle">Dein aktiver Vitamin-/Mineralstoff-Stack vs. AG1 vs. LaVita — pro Tagesdosis</p>
+
+  <div class="callout">
+    <b>ORAC-Wert:</b> bewusst nicht als Zahl ausgewiesen. Die USDA-ORAC-Datenbank wurde 2012 wegen unzuverlässiger In-vivo-Korrelation zurückgezogen — es gibt keine verlässliche aktuelle Quelle mehr für ORAC-Werte einzelner Zutaten. Isolierte Vitamin-/Mineralstoff-Präparate (dein Stack) liefern ohnehin kaum ORAC — der Wert kommt überwiegend aus Pflanzenstoffen/Polyphenolen in Frucht-/Gemüse-Extrakten, wie sie in AG1/LaVita stecken. Beide Hersteller werben selbst nicht mit einem ORAC-Wert. Ein erfundener Zahlenwert wäre hier irreführender als gar keiner.
+  </div>
+  <div class="callout bad">
+    <b>Zum Kontext:</b> LaVita hat 2026 den <a href="https://www.foodwatch.org" target="_blank" rel="noopener">"Goldenen Windbeutel"</a> von Foodwatch gewonnen — Deutschlands Negativpreis für die irreführendste Werbung des Jahres.
+  </div>
+
+  <div class="card">
+    <div id="content"><div class="loading">Lädt…</div></div>
+    <div class="legend">
+      <span><span class="est">*</span> geschätzt (keine exakte Etikettenangabe gefunden, s. Begründung beim Hovern)</span>
+      <span><span class="dash">–</span> nicht enthalten / keine Angabe</span>
+      <span>% = Anteil am EU-Referenzwert (NRV)</span>
+    </div>
+  </div>
+</main>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#ham') && !e.target.closest('.ham-btn'))
+    document.getElementById('ham').classList.remove('open');
+});
+
+// Canonical row order. `keys` lists every nutrient_name variant in the DB that
+// should be summed into this one display row (e.g. Vitamin K1 vs K2 sources
+// are shown combined, since they share the same EU NRV).
+const NUTRIENT_ROWS = [
+  { label: 'Vitamin A', keys: ['Vitamin A'], group: 'Vitamine' },
+  { label: 'Vitamin C', keys: ['Vitamin C'], group: 'Vitamine' },
+  { label: 'Vitamin D3', keys: ['Vitamin D3'], group: 'Vitamine' },
+  { label: 'Vitamin E', keys: ['Vitamin E'], group: 'Vitamine' },
+  { label: 'Vitamin K (K1/K2)', keys: ['Vitamin K2', 'Vitamin K'], group: 'Vitamine' },
+  { label: 'Vitamin B1 (Thiamin)', keys: ['Vitamin B1'], group: 'Vitamine' },
+  { label: 'Vitamin B2 (Riboflavin)', keys: ['Vitamin B2'], group: 'Vitamine' },
+  { label: 'Niacin (B3)', keys: ['Niacin (B3)'], group: 'Vitamine' },
+  { label: 'Pantothensäure (B5)', keys: ['Pantothensäure (B5)'], group: 'Vitamine' },
+  { label: 'Vitamin B6', keys: ['Vitamin B6'], group: 'Vitamine' },
+  { label: 'Folsäure (B9)', keys: ['Folsäure (B9)'], group: 'Vitamine' },
+  { label: 'Biotin (B7)', keys: ['Biotin (B7)'], group: 'Vitamine' },
+  { label: 'Vitamin B12', keys: ['Vitamin B12'], group: 'Vitamine' },
+  { label: 'Calcium', keys: ['Calcium'], group: 'Mineralstoffe' },
+  { label: 'Magnesium', keys: ['Magnesium'], group: 'Mineralstoffe' },
+  { label: 'Zink', keys: ['Zink'], group: 'Mineralstoffe' },
+  { label: 'Selen', keys: ['Selen'], group: 'Mineralstoffe' },
+  { label: 'Eisen', keys: ['Eisen'], group: 'Mineralstoffe' },
+  { label: 'Kupfer', keys: ['Kupfer'], group: 'Mineralstoffe' },
+  { label: 'Mangan', keys: ['Mangan'], group: 'Mineralstoffe' },
+  { label: 'Chrom', keys: ['Chrom'], group: 'Mineralstoffe' },
+  { label: 'Iod', keys: ['Iod'], group: 'Mineralstoffe' },
+  { label: 'Molybdän', keys: ['Molybdän'], group: 'Mineralstoffe' },
+  { label: 'Phosphor', keys: ['Phosphor'], group: 'Mineralstoffe' },
+  { label: 'Kalium', keys: ['Kalium'], group: 'Mineralstoffe' },
+];
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+// Sums amount_per_day (and pct_nrv) across every row whose nutrient_name is
+// in `keys`; flags the cell as estimated if any contributing row is.
+function aggregate(rows, keys) {
+  const matches = rows.filter(r => keys.includes(r.nutrient_name));
+  if (!matches.length) return null;
+  const amount = matches.reduce((sum, r) => sum + (parseFloat(r.amount_per_day) || 0), 0);
+  const pct = matches.every(r => r.pct_nrv != null)
+    ? matches.reduce((sum, r) => sum + parseFloat(r.pct_nrv), 0)
+    : null;
+  const estimated = matches.some(r => r.confidence === 'estimated');
+  return { amount, unit: matches[0].unit, pct, estimated };
+}
+
+function fmtCell(cell) {
+  if (!cell) return '<span class="dash">–</span>';
+  const num = cell.amount >= 100 ? Math.round(cell.amount) : cell.amount.toFixed(cell.amount >= 10 ? 1 : 2);
+  const est = cell.estimated ? '<span class="est" title="Keine exakte Etikettenangabe gefunden — grobe Schätzung, siehe Chat-Verlauf für Herleitung">*</span>' : '';
+  const pct = cell.pct != null ? `<span class="pct">${Math.round(cell.pct)}% NRV</span>` : '';
+  return `${num} ${esc(cell.unit)}${est}${pct}`;
+}
+
+async function load() {
+  const { data: sess } = await db.auth.getSession();
+  if (!sess.session) { window.location.href = 'me-db-login.html'; return; }
+
+  const [{ data: refs }, { data: myRows }] = await Promise.all([
+    db.from('supplements').select('id,name').in('name', ['AG1', 'LaVita']),
+    db.from('supplement_nutrients').select('nutrient_name,amount_per_day,unit,pct_nrv,confidence,supplements!inner(active)').eq('supplements.active', true),
+  ]);
+
+  const ag1Id = refs?.find(r => r.name === 'AG1')?.id;
+  const lavitaId = refs?.find(r => r.name === 'LaVita')?.id;
+  const [ag1Res, lavitaRes] = await Promise.all([
+    ag1Id ? db.from('supplement_nutrients').select('nutrient_name,amount_per_day,unit,pct_nrv,confidence').eq('supplement_id', ag1Id) : { data: [] },
+    lavitaId ? db.from('supplement_nutrients').select('nutrient_name,amount_per_day,unit,pct_nrv,confidence').eq('supplement_id', lavitaId) : { data: [] },
+  ]);
+
+  const stackRows = myRows || [];
+  const ag1Rows = ag1Res.data || [];
+  const lavitaRows = lavitaRes.data || [];
+
+  if (!stackRows.length && !ag1Rows.length && !lavitaRows.length) {
+    document.getElementById('content').innerHTML = '<div class="empty">Keine Nährstoffdaten gefunden.</div>';
+    return;
+  }
+
+  let html = `<table><thead><tr><th>Nährstoff</th><th class="num">Dein Stack</th><th class="num">AG1</th><th class="num">LaVita</th></tr></thead><tbody>`;
+  let lastGroup = null;
+  for (const row of NUTRIENT_ROWS) {
+    const mine = aggregate(stackRows, row.keys);
+    const ag1 = aggregate(ag1Rows, row.keys);
+    const lavita = aggregate(lavitaRows, row.keys);
+    if (!mine && !ag1 && !lavita) continue;
+    if (row.group !== lastGroup) {
+      html += `<tr class="group-row"><td colspan="4">${esc(row.group)}</td></tr>`;
+      lastGroup = row.group;
+    }
+    html += `<tr>
+      <td>${esc(row.label)}</td>
+      <td class="num">${fmtCell(mine)}</td>
+      <td class="num">${fmtCell(ag1)}</td>
+      <td class="num">${fmtCell(lavita)}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('content').innerHTML = html;
+}
+
+load();
+</script>
+</body>
+</html>
