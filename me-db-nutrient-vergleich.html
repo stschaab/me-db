@@ -116,6 +116,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   </div>
 
   <div class="hero" id="hero"><div class="loading">Lädt…</div></div>
+  <div style="font-size:0.72rem;color:#aaa;margin:-10px 0 16px">"Dein Stack" oben = alle aktiven Supplements (auch Kreatin, Kollagen etc. ohne Vitamin-/Mineralstoffbezug). Die Tabelle unten zeigt nur die Vitamin-/Mineralstoff-relevanten Produkte.</div>
 
   <div class="card">
     <div id="content"><div class="loading">Lädt…</div></div>
@@ -253,14 +254,21 @@ function renderHeroCol(label, gramsInfo, cost, costIncomplete) {
 }
 
 async function load() {
-  const [{ data: refs }, { data: myRows }] = await Promise.all([
+  // Two independent, un-embedded queries instead of one PostgREST join —
+  // the earlier `supplements!inner(...)` embed produced a wrong "Dein
+  // Stack" total (it was silently pulling in cost data unrelated to the
+  // actual 11 nutrient-contributing supplements). Plain queries are easier
+  // to reason about and to verify.
+  const [{ data: refs }, { data: activeSupps }] = await Promise.all([
     db.from('supplements').select(`${SUPP_FIELDS},name`).in('name', ['AG1', 'LaVita']),
-    db.from('supplement_nutrients').select(`nutrient_name,amount_per_day,unit,pct_nrv,confidence,supplements!inner(${SUPP_FIELDS},active)`).eq('supplements.active', true),
+    db.from('supplements').select(SUPP_FIELDS).eq('active', true),
   ]);
 
   const ag1 = refs?.find(r => r.name === 'AG1') || null;
   const lavita = refs?.find(r => r.name === 'LaVita') || null;
-  const [ag1Res, lavitaRes] = await Promise.all([
+  const activeIds = (activeSupps || []).map(s => s.id);
+  const [{ data: myRows }, ag1Res, lavitaRes] = await Promise.all([
+    activeIds.length ? db.from('supplement_nutrients').select('nutrient_name,amount_per_day,unit,pct_nrv,confidence').in('supplement_id', activeIds) : { data: [] },
     ag1 ? db.from('supplement_nutrients').select('nutrient_name,amount_per_day,unit,pct_nrv,confidence').eq('supplement_id', ag1.id) : { data: [] },
     lavita ? db.from('supplement_nutrients').select('nutrient_name,amount_per_day,unit,pct_nrv,confidence').eq('supplement_id', lavita.id) : { data: [] },
   ]);
@@ -269,15 +277,11 @@ async function load() {
   const ag1Rows = ag1Res.data || [];
   const lavitaRows = lavitaRes.data || [];
 
-  // Distinct supplements actually contributing to "Dein Stack" — derived from
-  // the nutrient rows themselves (not a hardcoded id list), so it stays in
-  // sync automatically if supplements are added/removed/deactivated later.
-  const stackSupps = [];
-  const seen = new Set();
-  for (const r of stackRows) {
-    const s = r.supplements;
-    if (s && !seen.has(s.id)) { seen.add(s.id); stackSupps.push(s); }
-  }
+  // "Dein Stack" hero totals cover EVERY active supplement (matching the
+  // total already shown on me-db-supplements.html), not just the subset
+  // with tracked vitamins/minerals — a pure amino-acid powder like Collagen
+  // still counts toward how much you take/spend per day.
+  const stackSupps = activeSupps || [];
   const stackGrams = stackSupps.reduce((sum, s) => {
     const g = toGramsApprox(parseFloat(s.daily_amount) || 0, s.unit).g;
     return sum + (g || 0);
