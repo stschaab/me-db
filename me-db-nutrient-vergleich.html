@@ -17,6 +17,13 @@
   .container { max-width: 900px; margin: 28px auto; padding: 0 24px 60px; }
 
   .card { background: white; border-radius: 14px; padding: 22px 26px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 18px; }
+  .hero { background: white; border-radius: 14px; padding: 22px 26px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 18px; display: flex; gap: 24px; flex-wrap: wrap; }
+  .hero .col { flex: 1; min-width: 130px; }
+  .hero .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #999; font-weight: 700; margin-bottom: 4px; }
+  .hero .big { font-size: 1.5rem; font-weight: 800; }
+  .hero .big .u { font-size: 0.78rem; color: #aaa; font-weight: 500; margin-left: 3px; }
+  .hero .cost { font-size: 0.85rem; color: #555; margin-top: 3px; }
+  .hero .note { font-size: 0.68rem; color: #bbb; margin-top: 2px; }
   .callout { border-left: 3px solid #f0a500; background: #fffbea; border-radius: 0 8px 8px 0; padding: 12px 16px; font-size: 0.85rem; color: #555; line-height: 1.55; margin-bottom: 16px; }
   .callout.bad { border-left-color: #e53935; background: #fff5f5; }
   .callout b { color: #1a1a2e; }
@@ -108,6 +115,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <b>Zum Kontext:</b> LaVita hat 2026 den "Goldenen Windbeutel" von Foodwatch gewonnen — Deutschlands Negativpreis für die irreführendste Werbung des Jahres.
   </div>
 
+  <div class="hero" id="hero"><div class="loading">Lädt…</div></div>
+
   <div class="card">
     <div id="content"><div class="loading">Lädt…</div></div>
     <div class="legend">
@@ -129,46 +138,93 @@ function esc(s){ const d=document.createElement('div'); d.textContent = s ?? '';
 
 // Canonical row order. `keys` lists every nutrient_name variant in the DB that
 // should be summed into this one display row (e.g. Vitamin K1 vs K2 sources
-// are shown combined, since they share the same EU NRV).
+// are shown combined, since they share the same EU NRV). `unit` is the
+// display unit ALL THREE columns get converted to before showing — the raw
+// DB rows aren't always consistent (e.g. AG1's Kupfer/Mangan were entered in
+// µg while the stack/LaVita rows are in mg), so conversion happens here
+// rather than trusting whatever unit happened to be stored per row.
 const NUTRIENT_ROWS = [
-  { label: 'Vitamin A', keys: ['Vitamin A'], group: 'Vitamine' },
-  { label: 'Vitamin C', keys: ['Vitamin C'], group: 'Vitamine' },
-  { label: 'Vitamin D3', keys: ['Vitamin D3'], group: 'Vitamine' },
-  { label: 'Vitamin E', keys: ['Vitamin E'], group: 'Vitamine' },
-  { label: 'Vitamin K (K1/K2)', keys: ['Vitamin K2', 'Vitamin K'], group: 'Vitamine' },
-  { label: 'Vitamin B1 (Thiamin)', keys: ['Vitamin B1'], group: 'Vitamine' },
-  { label: 'Vitamin B2 (Riboflavin)', keys: ['Vitamin B2'], group: 'Vitamine' },
-  { label: 'Niacin (B3)', keys: ['Niacin (B3)'], group: 'Vitamine' },
-  { label: 'Pantothensäure (B5)', keys: ['Pantothensäure (B5)'], group: 'Vitamine' },
-  { label: 'Vitamin B6', keys: ['Vitamin B6'], group: 'Vitamine' },
-  { label: 'Folsäure (B9)', keys: ['Folsäure (B9)'], group: 'Vitamine' },
-  { label: 'Biotin (B7)', keys: ['Biotin (B7)'], group: 'Vitamine' },
-  { label: 'Vitamin B12', keys: ['Vitamin B12'], group: 'Vitamine' },
-  { label: 'Calcium', keys: ['Calcium'], group: 'Mineralstoffe' },
-  { label: 'Magnesium', keys: ['Magnesium'], group: 'Mineralstoffe' },
-  { label: 'Zink', keys: ['Zink'], group: 'Mineralstoffe' },
-  { label: 'Selen', keys: ['Selen'], group: 'Mineralstoffe' },
-  { label: 'Eisen', keys: ['Eisen'], group: 'Mineralstoffe' },
-  { label: 'Kupfer', keys: ['Kupfer'], group: 'Mineralstoffe' },
-  { label: 'Mangan', keys: ['Mangan'], group: 'Mineralstoffe' },
-  { label: 'Chrom', keys: ['Chrom'], group: 'Mineralstoffe' },
-  { label: 'Iod', keys: ['Iod'], group: 'Mineralstoffe' },
-  { label: 'Molybdän', keys: ['Molybdän'], group: 'Mineralstoffe' },
-  { label: 'Phosphor', keys: ['Phosphor'], group: 'Mineralstoffe' },
-  { label: 'Kalium', keys: ['Kalium'], group: 'Mineralstoffe' },
+  { label: 'Vitamin A', keys: ['Vitamin A'], group: 'Vitamine', unit: 'µg' },
+  { label: 'Vitamin C', keys: ['Vitamin C'], group: 'Vitamine', unit: 'mg' },
+  { label: 'Vitamin D3', keys: ['Vitamin D3'], group: 'Vitamine', unit: 'µg' },
+  { label: 'Vitamin E', keys: ['Vitamin E'], group: 'Vitamine', unit: 'mg' },
+  { label: 'Vitamin K (K1/K2)', keys: ['Vitamin K2', 'Vitamin K'], group: 'Vitamine', unit: 'µg' },
+  { label: 'Vitamin B1 (Thiamin)', keys: ['Vitamin B1'], group: 'Vitamine', unit: 'mg' },
+  { label: 'Vitamin B2 (Riboflavin)', keys: ['Vitamin B2'], group: 'Vitamine', unit: 'mg' },
+  { label: 'Niacin (B3)', keys: ['Niacin (B3)'], group: 'Vitamine', unit: 'mg' },
+  { label: 'Pantothensäure (B5)', keys: ['Pantothensäure (B5)'], group: 'Vitamine', unit: 'mg' },
+  { label: 'Vitamin B6', keys: ['Vitamin B6'], group: 'Vitamine', unit: 'mg' },
+  { label: 'Folsäure (B9)', keys: ['Folsäure (B9)'], group: 'Vitamine', unit: 'µg' },
+  { label: 'Biotin (B7)', keys: ['Biotin (B7)'], group: 'Vitamine', unit: 'µg' },
+  { label: 'Vitamin B12', keys: ['Vitamin B12'], group: 'Vitamine', unit: 'µg' },
+  { label: 'Calcium', keys: ['Calcium'], group: 'Mineralstoffe', unit: 'mg' },
+  { label: 'Magnesium', keys: ['Magnesium'], group: 'Mineralstoffe', unit: 'mg' },
+  { label: 'Zink', keys: ['Zink'], group: 'Mineralstoffe', unit: 'mg' },
+  { label: 'Selen', keys: ['Selen'], group: 'Mineralstoffe', unit: 'µg' },
+  { label: 'Eisen', keys: ['Eisen'], group: 'Mineralstoffe', unit: 'mg' },
+  { label: 'Kupfer', keys: ['Kupfer'], group: 'Mineralstoffe', unit: 'mg' },
+  { label: 'Mangan', keys: ['Mangan'], group: 'Mineralstoffe', unit: 'mg' },
+  { label: 'Chrom', keys: ['Chrom'], group: 'Mineralstoffe', unit: 'µg' },
+  { label: 'Iod', keys: ['Iod'], group: 'Mineralstoffe', unit: 'µg' },
+  { label: 'Molybdän', keys: ['Molybdän'], group: 'Mineralstoffe', unit: 'µg' },
+  { label: 'Phosphor', keys: ['Phosphor'], group: 'Mineralstoffe', unit: 'mg' },
+  { label: 'Kalium', keys: ['Kalium'], group: 'Mineralstoffe', unit: 'mg' },
 ];
 
+function convertUnit(amount, fromUnit, toUnit) {
+  const f = (fromUnit || '').toLowerCase().replace('μ', 'µ');
+  const t = (toUnit || '').toLowerCase().replace('μ', 'µ');
+  if (f === t) return amount;
+  if (f === 'mg' && t === 'µg') return amount * 1000;
+  if (f === 'µg' && t === 'mg') return amount / 1000;
+  return amount;
+}
+
 // Sums amount_per_day (and pct_nrv) across every row whose nutrient_name is
-// in `keys`; flags the cell as estimated if any contributing row is.
-function aggregate(rows, keys) {
+// in `keys`, converting each to `targetUnit` first; flags the cell as
+// estimated if any contributing row is.
+function aggregate(rows, keys, targetUnit) {
   const matches = rows.filter(r => keys.includes(r.nutrient_name));
   if (!matches.length) return null;
-  const amount = matches.reduce((sum, r) => sum + (parseFloat(r.amount_per_day) || 0), 0);
+  const amount = matches.reduce((sum, r) => sum + convertUnit(parseFloat(r.amount_per_day) || 0, r.unit, targetUnit), 0);
   const pct = matches.every(r => r.pct_nrv != null)
     ? matches.reduce((sum, r) => sum + parseFloat(r.pct_nrv), 0)
     : null;
   const estimated = matches.some(r => r.confidence === 'estimated');
-  return { amount, unit: matches[0].unit, pct, estimated };
+  return { amount, unit: targetUnit, pct, estimated };
+}
+
+// Rough gram-equivalent for the "Menge/Tag" summary — exact for g/mg, an
+// aqueous-density approximation (~1g/ml) for ml/drops, and a typical
+// tablet/capsule-weight guess where no real product weight is known.
+function toGramsApprox(amount, unit) {
+  const u = (unit || '').toLowerCase();
+  if (u === 'g') return { g: amount, exact: true };
+  if (u === 'mg') return { g: amount / 1000, exact: true };
+  if (u === 'ml') return { g: amount, exact: false };
+  if (u === 'drops' || u === 'tropfen') return { g: amount * 0.05, exact: false };
+  if (u === 'tablet' || u === 'tablets' || u === 'capsule' || u === 'capsules') return { g: amount * 0.4, exact: false };
+  return { g: null, exact: false };
+}
+
+// Same dailyCost() logic as me-db-supplements.html / me-db-chat.html
+// (override first, then same-unit, then g/mg cross-unit, else null).
+function toGramsExact(amount, unit) {
+  const u = (unit || '').toLowerCase();
+  if (u === 'g') return amount;
+  if (u === 'mg') return amount / 1000;
+  return null;
+}
+function dailyCost(s) {
+  if (s.daily_cost_override != null) return parseFloat(s.daily_cost_override);
+  if (s.package_price == null || s.package_amount == null || !s.daily_amount) return null;
+  if ((s.unit || '').toLowerCase() === (s.package_unit || '').toLowerCase()) {
+    return (s.package_price / s.package_amount) * s.daily_amount;
+  }
+  const dailyG = toGramsExact(s.daily_amount, s.unit);
+  const packG = toGramsExact(s.package_amount, s.package_unit);
+  if (dailyG == null || packG == null) return null;
+  return (s.package_price / packG) * dailyG;
 }
 
 function fmtCell(cell) {
@@ -179,22 +235,63 @@ function fmtCell(cell) {
   return `${num} ${esc(cell.unit)}${est}${pct}`;
 }
 
+const SUPP_FIELDS = 'id,daily_amount,unit,package_price,package_amount,package_unit,daily_cost_override';
+
+function renderHeroCol(label, gramsInfo, cost, costIncomplete) {
+  const gramsStr = gramsInfo.g != null ? `${gramsInfo.g >= 10 ? Math.round(gramsInfo.g) : gramsInfo.g.toFixed(1)}` : '–';
+  const approxNote = gramsInfo.g != null && !gramsInfo.exact ? '<div class="note">Menge z.T. geschätzt (Dichte/Tabletten-/Kapselgewicht)</div>' : '';
+  const costStr = cost != null
+    ? `${costIncomplete ? '≥' : ''}${cost.toFixed(2)} €/Tag`
+    : 'Preis nicht berechenbar';
+  const costNote = costIncomplete ? '<div class="note">unvollständig — nicht bei allen Positionen ein Preis hinterlegt</div>' : '';
+  return `<div class="col">
+    <div class="label">${esc(label)}</div>
+    <div class="big">${gramsStr}<span class="u">g/Tag</span></div>
+    <div class="cost">${costStr}</div>
+    ${approxNote}${costNote}
+  </div>`;
+}
+
 async function load() {
   const [{ data: refs }, { data: myRows }] = await Promise.all([
-    db.from('supplements').select('id,name').in('name', ['AG1', 'LaVita']),
-    db.from('supplement_nutrients').select('nutrient_name,amount_per_day,unit,pct_nrv,confidence,supplements!inner(active)').eq('supplements.active', true),
+    db.from('supplements').select(`${SUPP_FIELDS},name`).in('name', ['AG1', 'LaVita']),
+    db.from('supplement_nutrients').select(`nutrient_name,amount_per_day,unit,pct_nrv,confidence,supplements!inner(${SUPP_FIELDS},active)`).eq('supplements.active', true),
   ]);
 
-  const ag1Id = refs?.find(r => r.name === 'AG1')?.id;
-  const lavitaId = refs?.find(r => r.name === 'LaVita')?.id;
+  const ag1 = refs?.find(r => r.name === 'AG1') || null;
+  const lavita = refs?.find(r => r.name === 'LaVita') || null;
   const [ag1Res, lavitaRes] = await Promise.all([
-    ag1Id ? db.from('supplement_nutrients').select('nutrient_name,amount_per_day,unit,pct_nrv,confidence').eq('supplement_id', ag1Id) : { data: [] },
-    lavitaId ? db.from('supplement_nutrients').select('nutrient_name,amount_per_day,unit,pct_nrv,confidence').eq('supplement_id', lavitaId) : { data: [] },
+    ag1 ? db.from('supplement_nutrients').select('nutrient_name,amount_per_day,unit,pct_nrv,confidence').eq('supplement_id', ag1.id) : { data: [] },
+    lavita ? db.from('supplement_nutrients').select('nutrient_name,amount_per_day,unit,pct_nrv,confidence').eq('supplement_id', lavita.id) : { data: [] },
   ]);
 
   const stackRows = myRows || [];
   const ag1Rows = ag1Res.data || [];
   const lavitaRows = lavitaRes.data || [];
+
+  // Distinct supplements actually contributing to "Dein Stack" — derived from
+  // the nutrient rows themselves (not a hardcoded id list), so it stays in
+  // sync automatically if supplements are added/removed/deactivated later.
+  const stackSupps = [];
+  const seen = new Set();
+  for (const r of stackRows) {
+    const s = r.supplements;
+    if (s && !seen.has(s.id)) { seen.add(s.id); stackSupps.push(s); }
+  }
+  const stackGrams = stackSupps.reduce((sum, s) => {
+    const g = toGramsApprox(parseFloat(s.daily_amount) || 0, s.unit).g;
+    return sum + (g || 0);
+  }, 0);
+  const stackExact = stackSupps.every(s => toGramsApprox(parseFloat(s.daily_amount) || 0, s.unit).exact);
+  const stackCostParts = stackSupps.map(s => dailyCost(s));
+  const stackCostKnown = stackCostParts.filter(c => c != null);
+  const stackCostIncomplete = stackCostKnown.length < stackCostParts.length;
+  const stackCost = stackCostKnown.length ? stackCostKnown.reduce((a, b) => a + b, 0) : null;
+
+  document.getElementById('hero').innerHTML =
+    renderHeroCol('Dein Stack', { g: stackSupps.length ? stackGrams : null, exact: stackExact }, stackCost, stackCostIncomplete) +
+    renderHeroCol('AG1', ag1 ? toGramsApprox(parseFloat(ag1.daily_amount) || 0, ag1.unit) : { g: null }, ag1 ? dailyCost(ag1) : null) +
+    renderHeroCol('LaVita', lavita ? { g: parseFloat(lavita.daily_amount) * 1.2, exact: false } : { g: null }, lavita ? dailyCost(lavita) : null);
 
   if (!stackRows.length && !ag1Rows.length && !lavitaRows.length) {
     document.getElementById('content').innerHTML = '<div class="empty">Keine Nährstoffdaten gefunden.</div>';
@@ -204,10 +301,10 @@ async function load() {
   let html = `<table><thead><tr><th>Nährstoff</th><th class="num">Dein Stack</th><th class="num">AG1</th><th class="num">LaVita</th></tr></thead><tbody>`;
   let lastGroup = null;
   for (const row of NUTRIENT_ROWS) {
-    const mine = aggregate(stackRows, row.keys);
-    const ag1 = aggregate(ag1Rows, row.keys);
-    const lavita = aggregate(lavitaRows, row.keys);
-    if (!mine && !ag1 && !lavita) continue;
+    const mine = aggregate(stackRows, row.keys, row.unit);
+    const ag1Cell = aggregate(ag1Rows, row.keys, row.unit);
+    const lavitaCell = aggregate(lavitaRows, row.keys, row.unit);
+    if (!mine && !ag1Cell && !lavitaCell) continue;
     if (row.group !== lastGroup) {
       html += `<tr class="group-row"><td colspan="4">${esc(row.group)}</td></tr>`;
       lastGroup = row.group;
@@ -215,8 +312,8 @@ async function load() {
     html += `<tr>
       <td>${esc(row.label)}</td>
       <td class="num">${fmtCell(mine)}</td>
-      <td class="num">${fmtCell(ag1)}</td>
-      <td class="num">${fmtCell(lavita)}</td>
+      <td class="num">${fmtCell(ag1Cell)}</td>
+      <td class="num">${fmtCell(lavitaCell)}</td>
     </tr>`;
   }
   html += '</tbody></table>';
