@@ -577,9 +577,10 @@ async function sendMessage() {
     addMessage('ai', reply);
     messages.push({ role: 'assistant', content: reply });
 
-    // Sidebar aktualisieren nach erster Nachricht einer neuen Session
-    // Verzögerung, da Speichern in Supabase fire & forget im Worker ist
-    if (isFirstMsg) setTimeout(loadSessions, 3000);
+    // Sidebar aktualisieren nach erster Nachricht einer neuen Session — der
+    // Worker speichert seit 2026-08-21 synchron vor der Antwort, kein
+    // Verzögerungs-Rätselraten mehr nötig.
+    if (isFirstMsg) loadSessions();
   } catch (err) {
     document.getElementById('typing')?.remove();
     addMessage('ai', 'Error: ' + err.message);
