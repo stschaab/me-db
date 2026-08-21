@@ -131,6 +131,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-tasks.html">Tasks</a>
     <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-bodyscan.html">Body Scan</a>
     <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
     <a href="me-db-nutrient-vergleich.html">Nährstoff-Vergleich</a>
@@ -171,6 +172,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div class="title">HRV</div>
       <div class="desc">Heart rate variability via Polar H10</div>
       <div id="hrvStat">…</div>
+    </a>
+
+    <a class="tile" href="me-db-bodyscan.html">
+      <div class="icon">🧍</div>
+      <div class="title">Body Scan</div>
+      <div class="desc">3D-Avatar &amp; Körpermaße aus Fotos, für virtuelle Anprobe</div>
+      <div id="bodyscanStat">…</div>
     </a>
 
     <a class="tile" href="me-db-sports.html">
@@ -262,7 +270,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'me-db-login.html';
-  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); }
+  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); loadBodyscanStat(); }
 });
 
 async function logout() {
@@ -541,6 +549,26 @@ async function loadSprinklerStat() {
       <div class="stat"><span class="n">${data.rain_today_mm}</span><span class="u">mm heute</span> <span class="trend ${cls}">${label}</span></div>`;
   } catch (e) {
     document.getElementById('sprinklerStat').innerHTML = '';
+  }
+}
+
+async function loadBodyscanStat() {
+  try {
+    const { data, error } = await db.from('body_scans')
+      .select('status,captured_at').order('captured_at', { ascending: false }).limit(1);
+    if (error) throw error;
+    if (data && data.length) {
+      const s = data[0];
+      const date = new Date(s.captured_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+      const label = s.status === 'done' ? 'fertig' : (s.status === 'error' ? 'Fehler' : 'in Bearbeitung');
+      document.getElementById('bodyscanStat').innerHTML = `
+        <div class="hrv-stat"><span class="n" style="font-size:0.95rem">${label}</span></div>
+        <div class="hrv-sub">letzter Scan ${date}</div>`;
+    } else {
+      document.getElementById('bodyscanStat').innerHTML = `<div class="hrv-none">Noch kein Scan</div>`;
+    }
+  } catch (e) {
+    document.getElementById('bodyscanStat').innerHTML = '';
   }
 }
 
