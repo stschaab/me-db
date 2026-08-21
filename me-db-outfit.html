@@ -273,6 +273,19 @@ async function submitLink() {
   } catch (e) { errEl.textContent = 'Fehler: ' + e.message; }
 }
 
+async function retryLinkItem(itemId, ev) {
+  ev.stopPropagation();
+  const it = wardrobeItems.find(w => w.id === itemId);
+  const newUrl = prompt(
+    'Manche Shops (z.B. Zalando) blockieren automatisierte Seitenaufrufe komplett — der Produktlink funktioniert dann nie.\n\nStattdessen: im Browser Rechtsklick auf das Produktfoto → "Bildadresse kopieren" → hier einfügen.',
+    it.source_url || ''
+  );
+  if (!newUrl) return;
+  await db.from('wardrobe_items').update({ source_url: newUrl, status: 'pending', error_msg: null }).eq('id', itemId);
+  loadWardrobe();
+  tagItem(itemId);
+}
+
 async function removeItem(itemId, ev) {
   ev.stopPropagation();
   if (!confirm('Dieses Kleidungsstück aus dem Kleiderschrank entfernen?')) return;
@@ -297,7 +310,9 @@ async function renderWardrobeGrid() {
     const tile = tiles[i];
     if (it.status !== 'done' || !it.image_storage_path) {
       const label = it.status === 'error' ? ('Fehler: ' + (it.error_msg || '?')) : 'wird erkannt…';
-      tile.innerHTML = `<div class="wpending">${label}</div><button class="wremove" onclick="removeItem(${it.id}, event)">&times;</button>`;
+      const retryBtn = it.status === 'error' && it.source === 'link'
+        ? `<button class="btn-sm" style="margin-top:6px" onclick="retryLinkItem(${it.id}, event)">🔄 Link ändern</button>` : '';
+      tile.innerHTML = `<div class="wpending">${label}${retryBtn}</div><button class="wremove" onclick="removeItem(${it.id}, event)">&times;</button>`;
       continue;
     }
     const url = await signedUrl(it.image_storage_path);
