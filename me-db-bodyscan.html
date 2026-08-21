@@ -570,16 +570,23 @@ async function loadHistory() {
       let measHtml = '';
       if (scan.status === 'done' && scan.measurements) {
         const manual = scan.manual_measurements || {};
+        const calibrated = scan.measurements_calibrated;
+        const displayValues = calibrated || scan.measurements;
         const entries = Object.entries(scan.measurements);
-        measHtml = '<div class="mgrid">' + entries.map(([k, v]) => {
+        if (calibrated) {
+          measHtml += `<div class="l" style="color:#2e7d32;margin-top:10px">✓ Kalibriert anhand früherer Maßband-Werte</div>`;
+        }
+        measHtml += '<div class="mgrid">' + entries.map(([k, v]) => {
+          const dv = displayValues[k];
           const mv = manual[k];
           let deltaHtml = '';
           if (mv !== undefined && mv !== null && mv !== '') {
-            const d = (v - mv).toFixed(1);
+            const d = (dv - mv).toFixed(1);
             const sign = d > 0 ? '+' : '';
             deltaHtml = `<div class="l" style="color:#1565c0">Maßband: ${mv} (Δ${sign}${d})</div>`;
           }
-          return `<div class="mcard"><div class="v">${v}</div><div class="l">${MEASUREMENT_LABELS[k] || k}</div>${deltaHtml}</div>`;
+          const rawHtml = calibrated ? `<div class="l" style="color:#aaa">roh: ${v}</div>` : '';
+          return `<div class="mcard"><div class="v">${dv}</div><div class="l">${MEASUREMENT_LABELS[k] || k}</div>${rawHtml}${deltaHtml}</div>`;
         }).join('') + '</div>';
       }
 
