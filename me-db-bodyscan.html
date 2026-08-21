@@ -88,6 +88,16 @@
   .cam-error { color: #ff8a80; font-size: 0.85rem; padding: 14px 16px; text-align: center; }
   .clothing-notice { background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; font-size: 0.85rem; font-weight: 600; padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; line-height: 1.5; }
 
+  .info-btn { background: none; border: none; color: #7ec8e3; font-size: 1.15rem; cursor: pointer; padding: 0; line-height: 1; opacity: 0.85; }
+  .info-btn:hover { opacity: 1; }
+  .info-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1100; align-items: center; justify-content: center; padding: 20px; }
+  .info-modal.show { display: flex; }
+  .info-card { background: white; border-radius: 14px; padding: 26px; max-width: 440px; box-shadow: 0 12px 32px rgba(0,0,0,0.25); position: relative; }
+  .info-card h2 { font-size: 1.05rem; margin-bottom: 12px; }
+  .info-card p { font-size: 0.88rem; color: #444; line-height: 1.55; margin-bottom: 10px; }
+  .info-close { position: absolute; top: 12px; right: 14px; background: none; border: none; font-size: 1.4rem; color: #aaa; cursor: pointer; line-height: 1; }
+  .info-close:hover { color: #555; }
+
   .trend-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin: 28px 0 12px; }
   .trend-head .section-title { margin: 0; }
   select#trendMetric { padding: 7px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.82rem; background: white; }
@@ -122,7 +132,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <body>
 
 <header>
-  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Body Scan</span></h1>
+  <h1 style="display:flex;align-items:center;gap:6px"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Body Scan</span><button class="info-btn" onclick="document.getElementById('infoModal').classList.add('show')" aria-label="Info" title="Wie funktioniert das?">&#9432;</button></h1>
   <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <nav>
     <a href="me-db-dashboard.html">Dashboard</a>
@@ -157,6 +167,16 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <button class="logout-btn" onclick="logout()">Log out</button>
   </nav>
 </header>
+
+<div class="info-modal" id="infoModal" onclick="if(event.target===this) this.classList.remove('show')">
+  <div class="info-card">
+    <button class="info-close" onclick="document.getElementById('infoModal').classList.remove('show')" aria-label="Schließen">&times;</button>
+    <h2>Wie funktioniert das?</h2>
+    <p>Deine Fotos werden mit <strong>SMPL</strong> ausgewertet, einem 3D-Körpermodell des Max-Planck-Instituts. Es basiert auf tausenden echten Körperscans und beschreibt jeden menschlichen Körper mit demselben Netz aus <strong>6.890 Punkten</strong> – nur deren Position ändert sich je nach Figur.</p>
+    <p>Aus deinem Foto schätzt ein KI-Modell, wie dieses Punktnetz für deinen Körper aussehen muss. Mit deiner echten Körpergröße wird das Ergebnis auf reale Zentimeter skaliert, dann werden Taille, Brust, Hüfte usw. direkt aus dem 3D-Netz herausgemessen.</p>
+    <button class="btn" style="margin-top:6px" onclick="document.getElementById('infoModal').classList.remove('show')">Verstanden</button>
+  </div>
+</div>
 
 <div class="container">
 
