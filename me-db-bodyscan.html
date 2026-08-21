@@ -63,6 +63,11 @@
   .photo-row { display: none; gap: 10px; margin-top: 12px; }
   .photo-row.show { display: flex; }
   .photo-row img { width: 140px; height: 187px; object-fit: cover; border-radius: 8px; }
+  .manual-form { display: none; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: flex-end; background: #f5f5f5; border-radius: 10px; padding: 14px; }
+  .manual-form.show { display: flex; }
+  .manual-form div { display: flex; flex-direction: column; gap: 4px; }
+  .manual-form label { font-size: 0.68rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+  .manual-form input { width: 80px; padding: 7px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
   .err-msg { font-size: 0.78rem; color: #c62828; margin-top: 8px; }
 
   .loading { text-align: center; padding: 40px; color: #aaa; }
@@ -349,10 +354,29 @@ function useFallbackInput() {
 
 function capturePhoto() {
   const video = document.getElementById('camVideo');
+  const vw = video.videoWidth, vh = video.videoHeight;
+
+  // Manche Kameras/Browser liefern den Videostream in Sensor-nativer Orientierung
+  // (z.B. Querformat-Aufloesung), obwohl er auf dem Bildschirm bereits aufrecht per
+  // CSS object-fit:cover dargestellt wird -- der Nutzer sieht dadurch die Person
+  // eng gerahmt im Sucher, das rohe Foto enthaelt aber viel ungenutzten Rand
+  // (Decke/Boden/Waende), was die spaetere Koerper-Erkennung verwirrt.
+  // Fix: den Rohframe hier ebenfalls auf Hochformat (3:4, wie unser Vorschaubild)
+  // mittig zuschneiden, damit das hochgeladene Foto der Sucher-Ansicht entspricht.
+  const targetAspect = 3 / 4; // width/height
+  let cropW = vw, cropH = vh, cropX = 0, cropY = 0;
+  if (vw / vh > targetAspect) {
+    cropW = vh * targetAspect;
+    cropX = (vw - cropW) / 2;
+  } else {
+    cropH = vw / targetAspect;
+    cropY = (vh - cropH) / 2;
+  }
+
   const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  canvas.getContext('2d').drawImage(video, 0, 0);
+  canvas.width = cropW;
+  canvas.height = cropH;
+  canvas.getContext('2d').drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
   canvas.toBlob(blob => {
     const file = new File([blob], camKind + '.jpg', { type: 'image/jpeg' });
     handleShot(camKind, file);
@@ -499,15 +523,34 @@ async function loadHistory() {
 
       let measHtml = '';
       if (scan.status === 'done' && scan.measurements) {
+        const manual = scan.manual_measurements || {};
         const entries = Object.entries(scan.measurements);
-        measHtml = '<div class="mgrid">' + entries.map(([k, v]) =>
-          `<div class="mcard"><div class="v">${v}</div><div class="l">${MEASUREMENT_LABELS[k] || k}</div></div>`
-        ).join('') + '</div>';
+        measHtml = '<div class="mgrid">' + entries.map(([k, v]) => {
+          const mv = manual[k];
+          let deltaHtml = '';
+          if (mv !== undefined && mv !== null && mv !== '') {
+            const d = (v - mv).toFixed(1);
+            const sign = d > 0 ? '+' : '';
+            deltaHtml = `<div class="l" style="color:#1565c0">Maßband: ${mv} (Δ${sign}${d})</div>`;
+          }
+          return `<div class="mcard"><div class="v">${v}</div><div class="l">${MEASUREMENT_LABELS[k] || k}</div>${deltaHtml}</div>`;
+        }).join('') + '</div>';
       }
 
       let viewerHtml = '';
       if (scan.status === 'done' && scan.mesh_storage_path) {
         viewerHtml = `<button class="toggle3d" onclick="show3d(this, '${scan.mesh_storage_path}')">🔄 3D-Avatar anzeigen</button><model-viewer camera-controls auto-rotate></model-viewer>`;
+      }
+
+      let manualFormHtml = '';
+      if (scan.status === 'done' && scan.measurements) {
+        const manual = scan.manual_measurements || {};
+        const fields = Object.keys(scan.measurements);
+        manualFormHtml = `<button class="toggle3d" onclick="toggleManualForm(this)">📏 Maßband-Werte eintragen</button>
+          <div class="manual-form">
+            ${fields.map(k => `<div><label>${MEASUREMENT_LABELS[k] || k}</label><input type="number" step="0.1" data-key="${k}" value="${manual[k] ?? ''}"></div>`).join('')}
+            <button class="btn" style="width:auto;padding:9px 18px;font-size:0.85rem" onclick="saveManualMeasurements(this, ${scan.id})">Speichern</button>
+          </div>`;
       }
 
       let photosHtml = '';
@@ -530,6 +573,7 @@ async function loadHistory() {
         </div>
         ${measHtml}
         ${viewerHtml}
+        ${manualFormHtml}
         ${photosHtml}
         ${errHtml}
       `;
@@ -597,6 +641,25 @@ async function loadTrendChart() {
   } catch (e) {
     canvas.style.display = 'none';
   }
+}
+
+function toggleManualForm(btn) {
+  const form = btn.nextElementSibling;
+  form.classList.toggle('show');
+}
+
+async function saveManualMeasurements(btn, scanId) {
+  const form = btn.closest('.manual-form');
+  const inputs = form.querySelectorAll('input[data-key]');
+  const manual = {};
+  inputs.forEach(inp => {
+    if (inp.value !== '') manual[inp.dataset.key] = parseFloat(inp.value);
+  });
+  btn.disabled = true; btn.textContent = 'Speichere…';
+  const { error } = await db.from('body_scans').update({ manual_measurements: manual }).eq('id', scanId);
+  btn.disabled = false; btn.textContent = 'Speichern';
+  if (error) { alert('Fehler: ' + error.message); return; }
+  loadHistory();
 }
 
 async function showPhotos(btn, photoPaths) {
