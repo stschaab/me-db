@@ -92,6 +92,15 @@
   .cam-shutter:active { background: #ccc; }
   .cam-cancel, .cam-fallback { color: #ccc; background: none; border: none; font-size: 0.85rem; cursor: pointer; text-decoration: underline; }
   .cam-error { color: #ff8a80; font-size: 0.85rem; padding: 14px 16px; text-align: center; }
+  .rot-countdown { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 6rem; font-weight: 800; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,0.6); }
+  .rot-timer { position: absolute; top: 14px; right: 16px; background: rgba(198,40,40,0.85); color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; z-index: 2; }
+
+  .rot-section { border: 1px dashed #ddd; border-radius: 10px; padding: 14px 16px; margin: 18px 0; }
+  .rot-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .rot-title { font-size: 0.88rem; font-weight: 700; }
+  .badge-optional { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background: #f0f0f0; color: #888; padding: 2px 8px; border-radius: 20px; margin-left: 6px; }
+  .rot-desc { font-size: 0.76rem; color: #999; line-height: 1.4; margin-top: 3px; max-width: 480px; }
+  .rot-status { font-size: 0.8rem; color: #2e7d32; font-weight: 600; white-space: nowrap; }
   .clothing-notice { background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; font-size: 0.85rem; font-weight: 600; padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; line-height: 1.5; }
 
   .info-btn { background: none; border: none; color: #7ec8e3; font-size: 1.15rem; cursor: pointer; padding: 0; line-height: 1; opacity: 0.85; }
@@ -237,6 +246,17 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       </div>
     </div>
 
+    <div class="rot-section">
+      <div class="rot-head">
+        <div>
+          <div class="rot-title">🎥 360°-Video <span class="badge-optional">optional, für höhere Genauigkeit</span></div>
+          <div class="rot-desc">Handy ruhig ablegen/anlehnen (Hüft-/Brusthöhe), am besten vor einer möglichst einfarbigen Wand, gleichmäßige Beleuchtung ohne harte Schlagschatten. Zweite Person dreht sich einmal langsam gleichmäßig um die eigene Achse.</div>
+        </div>
+        <div id="rotStatus" class="rot-status"></div>
+      </div>
+      <button class="btn" style="width:auto;padding:10px 20px;font-size:0.9rem" onclick="openRotOverlay()">Video aufnehmen</button>
+    </div>
+
     <button class="btn" id="submitBtn" onclick="submitScan()" disabled>Scan starten</button>
     <div class="err" id="err"></div>
     <div class="ok" id="ok"></div>
@@ -278,6 +298,23 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <button class="cam-cancel" onclick="closeCamera()">Abbrechen</button>
     <button class="cam-shutter" onclick="capturePhoto()" aria-label="Auslösen"></button>
     <button class="cam-fallback" onclick="useFallbackInput()">Datei wählen</button>
+  </div>
+</div>
+
+<div class="cam-overlay" id="rotOverlay">
+  <div class="cam-stage">
+    <video id="rotVideo" autoplay playsinline muted></video>
+    <div class="cam-topbar">
+      <div class="cam-title">360°-Scan</div>
+      <div class="cam-tip">Handy ruhig halten/ablegen. Person dreht sich einmal langsam und gleichmäßig um die eigene Achse, dann am Ende aus dem Bild gehen.</div>
+    </div>
+    <div class="rot-countdown" id="rotCountdown" style="display:none"></div>
+    <div class="rot-timer" id="rotTimer" style="display:none">0:00</div>
+    <div class="cam-error" id="rotError" style="display:none"></div>
+  </div>
+  <div class="cam-bottombar">
+    <button class="cam-cancel" onclick="closeRotOverlay()">Abbrechen</button>
+    <button class="btn" id="rotActionBtn" style="width:auto;padding:14px 30px;font-size:1rem" onclick="startRotCountdown()">Aufnahme starten</button>
   </div>
 </div>
 
@@ -431,6 +468,116 @@ function capturePhoto() {
 }
 
 function draftPath(kind) { return `${userId}/draft/${kind}.jpg`; }
+function rotDraftPath() { return `${userId}/draft/rotation.webm`; }
+
+/* ---------- 360°-Video-Aufnahme ---------- */
+let rotStream = null;
+let rotRecorder = null;
+let rotChunks = [];
+let rotTimerInterval = null;
+let rotationVideoPath = null;
+
+async function openRotOverlay() {
+  document.getElementById('rotError').style.display = 'none';
+  document.getElementById('rotOverlay').classList.add('show');
+  try {
+    rotStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1080 }, height: { ideal: 1440 } },
+      audio: false
+    });
+    document.getElementById('rotVideo').srcObject = rotStream;
+  } catch (e) {
+    document.getElementById('rotError').style.display = 'block';
+    document.getElementById('rotError').textContent = 'Kamera nicht verfügbar: ' + e.message;
+  }
+}
+
+function closeRotOverlay() {
+  if (rotRecorder && rotRecorder.state !== 'inactive') { rotRecorder.onstop = null; rotRecorder.stop(); }
+  if (rotStream) { rotStream.getTracks().forEach(t => t.stop()); rotStream = null; }
+  clearInterval(rotTimerInterval);
+  document.getElementById('rotOverlay').classList.remove('show');
+  document.getElementById('rotCountdown').style.display = 'none';
+  document.getElementById('rotTimer').style.display = 'none';
+  const btn = document.getElementById('rotActionBtn');
+  btn.disabled = false;
+  btn.textContent = 'Aufnahme starten';
+  btn.onclick = startRotCountdown;
+}
+
+function startRotCountdown() {
+  const btn = document.getElementById('rotActionBtn');
+  btn.disabled = true;
+  const cd = document.getElementById('rotCountdown');
+  cd.style.display = 'flex';
+  let n = 3;
+  cd.textContent = n;
+  const iv = setInterval(() => {
+    n--;
+    if (n <= 0) { clearInterval(iv); cd.style.display = 'none'; beginRotRecording(); }
+    else cd.textContent = n;
+  }, 1000);
+}
+
+function beginRotRecording() {
+  rotChunks = [];
+  const mimeType = (window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp9'))
+    ? 'video/webm;codecs=vp9' : 'video/webm';
+  rotRecorder = new MediaRecorder(rotStream, { mimeType });
+  rotRecorder.ondataavailable = e => { if (e.data.size > 0) rotChunks.push(e.data); };
+  rotRecorder.onstop = uploadRotRecording;
+  rotRecorder.start();
+
+  const startTime = Date.now();
+  const timerEl = document.getElementById('rotTimer');
+  timerEl.style.display = 'block';
+  rotTimerInterval = setInterval(() => {
+    const sec = Math.floor((Date.now() - startTime) / 1000);
+    timerEl.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  }, 200);
+
+  const btn = document.getElementById('rotActionBtn');
+  btn.disabled = false;
+  btn.textContent = 'Fertig';
+  btn.onclick = finishRotRecording;
+}
+
+function finishRotRecording() {
+  const btn = document.getElementById('rotActionBtn');
+  btn.disabled = true;
+  btn.textContent = 'Speichere…';
+  // Aufnahme laeuft noch kurz weiter, damit die Person Zeit hat aus dem Bild zu gehen
+  // (die letzten Frames dienen dem Agenten spaeter als leerer Hintergrund fuer die Segmentierung)
+  setTimeout(() => {
+    clearInterval(rotTimerInterval);
+    if (rotRecorder && rotRecorder.state !== 'inactive') rotRecorder.stop();
+  }, 1500);
+}
+
+async function uploadRotRecording() {
+  const blob = new Blob(rotChunks, { type: 'video/webm' });
+  try {
+    const { error } = await db.storage.from(BUCKET).upload(rotDraftPath(), blob, {
+      contentType: 'video/webm', upsert: true
+    });
+    if (error) throw new Error(error.message);
+    rotationVideoPath = rotDraftPath();
+    updateRotStatus();
+  } catch (e) {
+    document.getElementById('rotError').style.display = 'block';
+    document.getElementById('rotError').textContent = 'Fehler beim Hochladen: ' + e.message;
+  }
+  if (rotStream) { rotStream.getTracks().forEach(t => t.stop()); rotStream = null; }
+  document.getElementById('rotOverlay').classList.remove('show');
+  const btn = document.getElementById('rotActionBtn');
+  btn.disabled = false;
+  btn.textContent = 'Aufnahme starten';
+  btn.onclick = startRotCountdown;
+}
+
+function updateRotStatus() {
+  document.getElementById('rotStatus').textContent = rotationVideoPath ? '✓ Video aufgenommen' : '';
+}
 
 async function handleShot(kind, file) {
   if (!file) return;
@@ -490,6 +637,13 @@ async function restoreDraft() {
       box.classList.add('filled');
       box.innerHTML = `<img src="${url}" alt="${kind}">`;
     }
+
+    const { data: draftFiles } = await db.storage.from(BUCKET).list(`${userId}/draft`);
+    if (draftFiles && draftFiles.some(f => f.name === 'rotation.webm')) {
+      rotationVideoPath = rotDraftPath();
+      updateRotStatus();
+    }
+
     updateSubmitState();
   } catch (e) {}
 }
@@ -515,12 +669,21 @@ async function submitScan() {
     }
     await db.storage.from(BUCKET).remove([draftPath('front'), draftPath('side')]);
 
+    let finalRotationPath = null;
+    if (rotationVideoPath) {
+      finalRotationPath = `${userId}/${scanTs}/rotation.webm`;
+      const { error: rotErr } = await db.storage.from(BUCKET).copy(rotationVideoPath, finalRotationPath);
+      if (rotErr) throw new Error(rotErr.message);
+      await db.storage.from(BUCKET).remove([rotDraftPath()]);
+    }
+
     const { error: insErr } = await db.from('body_scans').insert({
       user_id: userId,
       height_cm: heightCm,
       weight_kg: weightKg,
       status: 'pending',
-      photo_paths: photoPaths
+      photo_paths: photoPaths,
+      rotation_video_path: finalRotationPath
     });
     if (insErr) throw new Error(insErr.message);
 
@@ -535,6 +698,8 @@ async function submitScan() {
     document.getElementById('sideBox').innerHTML = '<div class="placeholder"><span class="icon">🚶</span>Ganzkörper, Seite</div>';
     document.getElementById('heightCm').value = '';
     document.getElementById('weightKg').value = '';
+    rotationVideoPath = null;
+    updateRotStatus();
 
     loadHistory();
     loadTrendChart();
