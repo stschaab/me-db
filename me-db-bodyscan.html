@@ -750,7 +750,7 @@ function rotateAvatar(btn, axis, dir) {
 }
 
 async function show3d(btn, meshPath) {
-  const mv = btn.nextElementSibling;
+  const mv = btn.nextElementSibling.querySelector('model-viewer');
   if (mv.classList.contains('show')) { mv.classList.remove('show'); return; }
   if (!mv.src) {
     const { data, error } = await db.storage.from(BUCKET).createSignedUrl(meshPath, 3600);
