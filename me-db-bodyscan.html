@@ -355,17 +355,27 @@ function capturePhoto() {
   }, 'image/jpeg', 0.92);
 }
 
-function handleShot(kind, file) {
+function draftPath(kind) { return `${userId}/draft/${kind}.jpg`; }
+
+async function handleShot(kind, file) {
   if (!file) return;
-  shots[kind] = file;
   const box = document.getElementById(kind + 'Box');
-  const reader = new FileReader();
-  reader.onload = e => {
-    box.classList.add('filled');
-    box.innerHTML = `<img src="${e.target.result}" alt="${kind}">`;
-    try { localStorage.setItem('bodyscan_draft_' + kind, e.target.result); } catch (e2) {}
-  };
-  reader.readAsDataURL(file);
+  const previewUrl = URL.createObjectURL(file);
+  box.classList.add('filled');
+  box.innerHTML = `<img src="${previewUrl}" alt="${kind}">`;
+  shots[kind] = null;
+  updateSubmitState();
+
+  try {
+    const { error } = await db.storage.from(BUCKET).upload(draftPath(kind), file, {
+      contentType: file.type || 'image/jpeg', upsert: true
+    });
+    if (error) throw new Error(error.message);
+    shots[kind] = draftPath(kind);
+  } catch (e) {
+    box.classList.remove('filled');
+    box.innerHTML = `<div class="placeholder">Fehler beim Hochladen: ${e.message}</div>`;
+  }
   updateSubmitState();
 }
 
@@ -385,10 +395,8 @@ function saveFieldDraft() {
 document.getElementById('heightCm').addEventListener('input', saveFieldDraft);
 document.getElementById('weightKg').addEventListener('input', saveFieldDraft);
 
-function clearDraft() {
-  for (const k of ['front', 'side', 'height', 'weight']) {
-    try { localStorage.removeItem('bodyscan_draft_' + k); } catch (e) {}
-  }
+function clearFieldDraft() {
+  try { localStorage.removeItem('bodyscan_draft_height'); localStorage.removeItem('bodyscan_draft_weight'); } catch (e) {}
 }
 
 async function restoreDraft() {
@@ -399,25 +407,23 @@ async function restoreDraft() {
     if (w) document.getElementById('weightKg').value = w;
 
     for (const kind of ['front', 'side']) {
-      const dataUrl = localStorage.getItem('bodyscan_draft_' + kind);
-      if (!dataUrl) continue;
-      const blob = await (await fetch(dataUrl)).blob();
-      shots[kind] = new File([blob], kind + '.jpg', { type: blob.type || 'image/jpeg' });
+      const { data, error } = await db.storage.from(BUCKET).download(draftPath(kind));
+      if (error || !data) continue;
+      shots[kind] = draftPath(kind);
+      const url = URL.createObjectURL(data);
       const box = document.getElementById(kind + 'Box');
       box.classList.add('filled');
-      box.innerHTML = `<img src="${dataUrl}" alt="${kind}">`;
+      box.innerHTML = `<img src="${url}" alt="${kind}">`;
     }
     updateSubmitState();
   } catch (e) {}
 }
 
-function safeKey(name) { return name.replace(/[^a-zA-Z0-9._-]/g, '_'); }
-
 async function submitScan() {
   const errEl = document.getElementById('err'), okEl = document.getElementById('ok');
   errEl.classList.remove('show'); okEl.classList.remove('show');
   const btn = document.getElementById('submitBtn');
-  btn.disabled = true; btn.textContent = 'Lädt hoch…';
+  btn.disabled = true; btn.textContent = 'Speichere…';
 
   try {
     const heightCm = parseFloat(document.getElementById('heightCm').value);
@@ -427,12 +433,12 @@ async function submitScan() {
 
     const photoPaths = {};
     for (const kind of ['front', 'side']) {
-      const file = shots[kind];
-      const path = `${userId}/${scanTs}/${kind}_${safeKey(file.name)}`;
-      const { error } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type || 'image/jpeg' });
+      const finalPath = `${userId}/${scanTs}/${kind}.jpg`;
+      const { error } = await db.storage.from(BUCKET).copy(shots[kind], finalPath);
       if (error) throw new Error(error.message);
-      photoPaths[kind] = path;
+      photoPaths[kind] = finalPath;
     }
+    await db.storage.from(BUCKET).remove([draftPath('front'), draftPath('side')]);
 
     const { error: insErr } = await db.from('body_scans').insert({
       user_id: userId,
@@ -446,7 +452,7 @@ async function submitScan() {
     okEl.textContent = 'Scan hochgeladen. Ergebnis erscheint hier, sobald der lokale Agent ihn verarbeitet hat.';
     okEl.classList.add('show');
 
-    clearDraft();
+    clearFieldDraft();
     shots.front = null; shots.side = null;
     document.getElementById('frontBox').classList.remove('filled');
     document.getElementById('frontBox').innerHTML = '<div class="placeholder"><span class="icon">🧍</span>Ganzkörper, Front</div>';
