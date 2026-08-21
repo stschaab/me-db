@@ -57,8 +57,14 @@
   .mcard { background: #f5f5f5; border-radius: 10px; padding: 12px; text-align: center; }
   .mcard .v { font-size: 1.2rem; font-weight: 700; }
   .mcard .l { font-size: 0.65rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
-  model-viewer { width: 100%; height: 340px; margin-top: 14px; border-radius: 10px; background: #f0f0f0; display: none; }
+  model-viewer { width: 100%; height: 340px; border-radius: 10px; background: #f0f0f0; display: none; }
   model-viewer.show { display: block; }
+  .avatar-wrap { position: relative; margin-top: 14px; }
+  .avatar-controls { display: none; }
+  .avatar-wrap:has(model-viewer.show) .avatar-controls { display: flex; flex-direction: column; align-items: center; gap: 4px; position: absolute; bottom: 10px; right: 10px; }
+  .avatar-controls-row { display: flex; gap: 4px; }
+  .avatar-controls button { width: 34px; height: 34px; border-radius: 8px; border: none; background: rgba(26,26,46,0.7); color: white; font-size: 0.9rem; cursor: pointer; }
+  .avatar-controls button:hover { background: rgba(26,26,46,0.9); }
   .toggle3d { background: none; border: 1px solid #ccc; border-radius: 20px; padding: 5px 14px; font-size: 0.78rem; color: #555; cursor: pointer; margin-top: 12px; margin-right: 8px; }
   .photo-row { display: none; gap: 10px; margin-top: 12px; }
   .photo-row.show { display: flex; }
@@ -579,7 +585,18 @@ async function loadHistory() {
 
       let viewerHtml = '';
       if (scan.status === 'done' && scan.mesh_storage_path) {
-        viewerHtml = `<button class="toggle3d" onclick="show3d(this, '${scan.mesh_storage_path}')">🔄 3D-Avatar anzeigen</button><model-viewer camera-controls auto-rotate></model-viewer>`;
+        viewerHtml = `<button class="toggle3d" onclick="show3d(this, '${scan.mesh_storage_path}')">🔄 3D-Avatar anzeigen</button>
+          <div class="avatar-wrap">
+            <model-viewer camera-controls auto-rotate></model-viewer>
+            <div class="avatar-controls">
+              <button onclick="rotateAvatar(this,'phi',-1)" aria-label="Hochdrehen">▲</button>
+              <div class="avatar-controls-row">
+                <button onclick="rotateAvatar(this,'theta',-1)" aria-label="Linksdrehen">◀</button>
+                <button onclick="rotateAvatar(this,'theta',1)" aria-label="Rechtsdrehen">▶</button>
+              </div>
+              <button onclick="rotateAvatar(this,'phi',1)" aria-label="Runterdrehen">▼</button>
+            </div>
+          </div>`;
       }
 
       let manualFormHtml = '';
@@ -718,6 +735,18 @@ async function showPhotos(btn, photoPaths) {
     row.dataset.loaded = '1';
   }
   row.classList.add('show');
+}
+
+function rotateAvatar(btn, axis, dir) {
+  const mv = btn.closest('.avatar-wrap').querySelector('model-viewer');
+  if (!mv || !mv.getCameraOrbit) return;
+  mv.autoRotate = false;
+  const orbit = mv.getCameraOrbit();
+  const stepRad = (15 * Math.PI / 180) * dir;
+  let theta = orbit.theta, phi = orbit.phi;
+  if (axis === 'theta') theta += stepRad; else phi += stepRad;
+  phi = Math.max(0.05, Math.min(Math.PI - 0.05, phi));
+  mv.cameraOrbit = `${theta}rad ${phi}rad ${orbit.radius}m`;
 }
 
 async function show3d(btn, meshPath) {
