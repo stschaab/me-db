@@ -59,7 +59,10 @@
   .mcard .l { font-size: 0.65rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
   model-viewer { width: 100%; height: 340px; margin-top: 14px; border-radius: 10px; background: #f0f0f0; display: none; }
   model-viewer.show { display: block; }
-  .toggle3d { background: none; border: 1px solid #ccc; border-radius: 20px; padding: 5px 14px; font-size: 0.78rem; color: #555; cursor: pointer; margin-top: 12px; }
+  .toggle3d { background: none; border: 1px solid #ccc; border-radius: 20px; padding: 5px 14px; font-size: 0.78rem; color: #555; cursor: pointer; margin-top: 12px; margin-right: 8px; }
+  .photo-row { display: none; gap: 10px; margin-top: 12px; }
+  .photo-row.show { display: flex; }
+  .photo-row img { width: 140px; height: 187px; object-fit: cover; border-radius: 8px; }
   .err-msg { font-size: 0.78rem; color: #c62828; margin-top: 8px; }
 
   .loading { text-align: center; padding: 40px; color: #aaa; }
@@ -249,7 +252,7 @@ async function logout() { await db.auth.signOut(); window.location.href = 'me-db
 
 /* ---------- In-page camera with framing guide ---------- */
 const CAM_CONFIG = {
-  front: { title: 'Front-Foto', tip: 'Tritt zurück, bis dein ganzer Körper – Kopf bis Füße – in den Umriss passt. Handy senkrecht, auf Hüfthöhe, Arme leicht vom Körper weg.' },
+  front: { title: 'Front-Foto', tip: 'Tritt zurück, bis dein ganzer Körper – Kopf bis Füße – in den Umriss passt. Füße etwa schulterbreit auseinander (wie im Umriss markiert), Arme leicht vom Körper weg.' },
   side:  { title: 'Seiten-Foto', tip: 'Jetzt im 90°-Winkel zur Kamera stehen (Profil). Gleicher Abstand wie beim Front-Foto, ganzer Körper im Umriss.' }
 };
 let camStream = null;
@@ -295,7 +298,9 @@ function drawGuide(kind) {
   const hipY = topY + bodyH * 0.52;
   const shoulderHalfW = kind === 'side' ? bodyH * 0.09 : bodyH * 0.16;
   const hipHalfW = bodyH * 0.10;
-  const footHalfW = bodyH * 0.05;
+  // Front: Fuesse deutlich auf Schulterbreite auseinander (sonst unklar, wie weit stehen).
+  // Seite: Fuesse eng beieinander (Profilstand, ein Fuss verdeckt den anderen groesstenteils).
+  const footHalfW = kind === 'side' ? bodyH * 0.04 : shoulderHalfW * 0.95;
 
   ctx.strokeStyle = 'rgba(255,255,255,0.75)';
   ctx.lineWidth = 3;
@@ -505,6 +510,11 @@ async function loadHistory() {
         viewerHtml = `<button class="toggle3d" onclick="show3d(this, '${scan.mesh_storage_path}')">🔄 3D-Avatar anzeigen</button><model-viewer camera-controls auto-rotate></model-viewer>`;
       }
 
+      let photosHtml = '';
+      if (scan.photo_paths && (scan.photo_paths.front || scan.photo_paths.side)) {
+        photosHtml = `<button class="toggle3d" onclick="showPhotos(this, ${JSON.stringify(scan.photo_paths).replace(/"/g, '&quot;')})">📷 Fotos anzeigen</button><div class="photo-row"></div>`;
+      }
+
       let errHtml = '';
       if (scan.status === 'error' && scan.error_msg) {
         errHtml = `<div class="err-msg">${scan.error_msg}</div>`;
@@ -520,6 +530,7 @@ async function loadHistory() {
         </div>
         ${measHtml}
         ${viewerHtml}
+        ${photosHtml}
         ${errHtml}
       `;
       el.appendChild(card);
@@ -586,6 +597,24 @@ async function loadTrendChart() {
   } catch (e) {
     canvas.style.display = 'none';
   }
+}
+
+async function showPhotos(btn, photoPaths) {
+  const row = btn.nextElementSibling;
+  if (row.classList.contains('show')) { row.classList.remove('show'); return; }
+  if (!row.dataset.loaded) {
+    let html = '';
+    for (const kind of ['front', 'side']) {
+      const path = photoPaths[kind];
+      if (!path) continue;
+      const { data, error } = await db.storage.from(BUCKET).createSignedUrl(path, 3600);
+      if (error) continue;
+      html += `<img src="${data.signedUrl}" alt="${kind}">`;
+    }
+    row.innerHTML = html || '<div class="err-msg">Fotos konnten nicht geladen werden</div>';
+    row.dataset.loaded = '1';
+  }
+  row.classList.add('show');
 }
 
 async function show3d(btn, meshPath) {
