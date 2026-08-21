@@ -63,6 +63,20 @@
 
   .loading { text-align: center; padding: 40px; color: #aaa; }
   .empty { text-align: center; padding: 30px; color: #aaa; font-size: 0.88rem; }
+
+  .cam-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 1000; flex-direction: column; }
+  .cam-overlay.show { display: flex; }
+  .cam-stage { position: relative; flex: 1; overflow: hidden; }
+  .cam-stage video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cam-stage canvas.guide { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .cam-topbar { position: absolute; top: 0; left: 0; right: 0; padding: 14px 16px; background: linear-gradient(rgba(0,0,0,0.65), transparent); color: #fff; z-index: 2; }
+  .cam-topbar .cam-title { font-size: 0.95rem; font-weight: 700; }
+  .cam-topbar .cam-tip { font-size: 0.78rem; color: #ddd; margin-top: 4px; line-height: 1.4; }
+  .cam-bottombar { display: flex; align-items: center; justify-content: center; gap: 24px; padding: 20px; background: #000; }
+  .cam-shutter { width: 68px; height: 68px; border-radius: 50%; background: #fff; border: 4px solid #888; cursor: pointer; }
+  .cam-shutter:active { background: #ccc; }
+  .cam-cancel, .cam-fallback { color: #ccc; background: none; border: none; font-size: 0.85rem; cursor: pointer; text-decoration: underline; }
+  .cam-error { color: #ff8a80; font-size: 0.85rem; padding: 14px 16px; text-align: center; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -145,14 +159,14 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <div class="shot-grid">
       <div class="shot">
         <label class="shotlbl">📷 Front</label>
-        <div class="shot-box" id="frontBox" onclick="document.getElementById('frontInput').click()">
+        <div class="shot-box" id="frontBox" onclick="openCamera('front')">
           <div class="placeholder"><span class="icon">🧍</span>Ganzkörper, Front</div>
         </div>
         <input type="file" id="frontInput" accept="image/*" capture="environment" onchange="handleShot('front', this.files[0])">
       </div>
       <div class="shot">
         <label class="shotlbl">📷 Seite</label>
-        <div class="shot-box" id="sideBox" onclick="document.getElementById('sideInput').click()">
+        <div class="shot-box" id="sideBox" onclick="openCamera('side')">
           <div class="placeholder"><span class="icon">🚶</span>Ganzkörper, Seite</div>
         </div>
         <input type="file" id="sideInput" accept="image/*" capture="environment" onchange="handleShot('side', this.files[0])">
@@ -162,12 +176,29 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <button class="btn" id="submitBtn" onclick="submitScan()" disabled>Scan starten</button>
     <div class="err" id="err"></div>
     <div class="ok" id="ok"></div>
-    <div class="hint">Vor einfachem Hintergrund, neutrale Pose, Arme leicht vom Körper abgespreizt. Die Fotos werden hochgeladen und im Hintergrund verarbeitet (Ergebnis erscheint nach ein paar Minuten unten in der Liste).</div>
+    <div class="hint">Handy im Hochformat auf Hüfthöhe, ca. 2,5&ndash;3&nbsp;m Abstand (so weit zurücktreten, bis der Umriss im Sucher komplett ausgefüllt ist), einfacher Hintergrund, neutrale Pose, Arme leicht vom Körper abgespreizt. Die Fotos werden hochgeladen und im Hintergrund verarbeitet (Ergebnis erscheint nach ein paar Minuten unten in der Liste).</div>
   </div>
 
   <div class="section-title">Bisherige Scans</div>
   <div id="history"><div class="loading">Loading…</div></div>
 
+</div>
+
+<div class="cam-overlay" id="camOverlay">
+  <div class="cam-stage">
+    <video id="camVideo" autoplay playsinline muted></video>
+    <canvas class="guide" id="camGuide"></canvas>
+    <div class="cam-topbar">
+      <div class="cam-title" id="camTitle">Front-Foto</div>
+      <div class="cam-tip" id="camTip">Tritt zurück, bis dein ganzer Körper &ndash; Kopf bis Füße &ndash; in den Umriss passt. Handy senkrecht, auf Hüfthöhe.</div>
+    </div>
+    <div class="cam-error" id="camError" style="display:none"></div>
+  </div>
+  <div class="cam-bottombar">
+    <button class="cam-cancel" onclick="closeCamera()">Abbrechen</button>
+    <button class="cam-shutter" onclick="capturePhoto()" aria-label="Auslösen"></button>
+    <button class="cam-fallback" onclick="useFallbackInput()">Datei wählen</button>
+  </div>
 </div>
 
 <script>
@@ -186,6 +217,114 @@ db.auth.getSession().then(({ data }) => {
 });
 
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+/* ---------- In-page camera with framing guide ---------- */
+const CAM_CONFIG = {
+  front: { title: 'Front-Foto', tip: 'Tritt zurück, bis dein ganzer Körper – Kopf bis Füße – in den Umriss passt. Handy senkrecht, auf Hüfthöhe, Arme leicht vom Körper weg.' },
+  side:  { title: 'Seiten-Foto', tip: 'Jetzt im 90°-Winkel zur Kamera stehen (Profil). Gleicher Abstand wie beim Front-Foto, ganzer Körper im Umriss.' }
+};
+let camStream = null;
+let camKind = null;
+
+async function openCamera(kind) {
+  camKind = kind;
+  document.getElementById('camTitle').textContent = CAM_CONFIG[kind].title;
+  document.getElementById('camTip').textContent = CAM_CONFIG[kind].tip;
+  document.getElementById('camError').style.display = 'none';
+  document.getElementById('camOverlay').classList.add('show');
+
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1080 }, height: { ideal: 1440 } },
+      audio: false
+    });
+    const video = document.getElementById('camVideo');
+    video.srcObject = camStream;
+    video.onloadedmetadata = () => drawGuide(kind);
+    window.addEventListener('resize', () => drawGuide(kind));
+  } catch (e) {
+    document.getElementById('camError').style.display = 'block';
+    document.getElementById('camError').textContent = 'Kamera nicht verfügbar (' + e.message + '). Nutze stattdessen "Datei wählen".';
+  }
+}
+
+function drawGuide(kind) {
+  const canvas = document.getElementById('camGuide');
+  const stage = canvas.parentElement;
+  canvas.width = stage.clientWidth;
+  canvas.height = stage.clientHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const w = canvas.width, h = canvas.height;
+  const cx = w / 2;
+  const topY = h * 0.06, bottomY = h * 0.96;
+  const bodyH = bottomY - topY;
+  const headR = bodyH * 0.055;
+  const headCy = topY + headR;
+  const shoulderY = headCy + headR * 1.5;
+  const hipY = topY + bodyH * 0.52;
+  const shoulderHalfW = kind === 'side' ? bodyH * 0.09 : bodyH * 0.16;
+  const hipHalfW = bodyH * 0.10;
+  const footHalfW = bodyH * 0.05;
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([10, 8]);
+
+  ctx.beginPath();
+  ctx.arc(cx, headCy, headR, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - shoulderHalfW, shoulderY);
+  ctx.lineTo(cx - hipHalfW, hipY);
+  ctx.lineTo(cx - footHalfW, bottomY);
+  ctx.moveTo(cx + shoulderHalfW, shoulderY);
+  ctx.lineTo(cx + hipHalfW, hipY);
+  ctx.lineTo(cx + footHalfW, bottomY);
+  ctx.moveTo(cx - shoulderHalfW, shoulderY);
+  ctx.lineTo(cx + shoulderHalfW, shoulderY);
+  ctx.moveTo(cx - footHalfW, bottomY);
+  ctx.lineTo(cx + footHalfW, bottomY);
+  ctx.stroke();
+
+  ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, topY); ctx.lineTo(w, topY);
+  ctx.moveTo(0, bottomY); ctx.lineTo(w, bottomY);
+  ctx.stroke();
+}
+
+function stopCamStream() {
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+}
+
+function closeCamera() {
+  stopCamStream();
+  document.getElementById('camOverlay').classList.remove('show');
+}
+
+function useFallbackInput() {
+  const kind = camKind;
+  closeCamera();
+  document.getElementById(kind + 'Input').click();
+}
+
+function capturePhoto() {
+  const video = document.getElementById('camVideo');
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  canvas.toBlob(blob => {
+    const file = new File([blob], camKind + '.jpg', { type: 'image/jpeg' });
+    handleShot(camKind, file);
+    closeCamera();
+  }, 'image/jpeg', 0.92);
+}
 
 function handleShot(kind, file) {
   if (!file) return;
