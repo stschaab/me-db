@@ -97,6 +97,9 @@
   .info-card p { font-size: 0.88rem; color: #444; line-height: 1.55; margin-bottom: 10px; }
   .info-close { position: absolute; top: 12px; right: 14px; background: none; border: none; font-size: 1.4rem; color: #aaa; cursor: pointer; line-height: 1; }
   .info-close:hover { color: #555; }
+  .measure-list { display: flex; flex-direction: column; gap: 9px; }
+  .measure-list div { font-size: 0.85rem; color: #444; line-height: 1.45; }
+  .measure-list strong { color: #1a1a2e; }
 
   .trend-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin: 28px 0 12px; }
   .trend-head .section-title { margin: 0; }
@@ -175,6 +178,23 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <p>Deine Fotos werden mit <strong>SMPL</strong> ausgewertet, einem 3D-Körpermodell des Max-Planck-Instituts. Es basiert auf tausenden echten Körperscans und beschreibt jeden menschlichen Körper mit demselben Netz aus <strong>6.890 Punkten</strong> – nur deren Position ändert sich je nach Figur.</p>
     <p>Aus deinem Foto schätzt ein KI-Modell, wie dieses Punktnetz für deinen Körper aussehen muss. Mit deiner echten Körpergröße wird das Ergebnis auf reale Zentimeter skaliert, dann werden Taille, Brust, Hüfte usw. direkt aus dem 3D-Netz herausgemessen.</p>
     <button class="btn" style="margin-top:6px" onclick="document.getElementById('infoModal').classList.remove('show')">Verstanden</button>
+  </div>
+</div>
+
+<div class="info-modal" id="measureHelpModal" onclick="if(event.target===this) this.classList.remove('show')">
+  <div class="info-card" style="max-width:480px">
+    <button class="info-close" onclick="document.getElementById('measureHelpModal').classList.remove('show')" aria-label="Schließen">&times;</button>
+    <h2>So misst du richtig</h2>
+    <p style="margin-bottom:14px">Maßband eng anliegend, aber nicht einschnürend. In enger Kleidung/Unterwäsche messen, entspannt stehen (Bauch nicht einziehen), am besten von einer zweiten Person messen lassen.</p>
+    <div class="measure-list">
+      <div><strong>Brust</strong> – waagerecht um den Brustkorb, an der stärksten Stelle (Männer: etwa Brustwarzenhöhe).</div>
+      <div><strong>Taille</strong> – an der schmalsten Stelle des Rumpfes, meist knapp über dem Bauchnabel.</div>
+      <div><strong>Hüfte</strong> – an der breitesten Stelle um Gesäß/Hüfte, ca. 20&nbsp;cm unterhalb der Taille.</div>
+      <div><strong>Oberschenkel</strong> – an der dicksten Stelle, direkt unterhalb des Gesäßes.</div>
+      <div><strong>Hals</strong> – an der Basis, dort wo ein Hemdkragen sitzen würde, 1–2&nbsp;Finger Spielraum lassen.</div>
+      <div><strong>Schrittlänge</strong> – Innenbeinlänge: von der Leiste (Schrittnaht-Höhe) senkrecht bis zum Boden, barfuß.</div>
+    </div>
+    <button class="btn" style="margin-top:14px" onclick="document.getElementById('measureHelpModal').classList.remove('show')">Verstanden</button>
   </div>
 </div>
 
@@ -566,7 +586,7 @@ async function loadHistory() {
       if (scan.status === 'done' && scan.measurements) {
         const manual = scan.manual_measurements || {};
         const fields = Object.keys(scan.measurements);
-        manualFormHtml = `<button class="toggle3d" onclick="toggleManualForm(this)">📏 Maßband-Werte eintragen</button>
+        manualFormHtml = `<button class="toggle3d" onclick="toggleManualForm(this)">📏 Maßband-Werte eintragen</button><button class="toggle3d" onclick="document.getElementById('measureHelpModal').classList.add('show')">❓ Wie messe ich richtig?</button>
           <div class="manual-form">
             ${fields.map(k => `<div><label>${MEASUREMENT_LABELS[k] || k}</label><input type="number" step="0.1" data-key="${k}" value="${manual[k] ?? ''}"></div>`).join('')}
             <button class="btn" style="width:auto;padding:9px 18px;font-size:0.85rem" onclick="saveManualMeasurements(this, ${scan.id})">Speichern</button>
