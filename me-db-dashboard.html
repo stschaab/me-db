@@ -132,6 +132,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-einkaufsliste.html">Shopping</a>
     <a href="me-db-hrv.html">HRV</a>
     <a href="me-db-bodyscan.html">Body Scan</a>
+    <a href="me-db-outfit.html">Modeberater</a>
     <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-supplements.html">Supplements</a>
     <a href="me-db-nutrient-vergleich.html">Nährstoff-Vergleich</a>
@@ -179,6 +180,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div class="title">Body Scan</div>
       <div class="desc">3D-Avatar &amp; Körpermaße aus Fotos, für virtuelle Anprobe</div>
       <div id="bodyscanStat">…</div>
+    </a>
+
+    <a class="tile" href="me-db-outfit.html">
+      <div class="icon">👗</div>
+      <div class="title">Modeberater</div>
+      <div class="desc">Kleiderschrank &amp; Outfit-Kombinationen, generiert auf Basis deines Body Scans</div>
+      <div id="outfitStat">…</div>
     </a>
 
     <a class="tile" href="me-db-sports.html">
@@ -270,7 +278,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) window.location.href = 'me-db-login.html';
-  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); loadBodyscanStat(); }
+  else { loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); loadBodyscanStat(); loadOutfitStat(); }
 });
 
 async function logout() {
@@ -569,6 +577,24 @@ async function loadBodyscanStat() {
     }
   } catch (e) {
     document.getElementById('bodyscanStat').innerHTML = '';
+  }
+}
+
+async function loadOutfitStat() {
+  try {
+    const { count: outfitCount, error: e1 } = await db.from('outfits').select('id', { count: 'exact', head: true });
+    if (e1) throw e1;
+    const { count: itemCount, error: e2 } = await db.from('wardrobe_items').select('id', { count: 'exact', head: true });
+    if (e2) throw e2;
+    if (!outfitCount && !itemCount) {
+      document.getElementById('outfitStat').innerHTML = `<div class="hrv-none">Noch kein Kleiderschrank</div>`;
+      return;
+    }
+    document.getElementById('outfitStat').innerHTML = `
+      <div class="hrv-stat"><span class="n">${itemCount || 0}</span><span class="u">Kleidungsstücke</span></div>
+      <div class="hrv-sub">${outfitCount || 0} ${outfitCount === 1 ? 'Outfit' : 'Outfits'}</div>`;
+  } catch (e) {
+    document.getElementById('outfitStat').innerHTML = '';
   }
 }
 
