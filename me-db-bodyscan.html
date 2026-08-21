@@ -242,6 +242,7 @@ db.auth.getSession().then(({ data }) => {
   userId = data.session.user.id;
   loadHistory();
   loadTrendChart();
+  restoreDraft();
 });
 
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
@@ -362,6 +363,7 @@ function handleShot(kind, file) {
   reader.onload = e => {
     box.classList.add('filled');
     box.innerHTML = `<img src="${e.target.result}" alt="${kind}">`;
+    try { localStorage.setItem('bodyscan_draft_' + kind, e.target.result); } catch (e2) {}
   };
   reader.readAsDataURL(file);
   updateSubmitState();
@@ -372,7 +374,42 @@ function updateSubmitState() {
   const ready = shots.front && shots.side && height > 0;
   document.getElementById('submitBtn').disabled = !ready;
 }
-document.getElementById('heightCm').addEventListener('input', updateSubmitState);
+
+function saveFieldDraft() {
+  try {
+    localStorage.setItem('bodyscan_draft_height', document.getElementById('heightCm').value);
+    localStorage.setItem('bodyscan_draft_weight', document.getElementById('weightKg').value);
+  } catch (e) {}
+  updateSubmitState();
+}
+document.getElementById('heightCm').addEventListener('input', saveFieldDraft);
+document.getElementById('weightKg').addEventListener('input', saveFieldDraft);
+
+function clearDraft() {
+  for (const k of ['front', 'side', 'height', 'weight']) {
+    try { localStorage.removeItem('bodyscan_draft_' + k); } catch (e) {}
+  }
+}
+
+async function restoreDraft() {
+  try {
+    const h = localStorage.getItem('bodyscan_draft_height');
+    const w = localStorage.getItem('bodyscan_draft_weight');
+    if (h) document.getElementById('heightCm').value = h;
+    if (w) document.getElementById('weightKg').value = w;
+
+    for (const kind of ['front', 'side']) {
+      const dataUrl = localStorage.getItem('bodyscan_draft_' + kind);
+      if (!dataUrl) continue;
+      const blob = await (await fetch(dataUrl)).blob();
+      shots[kind] = new File([blob], kind + '.jpg', { type: blob.type || 'image/jpeg' });
+      const box = document.getElementById(kind + 'Box');
+      box.classList.add('filled');
+      box.innerHTML = `<img src="${dataUrl}" alt="${kind}">`;
+    }
+    updateSubmitState();
+  } catch (e) {}
+}
 
 function safeKey(name) { return name.replace(/[^a-zA-Z0-9._-]/g, '_'); }
 
@@ -409,6 +446,7 @@ async function submitScan() {
     okEl.textContent = 'Scan hochgeladen. Ergebnis erscheint hier, sobald der lokale Agent ihn verarbeitet hat.';
     okEl.classList.add('show');
 
+    clearDraft();
     shots.front = null; shots.side = null;
     document.getElementById('frontBox').classList.remove('filled');
     document.getElementById('frontBox').innerHTML = '<div class="placeholder"><span class="icon">🧍</span>Ganzkörper, Front</div>';
