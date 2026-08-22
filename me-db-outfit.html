@@ -49,6 +49,8 @@
   .outfit-card { background: white; border-radius: 14px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 16px; }
   .outfit-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   .outfit-title { font-size: 0.95rem; font-weight: 700; }
+  .rename-btn { border: none; background: none; cursor: pointer; font-size: 0.75rem; opacity: 0.5; margin-left: 4px; vertical-align: middle; }
+  .rename-btn:hover { opacity: 1; }
   .outfit-sub { font-size: 0.72rem; color: #999; margin-top: 2px; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
   .chip { display: flex; align-items: center; gap: 6px; background: #f0f0f0; border-radius: 20px; padding: 4px 6px 4px 4px; font-size: 0.78rem; }
@@ -388,6 +390,23 @@ async function generateOutfit(outfitId, btn) {
   renderOutfits();
 }
 
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+async function renameOutfit(outfitId, ev) {
+  ev.stopPropagation();
+  const outfit = outfits.find(o => o.id === outfitId);
+  const newName = prompt('Outfit umbenennen:', outfit.name || '');
+  if (newName === null) return;
+  const trimmed = newName.trim();
+  await db.from('outfits').update({ name: trimmed || null, updated_at: new Date().toISOString() }).eq('id', outfitId);
+  outfit.name = trimmed || null;
+  renderOutfits();
+}
+
 async function deleteOutfit(outfitId, ev) {
   ev.stopPropagation();
   if (!confirm('Dieses Outfit inkl. aller generierten Versionen löschen?')) return;
@@ -402,7 +421,7 @@ async function renderOutfits() {
     <div class="outfit-card" data-outfit="${o.id}">
       <div class="outfit-head">
         <div>
-          <div class="outfit-title">Outfit #${o.id}</div>
+          <div class="outfit-title">${escapeHtml(o.name || ('Outfit #' + o.id))}<button class="rename-btn" onclick="renameOutfit(${o.id}, event)" title="Umbenennen">✏️</button></div>
           <div class="outfit-sub">${new Date(o.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
         </div>
         <button class="wremove" style="position:static;display:block" onclick="deleteOutfit(${o.id}, event)">&times;</button>
