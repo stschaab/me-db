@@ -63,9 +63,22 @@
   .picker-box.show { display: block; }
 
   .version-scroller { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 8px; margin-top: 14px; }
-  .version-scroller img { height: 220px; border-radius: 10px; object-fit: cover; cursor: pointer; flex-shrink: 0; }
+  .version-wrap { position: relative; height: 220px; flex-shrink: 0; }
+  .version-wrap img { height: 100%; border-radius: 10px; object-fit: cover; cursor: pointer; display: block; }
   .version-scroller .vph { height: 220px; width: 165px; border-radius: 10px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 0.8rem; flex-shrink: 0; }
   .version-scroller .verr { height: 220px; width: 165px; border-radius: 10px; background: #ffebee; display: flex; align-items: center; justify-content: center; color: #c62828; font-size: 0.7rem; text-align: center; padding: 10px; flex-shrink: 0; }
+  .find-btn { position: absolute; bottom: 6px; right: 6px; background: rgba(26,26,46,0.85); color: white; border: none; border-radius: 20px; padding: 5px 10px; font-size: 0.68rem; cursor: pointer; }
+  .find-btn:hover { background: #1a1a2e; }
+  .find-btn:disabled { opacity: 0.6; cursor: default; }
+  .find-results { margin-top: 10px; }
+  .find-card { background: #f5f5f5; border-radius: 10px; padding: 12px; margin-top: 8px; font-size: 0.82rem; }
+  .find-card .fititle { font-weight: 700; margin-bottom: 4px; }
+  .find-card .fidesc { color: #777; font-size: 0.76rem; margin-bottom: 8px; }
+  .find-shop { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-top: 1px solid #e5e5e5; }
+  .find-shop:first-of-type { border-top: none; }
+  .find-shop a { color: #1a1a2e; font-weight: 600; text-decoration: none; font-size: 0.82rem; }
+  .find-shop a:hover { text-decoration: underline; }
+  .find-shop .price { color: #555; font-size: 0.8rem; }
   .empty { text-align: center; padding: 30px; color: #aaa; font-size: 0.88rem; }
   .loading { text-align: center; padding: 40px; color: #aaa; }
 
@@ -434,6 +447,7 @@ async function renderOutfits() {
         <button class="btn" onclick="generateOutfit(${o.id}, this)">✨ Generieren</button>
       </div>
       <div class="version-scroller" id="versions_${o.id}"><div class="vph">…</div></div>
+      <div class="find-results" id="finds_${o.id}"></div>
     </div>
   `).join('');
 
@@ -490,11 +504,56 @@ async function renderVersions(outfit) {
     }
     const url = await signedUrl(v.image_storage_path);
     if (!url) continue;
+    const wrap = document.createElement('div');
+    wrap.className = 'version-wrap';
     const img = document.createElement('img');
     img.src = url;
     img.onclick = () => openLightbox(url);
-    el.appendChild(img);
+    const findBtn = document.createElement('button');
+    findBtn.className = 'find-btn';
+    findBtn.textContent = '🔍 Online finden';
+    findBtn.onclick = (ev) => { ev.stopPropagation(); findOutfitItem(v.id, outfit.id, findBtn); };
+    wrap.appendChild(img);
+    wrap.appendChild(findBtn);
+    el.appendChild(wrap);
   }
+}
+
+async function findOutfitItem(versionId, outfitId, btn) {
+  btn.disabled = true;
+  const orig = btn.textContent;
+  btn.textContent = 'Suche…';
+  const resultsEl = document.getElementById('finds_' + outfitId);
+  resultsEl.innerHTML = '<div class="hint">Analysiere Bild + suche Shops… (kann bis zu 80s dauern)</div>';
+  try {
+    const resp = await fetch(`${WORKER_URL}/find-outfit-item`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ outfit_version_id: versionId })
+    });
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error);
+    renderFindResults(outfitId, data.items);
+  } catch (e) {
+    resultsEl.innerHTML = `<div class="err">Fehler: ${escapeHtml(e.message)}</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = orig;
+}
+
+function renderFindResults(outfitId, items) {
+  const el = document.getElementById('finds_' + outfitId);
+  if (!items.length) { el.innerHTML = '<div class="hint">Keine neuen Kleidungsstücke gefunden (alles schon aus dem Kleiderschrank bekannt).</div>'; return; }
+  el.innerHTML = items.map(it => `
+    <div class="find-card">
+      <div class="fititle">${escapeHtml(it.category || '?')}${it.color ? ' · ' + escapeHtml(it.color) : ''}${it.material ? ' · ' + escapeHtml(it.material) : ''}</div>
+      <div class="fidesc">${escapeHtml(it.description || '')}</div>
+      ${(it.shops || []).map(s => `
+        <div class="find-shop">
+          <a href="${escapeHtml(s.url || '')}" target="_blank" rel="noopener">${escapeHtml(s.name || 'Shop')}</a>
+          <span class="price">${s.price != null ? s.price.toFixed(2) + ' €' : 'Preis unbekannt'}</span>
+        </div>`).join('') || '<div class="hint">Keine Shops gefunden</div>'}
+    </div>
+  `).join('');
 }
 </script>
 </body>
