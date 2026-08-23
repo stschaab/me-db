@@ -188,6 +188,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <label>Bulk density (g/ml)</label>
       <input id="dDensity" type="number" step="0.01" placeholder="e.g. 0.5 — nur für lose Pulver relevant">
       <div style="font-size:0.72rem;color:#aaa;margin-top:4px">Für die AG-Me-Batch-Mix-Rechnung (Gramm → ml/Scoops). Bei Kapseln/Tropfen/Tabletten leer lassen.</div>
+      <button type="button" class="scan-btn" style="margin-top:8px;background:#ede7f6;color:#5e35b1;" onclick="openDensityTest()">🧪 Dichte-Test (Scoop abwiegen)</button>
     </div>
     <div class="dfield">
       <label>Price/Package €</label>
@@ -260,6 +261,22 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <div class="detail-actions">
       <button class="del-btn" id="delBtn" onclick="deleteSup()">Delete</button>
       <button class="save-btn" onclick="saveDetail()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Density test -->
+<div class="overlay" id="densityTestOverlay" style="z-index:600">
+  <div class="detail-card" style="max-width:380px">
+    <h2><span>🧪 Dichte-Test</span><button class="closebtn" onclick="closeDensityTest()">&times;</button></h2>
+    <div class="dfield" style="font-size:0.8rem;color:#888">Scoop/Messbecher randvoll mit dem Pulver füllen, glattstreichen, wiegen. Ergebnis unten eintragen.</div>
+    <div class="dgrid">
+      <div class="dfield"><label>Scoop/Messbecher (ml)</label><input id="tDensityMl" type="number" step="0.1" placeholder="e.g. 10" oninput="calcDensityTest()"></div>
+      <div class="dfield"><label>Gewicht (g)</label><input id="tDensityG" type="number" step="0.1" placeholder="e.g. 5.2" oninput="calcDensityTest()"></div>
+    </div>
+    <div id="densityTestResult" style="font-size:0.9rem;color:#888;margin:4px 0 18px;"></div>
+    <div class="detail-actions" style="justify-content:flex-end">
+      <button class="save-btn" id="densityTestApplyBtn" onclick="applyDensityTest()" disabled>Übernehmen</button>
     </div>
   </div>
 </div>
@@ -383,6 +400,36 @@ function updateDailyCostPreview() {
   }
   el.style.color = '#888';
   el.textContent = `→ ${cost.toFixed(3)} €/Tag (≈ ${(cost * 30).toFixed(2)} €/Monat)${override !== '' ? ' — manuell/KI gesetzt' : ''}`;
+}
+
+// ── Density test (scoop wiegen → g/ml) ───────────────────────────
+function openDensityTest() {
+  document.getElementById('tDensityMl').value = '';
+  document.getElementById('tDensityG').value = '';
+  document.getElementById('densityTestResult').textContent = '';
+  document.getElementById('densityTestApplyBtn').disabled = true;
+  document.getElementById('densityTestOverlay').classList.add('show');
+}
+function closeDensityTest() {
+  document.getElementById('densityTestOverlay').classList.remove('show');
+}
+function calcDensityTest() {
+  const ml = parseFloat(document.getElementById('tDensityMl').value);
+  const g = parseFloat(document.getElementById('tDensityG').value);
+  const el = document.getElementById('densityTestResult');
+  const btn = document.getElementById('densityTestApplyBtn');
+  if (!ml || !g) { el.textContent = ''; btn.disabled = true; return; }
+  const density = g / ml;
+  el.textContent = `→ ${density.toFixed(3)} g/ml`;
+  btn.disabled = false;
+}
+function applyDensityTest() {
+  const ml = parseFloat(document.getElementById('tDensityMl').value);
+  const g = parseFloat(document.getElementById('tDensityG').value);
+  if (!ml || !g) return;
+  document.getElementById('dDensity').value = (g / ml).toFixed(3);
+  closeDensityTest();
+  showToast('Dichte übernommen — zum Speichern nicht vergessen, "Save" zu klicken');
 }
 
 async function loadSupps() {
