@@ -185,6 +185,11 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div class="dfield"><label>Package Unit</label><input id="dPackageUnit" placeholder="g, ml, pieces…" oninput="updateDailyCostPreview()"></div>
     </div>
     <div class="dfield">
+      <label>Bulk density (g/ml)</label>
+      <input id="dDensity" type="number" step="0.01" placeholder="e.g. 0.5 — nur für lose Pulver relevant">
+      <div style="font-size:0.72rem;color:#aaa;margin-top:4px">Für die AG-Me-Batch-Mix-Rechnung (Gramm → ml/Scoops). Bei Kapseln/Tropfen/Tabletten leer lassen.</div>
+    </div>
+    <div class="dfield">
       <label>Price/Package €</label>
       <input id="dPackagePrice" type="number" step="0.01" oninput="updateDailyCostPreview()">
       <div id="dailyCostPreview" style="font-size:0.78rem;color:#888;margin-top:4px;"></div>
@@ -472,6 +477,7 @@ function openDetail(id) {
   document.getElementById('dManufacturer').value = s.manufacturer || '';
   document.getElementById('dPackageAmount').value = s.package_amount ?? '';
   document.getElementById('dPackageUnit').value = s.package_unit || '';
+  document.getElementById('dDensity').value = s.density_g_per_ml ?? '';
   document.getElementById('dPackagePrice').value = s.package_price ?? '';
   document.getElementById('dDailyCostOverride').value = s.daily_cost_override ?? '';
   document.getElementById('dActive').checked = isNew ? true : !!s.active;
@@ -524,6 +530,7 @@ async function saveDetail() {
     package_amount: document.getElementById('dPackageAmount').value === '' ? null : parseFloat(document.getElementById('dPackageAmount').value),
     package_unit: document.getElementById('dPackageUnit').value.trim() || null,
     package_price: document.getElementById('dPackagePrice').value === '' ? null : parseFloat(document.getElementById('dPackagePrice').value),
+    density_g_per_ml: document.getElementById('dDensity').value === '' ? null : parseFloat(document.getElementById('dDensity').value),
     daily_cost_override: document.getElementById('dDailyCostOverride').value === '' ? null : parseFloat(document.getElementById('dDailyCostOverride').value),
     active: document.getElementById('dActive').checked,
     ai_supplier_1_name:  document.getElementById('sup0Name').value.trim() || null,
