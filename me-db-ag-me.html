@@ -38,11 +38,10 @@
   .chk { width: 17px; height: 17px; cursor: pointer; accent-color: #2e7d32; flex-shrink: 0; }
   .ing-main { flex: 1; min-width: 0; cursor: pointer; }
   .ing-title { font-size: 0.95rem; font-weight: 600; word-break: break-word; display: flex; align-items: center; gap: 7px; }
-  .type-badge { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 20px; font-weight: 700; }
-  .type-badge.concentrate { background: #ede7f6; color: #5e35b1; }
-  .type-badge.natural { background: #e8f5e9; color: #2e7d32; }
   .ing-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; font-size: 0.78rem; color: #888; }
   .ing-meta .badge { background: #f0f0f0; padding: 2px 8px; border-radius: 20px; }
+  .ing-meta .badge.batch { background: #ede7f6; color: #5e35b1; font-weight: 600; }
+  .ing-meta .badge.warn { background: #fff3e0; color: #e65100; }
   .ing-scoop { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .scoop-val { font-weight: 700; font-size: 1.05rem; text-align: right; white-space: nowrap; }
   .scoop-val .u { font-size: 0.68rem; color: #aaa; font-weight: 500; display: block; }
@@ -61,20 +60,11 @@
   .detail-actions { display: flex; justify-content: space-between; margin-top: 18px; }
   .detail-actions .save-btn { background: #2e7d32; color: white; border: none; border-radius: 8px; padding: 10px 20px; font-size: 0.9rem; cursor: pointer; }
   .detail-actions .del-btn { background: none; border: 1px solid #ffcdd2; color: #c62828; border-radius: 8px; padding: 10px 16px; font-size: 0.85rem; cursor: pointer; }
-  .type-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
-  .type-toggle button { flex: 1; border: 1px solid #e0e0e0; background: white; border-radius: 7px; padding: 9px; font-size: 0.85rem; cursor: pointer; }
-  .type-toggle button.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
-  .ai-check-btn { width: 100%; background: #ede7f6; color: #5e35b1; border: 1px solid #d1c4e9; border-radius: 7px; padding: 9px; font-size: 0.85rem; cursor: pointer; font-weight: 600; }
-  .ai-check-btn:hover { background: #e1d5f5; }
-  .ai-check-btn:disabled { opacity: 0.6; cursor: default; }
-  .ai-check-result { margin-top: 10px; padding: 11px 13px; border-radius: 8px; font-size: 0.82rem; line-height: 1.5; }
-  .ai-check-result.ok { background: #e8f5e9; color: #1b5e20; }
-  .ai-check-result.warning { background: #fff8e1; color: #8a6300; }
-  .ai-check-result.error { background: #ffebee; color: #b71c1c; }
-  .ai-check-result .verdict-label { font-weight: 700; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.04em; margin-bottom: 4px; }
-  .ai-check-result ul { margin: 6px 0 0 18px; }
-  .ai-check-result li { margin-bottom: 3px; }
-  .concentrate-fields, .natural-fields { display: none; }
+  .supp-readonly { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 7px; padding: 10px 12px; font-size: 0.85rem; }
+  .supp-readonly .name { font-weight: 700; margin-bottom: 4px; }
+  .supp-readonly .row { color: #888; font-size: 0.8rem; margin-top: 2px; }
+  .supp-readonly a { color: #5e35b1; text-decoration: none; font-size: 0.78rem; }
+  .supp-readonly a:hover { text-decoration: underline; }
 
   .empty { text-align: center; padding: 50px; color: #aaa; }
   .loading { text-align: center; padding: 60px; color: #aaa; }
@@ -169,10 +159,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
   <div class="filters">
     <button class="chip active" data-f="all" onclick="setFilter('all')">All</button>
-    <button class="chip" data-f="active" onclick="setFilter('active')">Active</button>
-    <button class="chip" data-f="concentrate" onclick="setFilter('concentrate')">Concentrate</button>
-    <button class="chip" data-f="natural" onclick="setFilter('natural')">Natural</button>
-    <div class="right"><button class="btn-add" onclick="openDetail(null)">+ Ingredient</button></div>
+    <button class="chip" data-f="active" onclick="setFilter('active')">In mix</button>
+    <div class="right"><button class="btn-add" onclick="openDetail(null)">+ Add from Supplements</button></div>
   </div>
 
   <div id="content"><div class="loading">Loading AG-Me mix…</div></div>
@@ -184,55 +172,27 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="detail-card">
     <h2><span>Ingredient</span><button class="closebtn" onclick="closeDetail()">&times;</button></h2>
 
-    <div class="dfield"><label>Import from Supplements list (optional)</label>
-      <select id="dFromSupplement" onchange="importFromSupplement(this.value)">
-        <option value="">— pick to prefill name / package / price —</option>
+    <div class="dfield" id="pickField"><label>Supplement</label>
+      <select id="dSupplement">
+        <option value="">— pick a supplement to add to the mix —</option>
       </select>
-    </div>
-    <div class="dfield"><label>Name</label><input id="dName" placeholder="e.g. Magnesium bisglycinate"></div>
-
-    <div class="type-toggle">
-      <button id="typeBtnConcentrate" onclick="setType('concentrate')">Concentrate / compound</button>
-      <button id="typeBtnNatural" onclick="setType('natural')">Natural powder</button>
+      <div class="hint">Only <a href="me-db-supplements.html">Supplements</a> not already in the mix are listed. Name, daily amount, density, package &amp; price all come from there.</div>
     </div>
 
-    <div class="concentrate-fields">
-      <div class="dfield"><label>Target dose (active ingredient, mg/day)</label><input id="dTargetMg" type="number" step="1" placeholder="e.g. 600"></div>
-      <div class="dfield"><label>Yield (mg active per gram of powder)</label><input id="dYield" type="number" step="0.01" placeholder="e.g. 145"></div>
-      <div class="dfield hint" style="margin-top:-8px">Get this from the label: e.g. "2 capsules = 400mg Mg, capsule = 1.38g compound" → yield = 400 / (2×1.38) = 145 mg/g</div>
+    <div class="dfield" id="readonlyField" style="display:none">
+      <label>Supplement</label>
+      <div class="supp-readonly" id="readonlyBox"></div>
     </div>
 
-    <div class="natural-fields">
-      <div class="dfield"><label>Target amount (g/day)</label><input id="dTargetG" type="number" step="0.1" placeholder="e.g. 8"></div>
+    <div class="dfield"><label>Scoop size</label>
+      <select id="dScoop"></select>
+      <div class="hint">Größter praktischer Messbecher/Löffel für den Batch — je größer, desto weniger Scoops zum Abmessen.</div>
     </div>
 
-    <div class="dgrid">
-      <div class="dfield"><label>Bulk density (g/ml)</label><input id="dDensity" type="number" step="0.01" placeholder="e.g. 0.55"></div>
-      <div class="dfield"><label>Scoop size</label>
-        <select id="dScoop">
-          <option value="1">1 ml</option>
-          <option value="2.5">2.5 ml</option>
-          <option value="5">5 ml</option>
-          <option value="10">10 ml</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="dgrid">
-      <div class="dfield"><label>Package size (g)</label><input id="dPkgSize" type="number" step="1" placeholder="e.g. 250"></div>
-      <div class="dfield"><label>Package price (€)</label><input id="dPkgPrice" type="number" step="0.01" placeholder="e.g. 19.90"></div>
-    </div>
-
-    <div class="dfield">
-      <button type="button" class="ai-check-btn" id="aiCheckBtn" onclick="checkIngredientAI()">🤖 AI Check density / yield / dose</button>
-      <div id="aiCheckResult"></div>
-    </div>
-
-    <div class="dfield"><label>Notes</label><textarea id="dNotes" rows="2" placeholder="brand, source, calibration notes…"></textarea></div>
-    <div class="dfield"><label><input type="checkbox" id="dActive" style="width:auto;display:inline-block;margin-right:6px;"> Active (included in mix)</label></div>
+    <div class="dfield"><label><input type="checkbox" id="dActive" style="width:auto;display:inline-block;margin-right:6px;"> In mix (included in batch/cost totals)</label></div>
 
     <div class="detail-actions">
-      <button class="del-btn" id="delBtn" onclick="deleteIngredient()">Delete</button>
+      <button class="del-btn" id="delBtn" onclick="deleteIngredient()">Remove from mix</button>
       <button class="save-btn" onclick="saveDetail()">Save</button>
     </div>
   </div>
@@ -255,14 +215,15 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <script>
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
-const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 let userId = null;
-let allIngredients = [];
+let allIngredients = [];   // ag_me_ingredients rows, each with nested .supplement (joined from supplements)
+let allSupplements = [];   // all active supplements, for the "add to mix" picker
 let settings = { batch_days: 30, ag1_price_per_month: null };
 let filter = 'all';
-let currentType = 'concentrate';
+const SCOOP_SIZES = [1, 2.5, 5, 10, 15, 20, 25, 30, 50, 75, 100];
+document.getElementById('dScoop').innerHTML = SCOOP_SIZES.map(v => `<option value="${v}">${v} ml</option>`).join('');
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
@@ -272,80 +233,72 @@ db.auth.getSession().then(({ data }) => {
 
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 
-async function checkIngredientAI() {
-  const btn = document.getElementById('aiCheckBtn');
-  const resultBox = document.getElementById('aiCheckResult');
-  const payload = {
-    name: document.getElementById('dName').value.trim(),
-    type: currentType,
-    density_g_per_ml: parseFloat(document.getElementById('dDensity').value) || null,
-    yield_mg_per_g: currentType === 'concentrate' ? (parseFloat(document.getElementById('dYield').value) || null) : null,
-    target_dose_mg: currentType === 'concentrate' ? (parseFloat(document.getElementById('dTargetMg').value) || null) : null,
-    target_amount_g: currentType === 'natural' ? (parseFloat(document.getElementById('dTargetG').value) || null) : null,
-    package_size_g: parseFloat(document.getElementById('dPkgSize').value) || null,
-    package_price: parseFloat(document.getElementById('dPkgPrice').value) || null,
-  };
-  if (!payload.name) { showToast('Please enter a name first'); return; }
-
-  btn.disabled = true;
-  btn.textContent = '🤖 Checking…';
-  resultBox.innerHTML = '';
-
-  try {
-    const resp = await fetch(WORKER_URL + '/check-ingredient', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await resp.json();
-    if (!data.success) { resultBox.innerHTML = `<div class="ai-check-result error">Error: ${esc(data.error)}</div>`; return; }
-
-    const c = data.check;
-    const notesHtml = (c.notes && c.notes.length) ? `<ul>${c.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : '';
-    resultBox.innerHTML = `<div class="ai-check-result ${esc(c.verdict)}">
-      <div class="verdict-label">${c.verdict === 'ok' ? '✓ Looks good' : c.verdict === 'warning' ? '⚠ Worth a look' : '✗ Likely off'}</div>
-      ${esc(c.summary)}
-      ${notesHtml}
-    </div>`;
-  } catch (e) {
-    resultBox.innerHTML = `<div class="ai-check-result error">Error: ${esc(e.message)}</div>`;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '🤖 AI Check density / yield / dose';
-  }
-}
 function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1500); }
 
 // ── Calculations ─────────────────────────────────────────────────
+// Same conversion as me-db-supplements.html's toGrams() — AG-Me batch math only works
+// for loose powders dosed in g/mg (you don't "scoop" capsules or drops).
+function toGrams(amount, unit) {
+  const a = parseFloat(amount);
+  if (!a) return null;
+  const u = (unit || '').trim().toLowerCase();
+  if (u === 'g') return a;
+  if (u === 'mg') return a / 1000;
+  return null;
+}
 function dailyGrams(i) {
-  if (i.type === 'concentrate') {
-    if (!i.target_dose_mg || !i.yield_mg_per_g) return null;
-    return i.target_dose_mg / i.yield_mg_per_g;
-  }
-  return i.target_amount_g ?? null;
+  const s = i.supplement;
+  if (!s) return null;
+  return toGrams(s.daily_amount, s.unit);
 }
 function dailyMl(i) {
+  const s = i.supplement;
   const g = dailyGrams(i);
-  if (g == null || !i.density_g_per_ml) return null;
-  return g / i.density_g_per_ml;
+  if (g == null || !s || !s.density_g_per_ml) return null;
+  return g / s.density_g_per_ml;
 }
 function dailyScoops(i) {
   const ml = dailyMl(i);
   if (ml == null || !i.scoop_ml) return null;
   return ml / i.scoop_ml;
 }
+// Mirrors me-db-supplements.html's dailyCost(): daily_cost_override wins if set, else
+// price/package × daily amount, converted to grams first if units of daily/package differ.
 function dailyCost(i) {
+  const s = i.supplement;
+  if (!s) return null;
+  if (s.daily_cost_override != null && s.daily_cost_override !== '') return parseFloat(s.daily_cost_override);
+  const pp = parseFloat(s.package_price), pa = parseFloat(s.package_amount), da = parseFloat(s.daily_amount);
+  if (!pp || !pa || !da) return null;
+  const unit = (s.unit || '').trim().toLowerCase();
+  const packageUnit = (s.package_unit || '').trim().toLowerCase();
+  if (unit === packageUnit) return (pp / pa) * da;
+  const dailyG = toGrams(da, unit), packageG = toGrams(pa, packageUnit);
+  if (dailyG != null && packageG != null) return (pp / packageG) * dailyG;
+  return null;
+}
+function batchGrams(i) {
   const g = dailyGrams(i);
-  if (g == null || !i.package_size_g || !i.package_price) return null;
-  return (g / i.package_size_g) * i.package_price;
+  return g == null ? null : g * (settings.batch_days || 30);
+}
+function batchMl(i) {
+  const ml = dailyMl(i);
+  return ml == null ? null : ml * (settings.batch_days || 30);
+}
+function batchScoops(i) {
+  const bm = batchMl(i);
+  if (bm == null || !i.scoop_ml) return null;
+  return bm / i.scoop_ml;
 }
 
 // ── Load ──────────────────────────────────────────────────────────
 async function loadIngredients() {
-  const { data, error } = await db.from('ag_me_ingredients').select('*').order('sort_order').order('name');
+  const { data, error } = await db.from('ag_me_ingredients')
+    .select('id, scoop_ml, active, sort_order, supplement_id, supplement:supplements(*)')
+    .order('sort_order');
   if (error) { document.getElementById('content').innerHTML = `<div class="empty">Error: ${error.message}</div>`; return; }
-  allIngredients = data || [];
+  allIngredients = (data || []).sort((a, b) => (a.supplement?.name || '').localeCompare(b.supplement?.name || ''));
 }
 
 async function loadSettings() {
@@ -353,27 +306,9 @@ async function loadSettings() {
   if (data) settings = data;
 }
 
-let allSupplements = [];
 async function loadSupplementsList() {
-  const { data } = await db.from('supplements').select('id,name,package_amount,package_unit,package_price').eq('active', true).order('name');
+  const { data } = await db.from('supplements').select('*').eq('active', true).order('name');
   allSupplements = data || [];
-  const sel = document.getElementById('dFromSupplement');
-  sel.innerHTML = '<option value="">— pick to prefill name / package / price —</option>'
-    + allSupplements.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
-}
-
-function importFromSupplement(id) {
-  if (!id) return;
-  const s = allSupplements.find(s => String(s.id) === String(id));
-  if (!s) return;
-  document.getElementById('dName').value = s.name || '';
-  if (s.package_amount != null && (!s.package_unit || /^g$|gram/i.test(s.package_unit))) {
-    document.getElementById('dPkgSize').value = s.package_amount;
-  }
-  if (s.package_price != null) document.getElementById('dPkgPrice').value = s.package_price;
-  if (s.package_unit && !/^g$|gram/i.test(s.package_unit)) {
-    showToast(`Note: package unit is "${s.package_unit}", not g — check package size manually`);
-  }
 }
 
 function renderAll() {
@@ -391,7 +326,7 @@ function renderHero() {
   const batchDays = settings.batch_days || 30;
   const totalBatch = totalDaily * batchDays;
   document.getElementById('totalDaily').innerHTML = `${totalDaily.toFixed(2)}<span class="u">€/day</span>`;
-  document.getElementById('totalSub').textContent = `${active.length} active` + (missing ? ` · ${missing} missing cost data` : '');
+  document.getElementById('totalSub').textContent = `${active.length} in mix` + (missing ? ` · ${missing} missing cost data` : '');
   document.getElementById('totalBatch').innerHTML = `${totalBatch.toFixed(0)}<span class="u">€/batch</span>`;
   document.getElementById('batchLabel').textContent = `Per batch (${batchDays} days)`;
 
@@ -417,36 +352,42 @@ function setFilter(f) {
 function render() {
   let list = allIngredients;
   if (filter === 'active') list = list.filter(i => i.active);
-  if (filter === 'concentrate') list = list.filter(i => i.type === 'concentrate');
-  if (filter === 'natural') list = list.filter(i => i.type === 'natural');
 
-  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">No ingredients in this view.</div>'; return; }
+  if (!list.length) { document.getElementById('content').innerHTML = '<div class="empty">No ingredients in this view. Add one from your Supplements list.</div>'; return; }
   document.getElementById('content').innerHTML = list.map(ingRow).join('');
 }
 
 function ingRow(i) {
+  const s = i.supplement || {};
   const meta = [];
-  if (i.type === 'concentrate' && i.target_dose_mg) meta.push(`Target: ${i.target_dose_mg}mg/day`);
-  if (i.type === 'natural' && i.target_amount_g) meta.push(`Target: ${i.target_amount_g}g/day`);
-  if (i.density_g_per_ml) meta.push(`${i.density_g_per_ml} g/ml`);
+  if (s.daily_amount != null) meta.push(`${s.daily_amount}${s.unit || ''}/day`);
+  if (s.density_g_per_ml) meta.push(`${s.density_g_per_ml} g/ml`);
   const cost = dailyCost(i);
   if (cost != null) meta.push(`${cost.toFixed(2)} €/day`);
 
-  const scoops = dailyScoops(i);
-  const scoopDisplay = scoops != null ? scoops.toFixed(1) : '–';
+  const batchDays = settings.batch_days || 30;
+  const bg = batchGrams(i), bm = batchMl(i);
+  let batchBadge = '';
+  if (bg != null) {
+    batchBadge = `<span class="badge batch">Batch (${batchDays}d): ${bg.toFixed(0)}g${bm != null ? ` / ${bm.toFixed(0)}ml` : ''}</span>`;
+    if (bm == null) batchBadge += `<span class="badge warn">Dichte fehlt für ml — in Supplements nachtragen</span>`;
+  }
+
+  const bScoops = batchScoops(i);
+  const scoopDisplay = bScoops != null ? bScoops.toFixed(1) : '–';
 
   return `
     <div class="ing-row ${i.active ? '' : 'inactive'}" data-id="${i.id}">
-      <input type="checkbox" class="chk" ${i.active?'checked':''} onchange="toggleActive(${i.id}, this.checked)" title="Active" onclick="event.stopPropagation()">
+      <input type="checkbox" class="chk" ${i.active?'checked':''} onchange="toggleActive(${i.id}, this.checked)" title="In mix" onclick="event.stopPropagation()">
       <div class="ing-main" onclick="openDetail(${i.id})">
-        <div class="ing-title">${esc(i.name)} <span class="type-badge ${i.type}">${i.type === 'concentrate' ? 'Concentrate' : 'Natural'}</span></div>
-        <div class="ing-meta">${meta.map(m=>`<span class="badge">${esc(m)}</span>`).join('')}</div>
+        <div class="ing-title">${esc(s.name || '(deleted supplement)')}</div>
+        <div class="ing-meta">${meta.map(m=>`<span class="badge">${esc(m)}</span>`).join('')}${batchBadge}</div>
       </div>
       <div class="ing-scoop">
         <select class="scoop-select" onclick="event.stopPropagation()" onchange="changeScoop(${i.id}, this.value)">
-          ${[1,2.5,5,10].map(v => `<option value="${v}" ${Number(i.scoop_ml)===v?'selected':''}>${v} ml</option>`).join('')}
+          ${SCOOP_SIZES.map(v => `<option value="${v}" ${Number(i.scoop_ml)===v?'selected':''}>${v} ml</option>`).join('')}
         </select>
-        <div class="scoop-val">${scoopDisplay}<span class="u">scoops/day</span></div>
+        <div class="scoop-val">${scoopDisplay}<span class="u">scoops / ${batchDays}d</span></div>
       </div>
     </div>`;
 }
@@ -471,38 +412,44 @@ async function toggleActive(id, val) {
 // ── Detail popup ────────────────────────────────────────────────
 let detailId = undefined;
 
-function setType(t) {
-  currentType = t;
-  document.getElementById('typeBtnConcentrate').classList.toggle('active', t === 'concentrate');
-  document.getElementById('typeBtnNatural').classList.toggle('active', t === 'natural');
-  document.querySelector('.concentrate-fields').style.display = t === 'concentrate' ? 'block' : 'none';
-  document.querySelector('.natural-fields').style.display = t === 'natural' ? 'block' : 'none';
-}
-
 function openDetail(id) {
   detailId = id;
   const isNew = id == null;
-  const i = isNew ? {} : allIngredients.find(i => i.id === id);
+  const i = isNew ? null : allIngredients.find(i => i.id === id);
   if (!isNew && !i) return;
 
-  document.getElementById('dFromSupplement').value = '';
-  document.getElementById('aiCheckResult').innerHTML = '';
-  document.getElementById('dName').value = i.name || '';
-  setType(i.type || 'concentrate');
-  document.getElementById('dTargetMg').value = i.target_dose_mg ?? '';
-  document.getElementById('dYield').value = i.yield_mg_per_g ?? '';
-  document.getElementById('dTargetG').value = i.target_amount_g ?? '';
-  document.getElementById('dDensity').value = i.density_g_per_ml ?? '';
-  document.getElementById('dScoop').value = i.scoop_ml ?? '5';
-  document.getElementById('dPkgSize').value = i.package_size_g ?? '';
-  document.getElementById('dPkgPrice').value = i.package_price ?? '';
-  document.getElementById('dNotes').value = i.notes || '';
-  document.getElementById('dActive').checked = isNew ? true : !!i.active;
+  const pickField = document.getElementById('pickField');
+  const readonlyField = document.getElementById('readonlyField');
 
-  document.querySelector('.detail-card h2 span').textContent = isNew ? 'New ingredient' : 'Edit ingredient';
+  if (isNew) {
+    pickField.style.display = '';
+    readonlyField.style.display = 'none';
+    const usedIds = new Set(allIngredients.map(i => i.supplement_id));
+    const available = allSupplements.filter(s => !usedIds.has(s.id));
+    const sel = document.getElementById('dSupplement');
+    sel.innerHTML = '<option value="">— pick a supplement to add to the mix —</option>'
+      + available.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    document.getElementById('dScoop').value = '5';
+    document.getElementById('dActive').checked = true;
+  } else {
+    pickField.style.display = 'none';
+    readonlyField.style.display = '';
+    const s = i.supplement || {};
+    const densityLine = s.density_g_per_ml
+      ? `${s.density_g_per_ml} g/ml`
+      : `<span style="color:#e65100">keine Dichte hinterlegt</span>`;
+    document.getElementById('readonlyBox').innerHTML = `
+      <div class="name">${esc(s.name || '(deleted supplement)')}</div>
+      <div class="row">${s.daily_amount ?? '?'}${esc(s.unit || '')}/day · ${densityLine}</div>
+      <div class="row">${s.package_amount ?? '?'}${esc(s.package_unit || '')} Packung, ${s.package_price ?? '?'}€</div>
+      <a href="me-db-supplements.html">✎ In Supplements bearbeiten →</a>`;
+    document.getElementById('dScoop').value = i.scoop_ml ?? '5';
+    document.getElementById('dActive').checked = !!i.active;
+  }
+
+  document.querySelector('.detail-card h2 span').textContent = isNew ? 'Add to mix' : 'Edit mix entry';
   document.getElementById('delBtn').style.display = isNew ? 'none' : '';
   document.getElementById('overlay').classList.add('show');
-  document.getElementById('dName').focus();
 }
 
 function closeDetail() {
@@ -511,31 +458,22 @@ function closeDetail() {
 }
 
 async function saveDetail() {
-  const name = document.getElementById('dName').value.trim();
-  if (!name) { showToast('Please enter a name'); return; }
-  const fields = {
-    name,
-    type: currentType,
-    target_dose_mg: currentType === 'concentrate' ? (parseFloat(document.getElementById('dTargetMg').value) || null) : null,
-    yield_mg_per_g: currentType === 'concentrate' ? (parseFloat(document.getElementById('dYield').value) || null) : null,
-    target_amount_g: currentType === 'natural' ? (parseFloat(document.getElementById('dTargetG').value) || null) : null,
-    density_g_per_ml: parseFloat(document.getElementById('dDensity').value) || null,
-    scoop_ml: parseFloat(document.getElementById('dScoop').value) || 5,
-    package_size_g: parseFloat(document.getElementById('dPkgSize').value) || null,
-    package_price: parseFloat(document.getElementById('dPkgPrice').value) || null,
-    notes: document.getElementById('dNotes').value.trim() || null,
-    active: document.getElementById('dActive').checked,
-    updated_at: new Date().toISOString(),
-  };
+  const scoop_ml = parseFloat(document.getElementById('dScoop').value) || 5;
+  const active = document.getElementById('dActive').checked;
 
   if (detailId == null) {
-    const { data, error } = await db.from('ag_me_ingredients').insert({ user_id: userId, ...fields }).select();
+    const supplementId = document.getElementById('dSupplement').value;
+    if (!supplementId) { showToast('Please pick a supplement'); return; }
+    const { data, error } = await db.from('ag_me_ingredients')
+      .insert({ user_id: userId, supplement_id: parseInt(supplementId), scoop_ml, active })
+      .select('id, scoop_ml, active, sort_order, supplement_id, supplement:supplements(*)');
     if (error) { showToast('Error: ' + error.message); return; }
     allIngredients.push(data[0]);
   } else {
-    const { error } = await db.from('ag_me_ingredients').update(fields).eq('id', detailId);
+    const { error } = await db.from('ag_me_ingredients').update({ scoop_ml, active, updated_at: new Date().toISOString() }).eq('id', detailId);
     if (error) { showToast('Error: ' + error.message); return; }
-    Object.assign(allIngredients.find(i => i.id === detailId), fields);
+    const i = allIngredients.find(i => i.id === detailId);
+    if (i) { i.scoop_ml = scoop_ml; i.active = active; }
   }
   closeDetail();
   renderAll();
@@ -544,7 +482,7 @@ async function saveDetail() {
 
 async function deleteIngredient() {
   if (detailId == null) return;
-  if (!confirm('Delete this ingredient?')) return;
+  if (!confirm('Remove this supplement from the AG-Me mix? (The supplement itself is not deleted.)')) return;
   const { error } = await db.from('ag_me_ingredients').delete().eq('id', detailId);
   if (error) { showToast('Error: ' + error.message); return; }
   allIngredients = allIngredients.filter(i => i.id !== detailId);
