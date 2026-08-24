@@ -33,6 +33,7 @@
   .supp-row.inactive { opacity: 0.5; }
   .supp-row.inactive .supp-title { text-decoration: line-through; }
   .chk { width: 17px; height: 17px; cursor: pointer; accent-color: #2e7d32; margin-top: 2px; flex-shrink: 0; }
+  .chk-agme { accent-color: #5e35b1; }
   .supp-main { flex: 1; min-width: 0; cursor: pointer; }
   .supp-title { font-size: 0.95rem; font-weight: 600; word-break: break-word; }
   .supp-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; font-size: 0.78rem; color: #888; }
@@ -157,7 +158,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <span style="width:1px;background:#e0e0e0;align-self:stretch;margin:0 4px"></span>
     <button class="chip active" data-s="name" onclick="setSort('name')">A–Z</button>
     <button class="chip" data-s="cost" onclick="setSort('cost')">€/Tag</button>
-    <div class="right"><button class="btn-add" onclick="openDetail(null)">+ Supplement</button></div>
+    <div class="right" style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:0.72rem;color:#aaa">🟢 Active &nbsp; 🟣 AG-Me Mix</span>
+      <button class="btn-add" onclick="openDetail(null)">+ Supplement</button>
+    </div>
   </div>
 
   <div id="content"><div class="loading">Loading supplement plan…</div></div>
@@ -291,6 +295,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 let userId = null;
 let allSupps = [];
+let agMeMap = new Map(); // supplement_id -> ag_me_ingredients.id, for the "in AG-Me mix" tickbox
 let filter = 'all';
 let sortBy = 'name';
 let saveTimers = {};
@@ -302,8 +307,32 @@ let currentAiCheckedAt = null;
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   userId = data.session.user.id;
-  loadSupps().then(checkVoicePrefill);
+  Promise.all([loadSupps(), loadAgMeMix()]).then(() => { render(); checkVoicePrefill(); });
 });
+
+async function loadAgMeMix() {
+  const { data, error } = await db.from('ag_me_ingredients').select('id, supplement_id');
+  if (error) { console.error(error); return; }
+  agMeMap = new Map((data || []).map(r => [r.supplement_id, r.id]));
+}
+
+async function toggleAgMe(supplementId, val) {
+  if (val) {
+    if (agMeMap.has(supplementId)) return;
+    const { data, error } = await db.from('ag_me_ingredients')
+      .insert({ user_id: userId, supplement_id: supplementId, scoop_ml: 5, active: true })
+      .select('id, supplement_id');
+    if (error) { showToast('Error: ' + error.message); render(); return; }
+    agMeMap.set(supplementId, data[0].id);
+  } else {
+    const rowId = agMeMap.get(supplementId);
+    if (rowId == null) return;
+    const { error } = await db.from('ag_me_ingredients').delete().eq('id', rowId);
+    if (error) { showToast('Error: ' + error.message); render(); return; }
+    agMeMap.delete(supplementId);
+  }
+  render();
+}
 
 async function checkVoicePrefill() {
   const raw = sessionStorage.getItem('medb_voice_prefill');
@@ -500,6 +529,7 @@ function supRow(s) {
   return `
     <div class="supp-row ${s.active ? '' : 'inactive'}" data-id="${s.id}">
       <input type="checkbox" class="chk" ${s.active?'checked':''} onchange="toggleActive(${s.id}, this.checked)" title="Active" onclick="event.stopPropagation()">
+      <input type="checkbox" class="chk chk-agme" ${agMeMap.has(s.id)?'checked':''} onchange="toggleAgMe(${s.id}, this.checked)" title="In AG-Me Mix" onclick="event.stopPropagation()">
       <div class="supp-main" onclick="openDetail(${s.id})">
         <div class="supp-title">${esc(s.name)}</div>
         <div class="supp-meta">${meta.map(m=>`<span class="badge">${m}</span>`).join('')}</div>
