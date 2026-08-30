@@ -201,8 +201,26 @@ const filters = { search: '', type: 'all' };
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   userId = data.session.user.id;
-  loadEntries();
+  loadEntries().then(checkVoicePrefill);
 });
+
+function checkVoicePrefill() {
+  const raw = sessionStorage.getItem('medb_voice_prefill');
+  if (!raw) return;
+  sessionStorage.removeItem('medb_voice_prefill');
+  try {
+    const payload = JSON.parse(raw);
+    if (payload.type !== 'tagebuch') return;
+    const t = payload.data;
+    openDetail(null);
+    setType(t.entry_type || 'diary');
+    document.getElementById('dTitle').value = t.title || '';
+    document.getElementById('dItem').value = t.item_name || '';
+    document.getElementById('dLocation').value = t.location || '';
+    document.getElementById('dContent').value = t.content || '';
+    document.activeElement?.blur();
+  } catch {}
+}
 
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
