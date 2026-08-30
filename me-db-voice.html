@@ -194,11 +194,8 @@ function previewHtml() {
       const v = r.vorsorge;
       return `${esc(v.name)||'–'}<br>${esc(v.category)}`;
     }
-    case 'tagebuch': {
-      const t = r.tagebuch;
-      const where = [t.item_name, t.location].filter(Boolean).join(' — ');
-      return `${t.entry_type === 'note' ? '📍 Notiz' : '📔 Tagebuch'}${t.title ? ': '+esc(t.title) : ''}<br>${esc(t.content)||'–'}${where ? '<br>'+esc(where) : ''}`;
-    }
+    case 'tagebuch':
+      return esc(r.tagebuch.content) || '–';
   }
   return '';
 }
