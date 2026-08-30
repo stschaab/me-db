@@ -197,6 +197,7 @@ const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 let userId = null;
+let householdId = null;
 let shops = [];
 let products = [];
 let items = [];
@@ -207,6 +208,8 @@ let acMatches = [];
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   userId = data.session.user.id;
+  db.from('household_members').select('household_id').eq('user_id', userId).limit(1)
+    .then(({ data: hh }) => { householdId = hh?.[0]?.household_id ?? null; });
   loadAll().then(checkVoicePrefill);
 });
 
@@ -215,7 +218,7 @@ async function ensureShop(name) {
   if (existing) return existing;
   const maxOrder = shops.length ? Math.max(...shops.map(s => s.sort_order || 0)) : 0;
   const { data, error } = await db.from('shops')
-    .insert({ user_id: userId, name, sort_order: maxOrder + 1 }).select();
+    .insert({ user_id: userId, household_id: householdId, name, sort_order: maxOrder + 1 }).select();
   if (error) return null;
   shops.push(data[0]);
   return data[0];
@@ -246,7 +249,7 @@ async function checkVoicePrefill() {
       if (!shopId) shopId = prod.default_shop_id || null;
 
       const { data: insData, error } = await db.from('shopping_items')
-        .insert({ user_id: userId, product_id: prod.id, shop_id: shopId, qty: it.quantity || null, checked: false })
+        .insert({ user_id: userId, household_id: householdId, product_id: prod.id, shop_id: shopId, qty: it.quantity || null, checked: false })
         .select('*, products(id,name,default_shop_id)');
       if (error) continue;
       items.push(insData[0]);
@@ -329,7 +332,7 @@ async function ensureProduct(name, shopId) {
   const existing = products.find(p => p.name.toLowerCase() === name.toLowerCase());
   if (existing) return existing;
   const { data, error } = await db.from('products')
-    .insert({ user_id: userId, name, default_shop_id: shopId || null }).select();
+    .insert({ user_id: userId, household_id: householdId, name, default_shop_id: shopId || null }).select();
   if (error) { showToast('Error: ' + error.message); return null; }
   products.push(data[0]); products.sort((a,b)=>a.name.localeCompare(b.name));
   renderProdPanel();
@@ -347,7 +350,7 @@ async function addItem() {
   if (!shopId) shopId = prod.default_shop_id || null;
 
   const { data, error } = await db.from('shopping_items')
-    .insert({ user_id: userId, product_id: prod.id, shop_id: shopId, qty, checked: false })
+    .insert({ user_id: userId, household_id: householdId, product_id: prod.id, shop_id: shopId, qty, checked: false })
     .select('*, products(id,name,default_shop_id)');
   if (error) { showToast('Error: ' + error.message); return; }
   items.push(data[0]);
@@ -364,7 +367,7 @@ async function addItem() {
 async function addProductToList(pid) {
   const p = products.find(p=>p.id===pid);
   const { data, error } = await db.from('shopping_items')
-    .insert({ user_id: userId, product_id: p.id, shop_id: p.default_shop_id || null, checked: false })
+    .insert({ user_id: userId, household_id: householdId, product_id: p.id, shop_id: p.default_shop_id || null, checked: false })
     .select('*, products(id,name,default_shop_id)');
   if (error) { showToast('Error: ' + error.message); return; }
   items.push(data[0]);
@@ -479,7 +482,7 @@ async function addShop() {
   const name = document.getElementById('newShop').value.trim();
   if (!name) return;
   const maxOrder = shops.reduce((m,s)=>Math.max(m, s.sort_order||0), 0);
-  const { data, error } = await db.from('shops').insert({ user_id:userId, name, sort_order:maxOrder+1 }).select();
+  const { data, error } = await db.from('shops').insert({ user_id:userId, household_id: householdId, name, sort_order:maxOrder+1 }).select();
   if (error) { showToast('Error: '+error.message); return; }
   shops.push(data[0]);
   document.getElementById('newShop').value='';
@@ -609,7 +612,7 @@ async function parseVoiceShopping(text) {
 
       const shopId = item.matched_shop_id || prod.default_shop_id || null;
       const { data: insData, error } = await db.from('shopping_items')
-        .insert({ user_id: userId, product_id: prod.id, shop_id: shopId, qty: item.quantity || null, checked: false })
+        .insert({ user_id: userId, household_id: householdId, product_id: prod.id, shop_id: shopId, qty: item.quantity || null, checked: false })
         .select('*, products(id,name,default_shop_id)');
       if (error) { showToast('Error with ' + prod.name + ': ' + error.message); continue; }
       items.push(insData[0]);
