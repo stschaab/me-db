@@ -55,7 +55,7 @@ async function loginWithGoogle() {
 }
 
 async function checkAndRedirect(email) {
-  const { data } = await db.from('allowed_users').select('email').eq('email', email).single();
+  const { data } = await db.from('app_users').select('email').eq('email', email).single();
   if (data) {
     window.location.href = 'me-db-dashboard.html';
   } else {
