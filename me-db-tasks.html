@@ -219,6 +219,7 @@ const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 let userId = null;
+let householdId = null;
 let allTasks = [];
 let detailId = null;
 const filters = { title: '', priority: '', project: '', dueOnly: false, showDone: false };
@@ -226,6 +227,8 @@ const filters = { title: '', priority: '', project: '', dueOnly: false, showDone
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   userId = data.session.user.id;
+  db.from('household_members').select('household_id').eq('user_id', userId).limit(1)
+    .then(({ data: hh }) => { householdId = hh?.[0]?.household_id ?? null; });
   loadTasks().then(checkVoicePrefill);
 });
 
@@ -354,7 +357,8 @@ async function saveDetail() {
   };
 
   if (detailId == null) {
-    const { data, error } = await db.from('tasks').insert({ ...fields, user_id: userId, source: fields.source || 'manual' }).select();
+    if (householdId == null) { showToast('Error: no household found for this account'); return; }
+    const { data, error } = await db.from('tasks').insert({ ...fields, user_id: userId, household_id: householdId, source: fields.source || 'manual' }).select();
     if (error) { showToast('Error: ' + error.message); return; }
     allTasks.push(data[0]);
   } else {
