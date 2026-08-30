@@ -204,6 +204,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div id="taskStat">…</div>
     </a>
 
+    <a class="tile" href="me-db-tagebuch.html">
+      <div class="icon">📔</div>
+      <div class="title">Tagebuch</div>
+      <div class="desc">Tagebuch &amp; Merk-Notizen, durchsuchbar im KI-Chat</div>
+      <div id="tagebuchStat">…</div>
+    </a>
+
     <a class="tile" href="me-db-einkaufsliste.html">
       <div class="icon">🛒</div>
       <div class="title">Shopping List</div>
@@ -282,7 +289,7 @@ let sessionToken = ANON_KEY;
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   sessionToken = data.session.access_token;
-  loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); loadBodyscanStat(); loadOutfitStat();
+  loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); loadBodyscanStat(); loadOutfitStat(); loadTagebuchStat();
 });
 
 async function logout() {
@@ -413,6 +420,26 @@ async function loadTaskStat() {
     }
   } catch (e) {
     document.getElementById('taskStat').innerHTML = '';
+  }
+}
+
+async function loadTagebuchStat() {
+  try {
+    const { data, error, count } = await db.from('tagebuch_entries')
+      .select('entry_date', { count: 'exact' })
+      .order('entry_date', { ascending: false })
+      .limit(1);
+    if (error) throw error;
+    const total = count ?? 0;
+    if (total > 0) {
+      document.getElementById('tagebuchStat').innerHTML = `
+        <div class="stat"><span class="n">${total}</span><span class="u">${total === 1 ? 'entry' : 'entries'}</span></div>
+        <div class="trend-label">letzter Eintrag: ${data[0].entry_date}</div>`;
+    } else {
+      document.getElementById('tagebuchStat').innerHTML = `<div class="hrv-none">Noch keine Einträge</div>`;
+    }
+  } catch (e) {
+    document.getElementById('tagebuchStat').innerHTML = '';
   }
 }
 
