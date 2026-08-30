@@ -148,10 +148,12 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 let allRows = [];
 let sortCol = 'date';
 let sortAsc = false;
+let sessionToken = ANON_KEY;
 
 db.auth.getSession().then(({ data }) => {
-  if (!data.session) window.location.href = 'me-db-login.html';
-  else loadData();
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  sessionToken = data.session.access_token;
+  loadData();
 });
 
 async function logout() {
@@ -170,7 +172,7 @@ async function loadData() {
   try {
     const resp = await fetch(
       `${SUPABASE_URL}/rest/v1/measurements?select=id,measured_at,value,value_text,unit,value_si,lab,notes,parameters(id,name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)&order=measured_at.desc`,
-      { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
+      { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + sessionToken } }
     );
     const data = await resp.json();
     if (!Array.isArray(data)) throw new Error(JSON.stringify(data));
@@ -286,7 +288,7 @@ async function saveMeas(id) {
 
   const resp = await fetch(`${SUPABASE_URL}/rest/v1/measurements?id=eq.${id}`, {
     method: 'PATCH',
-    headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + sessionToken, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
     body: JSON.stringify(update)
   });
   if (resp.ok || resp.status === 204) {
@@ -305,7 +307,7 @@ async function deleteMeas(id) {
   if (!confirm(`Really delete measurement "${name}"?`)) return;
   const resp = await fetch(`${SUPABASE_URL}/rest/v1/measurements?id=eq.${id}`, {
     method: 'DELETE',
-    headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Prefer': 'return=minimal' },
+    headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + sessionToken, 'Prefer': 'return=minimal' },
   });
   if (resp.ok || resp.status === 204) {
     allRows = allRows.filter(x => String(x.id) !== String(id));
