@@ -68,13 +68,6 @@
   .slot-lbl { font-size: 0.65rem; color: #aaa; }
   .scan-btn { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 9px 16px; font-size: 0.85rem; cursor: pointer; width: 100%; }
   .scan-btn:disabled { opacity: 0.5; cursor: default; }
-  .mix-bar { display:flex; align-items:center; gap:10px; background:#ede7f6; border-radius:10px; padding:10px 14px; margin-bottom:14px; flex-wrap:wrap; }
-  .mix-bar-label { font-size:0.88rem; color:#5e35b1; font-weight:600; white-space:nowrap; }
-  .mix-bar select { border:1px solid #ce93d8; border-radius:6px; padding:5px 8px; font-size:0.88rem; background:white; color:#333; min-width:120px; }
-  .mix-bar-btn { background:#5e35b1; color:white; border:none; border-radius:6px; padding:6px 12px; font-size:0.82rem; cursor:pointer; white-space:nowrap; }
-  .mix-bar-btn:hover { background:#4a267a; }
-  .mix-bar-btn-del { background:none; border:1px solid #ce93d8; color:#5e35b1; }
-  .mix-bar-btn-del:hover { background:#f3e5f5; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -132,6 +125,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-supplements.html">Supplements</a>
     <a href="me-db-nutrient-vergleich.html">Nährstoff-Vergleich</a>
     <a href="me-db-ag-me.html">AG-Me Mix</a>
+    <a href="me-db-tagebuch.html">Tagebuch</a>
     <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-architecture.html">Architecture</a>
@@ -158,13 +152,6 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     </div>
   </div>
 
-  <div class="mix-bar">
-    <span class="mix-bar-label">🥣 Mix:</span>
-    <select id="mixSelect" onchange="switchMix(this.value)"></select>
-    <button class="mix-bar-btn" onclick="createMix()">+ Neuer Mix</button>
-    <button class="mix-bar-btn mix-bar-btn-del" id="mixDeleteBtn" onclick="deleteMix()" style="display:none">🗑 Löschen</button>
-  </div>
-
   <div class="filters">
     <button class="chip active" data-f="all" onclick="setFilter('all')">All</button>
     <button class="chip" data-f="active" onclick="setFilter('active')">Active</button>
@@ -173,7 +160,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <button class="chip active" data-s="name" onclick="setSort('name')">A–Z</button>
     <button class="chip" data-s="cost" onclick="setSort('cost')">€/Tag</button>
     <div class="right" style="display:flex;align-items:center;gap:10px">
-      <span id="mixLegend" style="font-size:0.72rem;color:#aaa">🟢 Active &nbsp; 🟣 AG-Me Mix</span>
+      <span style="font-size:0.72rem;color:#aaa">🟢 Active &nbsp; 🟣 AG-Me Mix</span>
       <button class="btn-add" onclick="openDetail(null)">+ Supplement</button>
     </div>
   </div>
@@ -313,9 +300,6 @@ let agMeMap = new Map(); // supplement_id -> ag_me_ingredients.id, for the "in A
 let filter = 'all';
 let sortBy = 'name';
 let saveTimers = {};
-let currentMixId = null;
-let allMixes = [];
-const MIX_STORAGE_KEY = 'medb_ag_mix_id';
 let photoFiles = [null, null, null];
 let photoUrls  = [null, null, null];
 let photoSlotPicking = null;
@@ -324,94 +308,20 @@ let currentAiCheckedAt = null;
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   userId = data.session.user.id;
-  loadMixes().then(() =>
-    Promise.all([loadSupps(), loadAgMeMix()]).then(() => { render(); checkVoicePrefill(); })
-  );
+  Promise.all([loadSupps(), loadAgMeMix()]).then(() => { render(); checkVoicePrefill(); });
 });
 
-async function loadMixes() {
-  const { data, error } = await db.from('ag_me_mixes').select('*').order('sort_order').order('created_at');
-  if (error) { console.error('loadMixes:', error); return; }
-  allMixes = data || [];
-  if (!allMixes.length) {
-    const { data: m, error: e2 } = await db.from('ag_me_mixes')
-      .insert({ user_id: userId, name: 'Ich', sort_order: 0 }).select().single();
-    if (e2) { console.error('create default mix:', e2); return; }
-    allMixes = [m];
-    await db.from('ag_me_ingredients').update({ mix_id: m.id }).is('mix_id', null);
-  }
-  const stored = parseInt(localStorage.getItem(MIX_STORAGE_KEY));
-  const found = stored && allMixes.find(m => m.id === stored);
-  currentMixId = found ? stored : allMixes[0].id;
-  localStorage.setItem(MIX_STORAGE_KEY, String(currentMixId));
-  renderMixBar();
-}
-
-function renderMixBar() {
-  const sel = document.getElementById('mixSelect');
-  if (!sel) return;
-  sel.innerHTML = allMixes.map(m => `<option value="${m.id}" ${m.id === currentMixId ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
-  const delBtn = document.getElementById('mixDeleteBtn');
-  if (delBtn) delBtn.style.display = allMixes.length > 1 ? '' : 'none';
-  updateMixLegend(allMixes.find(m => m.id === currentMixId)?.name || 'Mix');
-}
-
-function updateMixLegend(name) {
-  const el = document.getElementById('mixLegend');
-  if (el) el.textContent = `🟢 Active   🟣 ${name}`;
-}
-
-async function switchMix(val) {
-  currentMixId = parseInt(val);
-  localStorage.setItem(MIX_STORAGE_KEY, String(currentMixId));
-  updateMixLegend(allMixes.find(m => m.id === currentMixId)?.name || 'Mix');
-  await loadAgMeMix();
-  render();
-}
-
-async function createMix() {
-  const name = prompt('Name für neuen Mix:');
-  if (!name || !name.trim()) return;
-  const { data, error } = await db.from('ag_me_mixes')
-    .insert({ user_id: userId, name: name.trim(), sort_order: allMixes.length }).select().single();
-  if (error) { showToast('Fehler: ' + error.message); return; }
-  allMixes.push(data);
-  currentMixId = data.id;
-  localStorage.setItem(MIX_STORAGE_KEY, String(currentMixId));
-  renderMixBar();
-  await loadAgMeMix();
-  render();
-}
-
-async function deleteMix() {
-  if (allMixes.length <= 1) { showToast('Der letzte Mix kann nicht gelöscht werden'); return; }
-  const mix = allMixes.find(m => m.id === currentMixId);
-  if (!mix || !confirm(`Mix "${mix.name}" löschen? Alle Zutaten werden entfernt.`)) return;
-  await db.from('ag_me_ingredients').delete().eq('mix_id', currentMixId);
-  await db.from('ag_me_mixes').delete().eq('id', currentMixId);
-  allMixes = allMixes.filter(m => m.id !== currentMixId);
-  currentMixId = allMixes[0].id;
-  localStorage.setItem(MIX_STORAGE_KEY, String(currentMixId));
-  renderMixBar();
-  await loadAgMeMix();
-  render();
-}
-
 async function loadAgMeMix() {
-  if (!currentMixId) { agMeMap = new Map(); return; }
-  const { data, error } = await db.from('ag_me_ingredients')
-    .select('id, supplement_id')
-    .eq('mix_id', currentMixId);
+  const { data, error } = await db.from('ag_me_ingredients').select('id, supplement_id');
   if (error) { console.error(error); return; }
   agMeMap = new Map((data || []).map(r => [r.supplement_id, r.id]));
 }
 
 async function toggleAgMe(supplementId, val) {
-  if (!currentMixId) { showToast('Bitte zuerst einen Mix auswählen'); render(); return; }
   if (val) {
     if (agMeMap.has(supplementId)) return;
     const { data, error } = await db.from('ag_me_ingredients')
-      .insert({ user_id: userId, supplement_id: supplementId, mix_id: currentMixId, scoop_ml: 5, active: true })
+      .insert({ user_id: userId, supplement_id: supplementId, scoop_ml: 5, active: true })
       .select('id, supplement_id');
     if (error) { showToast('Error: ' + error.message); render(); return; }
     agMeMap.set(supplementId, data[0].id);
