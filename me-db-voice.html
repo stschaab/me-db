@@ -77,8 +77,8 @@ const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
-const TYPE_LABELS = { task: '✅ Task', shopping: '🛒 Shopping', supplement: '💊 Supplement', subscription: '💳 Subscription', vorsorge: '🗂️ Emergency Folder' };
-const TYPE_TARGETS = { task: 'me-db-tasks.html', shopping: 'me-db-einkaufsliste.html', supplement: 'me-db-supplements.html', subscription: 'me-db-abos.html', vorsorge: 'me-db-vorsorge.html' };
+const TYPE_LABELS = { task: '✅ Task', shopping: '🛒 Shopping', supplement: '💊 Supplement', subscription: '💳 Subscription', vorsorge: '🗂️ Emergency Folder', tagebuch: '📔 Tagebuch' };
+const TYPE_TARGETS = { task: 'me-db-tasks.html', shopping: 'me-db-einkaufsliste.html', supplement: 'me-db-supplements.html', subscription: 'me-db-abos.html', vorsorge: 'me-db-vorsorge.html', tagebuch: 'me-db-tagebuch.html' };
 
 let currentResult = null;
 let currentType = null;
@@ -193,6 +193,11 @@ function previewHtml() {
     case 'vorsorge': {
       const v = r.vorsorge;
       return `${esc(v.name)||'–'}<br>${esc(v.category)}`;
+    }
+    case 'tagebuch': {
+      const t = r.tagebuch;
+      const where = [t.item_name, t.location].filter(Boolean).join(' — ');
+      return `${t.entry_type === 'note' ? '📍 Notiz' : '📔 Tagebuch'}${t.title ? ': '+esc(t.title) : ''}<br>${esc(t.content)||'–'}${where ? '<br>'+esc(where) : ''}`;
     }
   }
   return '';
