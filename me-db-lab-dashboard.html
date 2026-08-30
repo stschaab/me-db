@@ -125,10 +125,12 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+let sessionToken = ANON_KEY;
 
 db.auth.getSession().then(({ data }) => {
-  if (!data.session) window.location.href = 'me-db-login.html';
-  else loadData();
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  sessionToken = data.session.access_token;
+  loadData();
 });
 
 async function logout() {
@@ -140,7 +142,7 @@ async function loadData() {
   try {
     const resp = await fetch(
       `${SUPABASE_URL}/rest/v1/measurements?select=measured_at,value,value_text,unit,value_si,lab,parameters(id,name,category,unit,unit_si,ref_range_low,ref_range_high,ref_range_low_si,ref_range_high_si)&order=measured_at.desc`,
-      { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
+      { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + sessionToken } }
     );
     const data = await resp.json();
     if (!Array.isArray(data)) throw new Error(JSON.stringify(data));
