@@ -18,21 +18,14 @@
 
   .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
   .toolbar input[type="text"] { border: 1px solid #e0e0e0; border-radius: 7px; padding: 7px 10px; font-size: 0.85rem; flex: 1; min-width: 140px; }
-  .chipbtn { border: 1px solid #d8d8d8; background: white; border-radius: 20px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; white-space: nowrap; }
-  .chipbtn.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
-  .addbtn { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 7px 16px; font-size: 0.85rem; cursor: pointer; white-space: nowrap; margin-left: auto; }
+  .addbtn { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 7px 16px; font-size: 0.85rem; cursor: pointer; white-space: nowrap; }
   .addbtn:hover { background: #2d2d4e; }
   .count { font-size: 0.78rem; color: #888; width: 100%; text-align: right; margin-top: 2px; }
 
   /* Liste */
   .entry-row { background: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; cursor: pointer; }
   .entry-date { border: 1px solid #e0e0e0; border-radius: 6px; padding: 4px 6px; font-size: 0.75rem; background: #fafafa; flex-shrink: 0; color: #666; white-space: nowrap; }
-  .entry-main { flex: 1; min-width: 0; }
-  .entry-title { font-size: 0.95rem; font-weight: 600; word-break: break-word; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-  .entry-preview { font-size: 0.85rem; color: #777; margin-top: 4px; word-break: break-word; line-height: 1.4; }
-  .badge { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 20px; font-weight: 700; flex-shrink: 0; }
-  .badge.diary-badge { background: #e3f2fd; color: #1565c0; }
-  .badge.note-badge { background: #fff3e0; color: #e65100; }
+  .entry-main { flex: 1; min-width: 0; font-size: 0.9rem; line-height: 1.5; word-break: break-word; }
 
   /* Detail overlay (edit window) */
   .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 500; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; }
@@ -42,16 +35,11 @@
   .detail-card .closebtn { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #aaa; }
   .dfield { margin-bottom: 14px; }
   .dfield label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: #888; display: block; margin-bottom: 4px; }
-  .dfield input, .dfield select, .dfield textarea { width: 100%; border: 1px solid #e0e0e0; border-radius: 7px; padding: 9px 10px; font-size: 0.9rem; font-family: inherit; }
-  .dfield textarea { min-height: 90px; resize: vertical; }
-  .dgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .dfield input, .dfield textarea { width: 100%; border: 1px solid #e0e0e0; border-radius: 7px; padding: 9px 10px; font-size: 0.9rem; font-family: inherit; }
+  .dfield textarea { min-height: 140px; resize: vertical; }
   .detail-actions { display: flex; justify-content: space-between; margin-top: 18px; }
   .detail-actions .save-btn { background: #2e7d32; color: white; border: none; border-radius: 8px; padding: 10px 20px; font-size: 0.9rem; cursor: pointer; }
   .detail-actions .del-btn { background: none; border: 1px solid #ffcdd2; color: #c62828; border-radius: 8px; padding: 10px 16px; font-size: 0.85rem; cursor: pointer; }
-  .type-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
-  .type-toggle button { flex: 1; border: 1px solid #e0e0e0; background: white; border-radius: 7px; padding: 9px; font-size: 0.85rem; cursor: pointer; }
-  .type-toggle button.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
-  .note-fields { display: none; }
 
   .empty { text-align: center; padding: 50px; color: #aaa; }
   .loading { text-align: center; padding: 60px; color: #aaa; }
@@ -80,7 +68,6 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   header { padding: 14px 16px; }
   header h1 { font-size: 0.95rem; flex-wrap: wrap; }
   .container { padding: 0 14px 60px; margin: 18px auto; }
-  .dgrid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -127,9 +114,6 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
   <div class="toolbar">
     <input type="text" id="fSearch" placeholder="Search…" oninput="setSearch(this.value)">
-    <button class="chipbtn active" data-f="all" onclick="setTypeFilter('all')">All</button>
-    <button class="chipbtn" data-f="diary" onclick="setTypeFilter('diary')">📔 Diary</button>
-    <button class="chipbtn" data-f="note" onclick="setTypeFilter('note')">📍 Notes</button>
     <button class="addbtn" onclick="openDetail(null)">+ Add</button>
     <div class="count" id="entryCount"></div>
   </div>
@@ -143,38 +127,14 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="detail-card">
     <h2><span>New entry</span><button class="closebtn" onclick="closeDetail()">&times;</button></h2>
 
-    <div class="type-toggle">
-      <button id="typeBtnDiary" onclick="setType('diary')">📔 Diary</button>
-      <button id="typeBtnNote" onclick="setType('note')">📍 Note</button>
-    </div>
-
-    <div class="dgrid">
-      <div class="dfield">
-        <label>Date</label>
-        <input type="date" id="dDate">
-      </div>
-      <div class="dfield">
-        <label>Title (optional)</label>
-        <input type="text" id="dTitle" placeholder="e.g. UV Mückenfänger">
-      </div>
-    </div>
-
-    <div class="note-fields">
-      <div class="dgrid">
-        <div class="dfield">
-          <label>Item</label>
-          <input type="text" id="dItem" placeholder="e.g. UV Mückenfänger">
-        </div>
-        <div class="dfield">
-          <label>Location</label>
-          <input type="text" id="dLocation" placeholder="e.g. Keller-Regal 2, rechts oben">
-        </div>
-      </div>
+    <div class="dfield">
+      <label>Date</label>
+      <input type="date" id="dDate">
     </div>
 
     <div class="dfield">
-      <label id="dContentLabel">What happened</label>
-      <textarea id="dContent" placeholder="…"></textarea>
+      <label>Entry</label>
+      <textarea id="dContent" placeholder="Was ist passiert, oder wo liegt etwas…"></textarea>
     </div>
 
     <div class="detail-actions">
@@ -195,8 +155,7 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 let userId = null;
 let allEntries = [];
 let detailId = null;
-let currentType = 'diary';
-const filters = { search: '', type: 'all' };
+const filters = { search: '' };
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
@@ -213,10 +172,6 @@ function checkVoicePrefill() {
     if (payload.type !== 'tagebuch') return;
     const t = payload.data;
     openDetail(null);
-    setType(t.entry_type || 'diary');
-    document.getElementById('dTitle').value = t.title || '';
-    document.getElementById('dItem').value = t.item_name || '';
-    document.getElementById('dLocation').value = t.location || '';
     document.getElementById('dContent').value = t.content || '';
     document.activeElement?.blur();
   } catch {}
@@ -240,21 +195,11 @@ async function loadEntries() {
 }
 
 function setSearch(v) { filters.search = v; render(); }
-function setTypeFilter(t) {
-  filters.type = t;
-  document.querySelectorAll('.chipbtn[data-f]').forEach(c => c.classList.toggle('active', c.dataset.f === t));
-  render();
-}
 
 function applyFilters(list) {
-  return list.filter(e => {
-    if (filters.type !== 'all' && e.entry_type !== filters.type) return false;
-    if (filters.search) {
-      const hay = [e.title, e.content, e.item_name, e.location].filter(Boolean).join(' ').toLowerCase();
-      if (!hay.includes(filters.search.toLowerCase())) return false;
-    }
-    return true;
-  });
+  if (!filters.search) return list;
+  const q = filters.search.toLowerCase();
+  return list.filter(e => (e.content || '').toLowerCase().includes(q));
 }
 
 function render() {
@@ -265,50 +210,27 @@ function render() {
 }
 
 function entryRow(e) {
-  const isNote = e.entry_type === 'note';
-  const typeBadge = isNote ? '<span class="badge note-badge">📍 Note</span>' : '<span class="badge diary-badge">📔 Diary</span>';
-  const where = [e.item_name, e.location].filter(Boolean).join(' — ');
-  const heading = e.title || (isNote ? e.item_name : null) || (e.content || '').slice(0, 60);
-  const preview = isNote
-    ? [where, e.content].filter(Boolean).join(' · ')
-    : (e.content || '');
   return `
     <div class="entry-row" data-id="${e.id}" onclick="openDetail(${e.id})">
       <div class="entry-date">${fmtDate(e.entry_date)}</div>
-      <div class="entry-main">
-        <div class="entry-title">${esc(heading)} ${typeBadge}</div>
-        <div class="entry-preview">${esc(preview).slice(0,220)}</div>
-      </div>
+      <div class="entry-main">${esc(e.content)}</div>
     </div>`;
 }
 
 /* ---------- Edit window (also used for creating new entries) ---------- */
-function setType(t) {
-  currentType = t;
-  document.getElementById('typeBtnDiary').classList.toggle('active', t === 'diary');
-  document.getElementById('typeBtnNote').classList.toggle('active', t === 'note');
-  document.querySelector('.note-fields').style.display = t === 'note' ? 'block' : 'none';
-  document.getElementById('dContentLabel').textContent = t === 'note' ? 'Additional details (optional)' : 'What happened';
-  document.getElementById('dContent').placeholder = t === 'note' ? 'z.B. Grund, Kontext, Besonderheiten…' : 'Wie war der Tag, was ist passiert…';
-}
-
 function openDetail(id) {
   const isNew = id == null;
   const e = isNew ? null : allEntries.find(e => e.id === id);
   if (!isNew && !e) return;
   detailId = isNew ? null : id;
 
-  setType(e?.entry_type || 'diary');
   document.getElementById('dDate').value = e?.entry_date || todayStr();
-  document.getElementById('dTitle').value = e?.title || '';
-  document.getElementById('dItem').value = e?.item_name || '';
-  document.getElementById('dLocation').value = e?.location || '';
   document.getElementById('dContent').value = e?.content || '';
 
   document.querySelector('.detail-card h2 span').textContent = isNew ? 'New entry' : 'Edit entry';
   document.getElementById('delBtn').style.display = isNew ? 'none' : 'inline-block';
   document.getElementById('overlay').classList.add('show');
-  document.getElementById('dTitle').focus();
+  document.getElementById('dContent').focus();
 }
 function closeDetail() {
   document.getElementById('overlay').classList.remove('show');
@@ -317,19 +239,11 @@ function closeDetail() {
 
 async function saveDetail() {
   const content = document.getElementById('dContent').value.trim();
-  const itemName = document.getElementById('dItem').value.trim() || null;
-  const location = document.getElementById('dLocation').value.trim() || null;
-  const title = document.getElementById('dTitle').value.trim() || null;
-  if (currentType === 'note' && !content && !itemName && !location) { showToast('Please fill in at least item, location or details'); return; }
-  if (currentType === 'diary' && !content) { showToast('Please write something'); return; }
+  if (!content) { showToast('Please write something'); return; }
 
   const fields = {
-    entry_type: currentType,
     entry_date: document.getElementById('dDate').value || todayStr(),
-    title,
-    content: content || '',
-    item_name: currentType === 'note' ? itemName : null,
-    location: currentType === 'note' ? location : null,
+    content,
   };
 
   let savedId = detailId;
@@ -352,14 +266,11 @@ async function saveDetail() {
   // Best-effort, fire-and-forget: makes this entry findable via the AI chat.
   // A failure here just means it won't turn up in semantic search — the
   // entry itself is already safely saved above regardless.
-  const embedText = [fields.title, fields.item_name, fields.location, fields.content].filter(Boolean).join(' — ');
-  if (embedText) {
-    fetch(WORKER_URL + '/embed-tagebuch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: savedId, text: embedText }),
-    }).catch(() => {});
-  }
+  fetch(WORKER_URL + '/embed-tagebuch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: savedId, text: content }),
+  }).catch(() => {});
 }
 
 async function deleteFromDetail() {
