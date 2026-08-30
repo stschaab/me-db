@@ -14,7 +14,8 @@
   nav a:hover { text-decoration: underline; }
   .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
   .logout-btn:hover { text-decoration: underline; }
-  .container { max-width: 600px; margin: 40px auto; padding: 0 24px; }
+  .container { max-width: 640px; margin: 40px auto; padding: 0 24px; }
+  .hint-card { background: #ede7f6; color: #5e35b1; border-radius: 10px; padding: 14px 18px; font-size: 0.85rem; margin-bottom: 20px; line-height: 1.5; }
   .add-card { background: white; border-radius: 10px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; }
   .add-card h2 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 16px; }
   .add-row { display: flex; gap: 10px; }
@@ -33,6 +34,9 @@
   .toast.error { background: #c62828; }
   .loading { text-align: center; padding: 40px; color: #aaa; }
   .you { font-size: 0.75rem; color: #aaa; margin-left: 6px; }
+  .pending { font-size: 0.72rem; color: #e65100; margin-left: 6px; }
+  .hh-chk { width: 17px; height: 17px; cursor: pointer; accent-color: #5e35b1; }
+  .hh-chk:disabled { cursor: default; opacity: 0.4; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -55,8 +59,6 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   header { padding: 14px 16px; }
   header h1 { font-size: 0.95rem; flex-wrap: wrap; }
   .container { padding: 0 14px; margin: 18px auto; }
-  .tiles { grid-template-columns: 1fr !important; }
-  .grid { grid-template-columns: repeat(2, 1fr) !important; }
   table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
   input, select, textarea, button { font-size: 16px !important; }
   .addbar { flex-direction: column; align-items: stretch; }
@@ -104,7 +106,11 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 </header>
 
 <div class="container">
-  <div class="add-card">
+  <div class="hint-card" id="hintCard" style="display:none">
+    Nur der Admin (Stefan) kann Nutzer hinzufügen/entfernen oder Haushalts-Zugehörigkeit ändern. Du siehst die Liste nur.
+  </div>
+
+  <div class="add-card" id="addCard" style="display:none">
     <h2>Add new user</h2>
     <div class="add-row">
       <input type="email" id="newEmail" placeholder="gmail-address@gmail.com" onkeydown="if(event.key==='Enter') addUser()">
@@ -121,12 +127,23 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 <script>
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
+const ADMIN_USER_ID = '54f4ec44-d2f6-49c7-baca-f76181ea0870';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 let currentEmail = '';
+let userId = null;
+let isAdmin = false;
+let memberHouseholdIds = new Set(); // household_ids the current viewer belongs to (just to find "the" household)
+let householdId = null;
 
 db.auth.getSession().then(({ data }) => {
-  if (!data.session) window.location.href = 'me-db-login.html';
-  else { currentEmail = data.session.user.email; loadUsers(); }
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  currentEmail = data.session.user.email;
+  userId = data.session.user.id;
+  isAdmin = userId === ADMIN_USER_ID;
+  document.getElementById('addCard').style.display = isAdmin ? '' : 'none';
+  document.getElementById('hintCard').style.display = isAdmin ? 'none' : '';
+  init();
 });
 
 async function logout() {
@@ -134,18 +151,37 @@ async function logout() {
   window.location.href = 'me-db-login.html';
 }
 
-async function loadUsers() {
-  const { data, error } = await db.from('allowed_users').select('*').order('name');
-  if (error) { showToast('Error: ' + error.message, true); return; }
+async function init() {
+  const { data: hh } = await db.from('household_members').select('household_id').eq('user_id', userId);
+  memberHouseholdIds = new Set((hh || []).map(r => r.household_id));
+  householdId = hh?.[0]?.household_id ?? null;
+  loadUsers();
+}
 
-  let html = `<table><thead><tr><th>Email</th><th>Name</th><th></th></tr></thead><tbody>`;
-  for (const u of data) {
+async function loadUsers() {
+  const [{ data: users, error }, { data: members }] = await Promise.all([
+    db.from('app_users').select('*').order('name'),
+    householdId != null
+      ? db.from('household_members').select('user_id').eq('household_id', householdId)
+      : Promise.resolve({ data: [] }),
+  ]);
+  if (error) { showToast('Error: ' + error.message, true); return; }
+  const inHousehold = new Set((members || []).map(m => m.user_id));
+
+  let html = `<table><thead><tr><th>Email</th><th>Name</th><th>Im Haushalt "Familie Schaab"</th><th></th></tr></thead><tbody>`;
+  for (const u of users) {
     const isYou = u.email === currentEmail;
+    const linked = !!u.id;
+    const checked = linked && inHousehold.has(u.id);
     html += `<tr>
-      <td>${u.email}${isYou ? '<span class="you">(you)</span>' : ''}</td>
-      <td>${u.name || '—'}</td>
+      <td>${esc(u.email)}${isYou ? '<span class="you">(you)</span>' : ''}${!linked ? '<span class="pending">noch nie eingeloggt</span>' : ''}</td>
+      <td>${esc(u.name) || '—'}</td>
+      <td>
+        <input type="checkbox" class="hh-chk" ${checked?'checked':''} ${(!isAdmin || !linked)?'disabled':''}
+          onchange="toggleHousehold('${esc(u.email)}', this.checked)">
+      </td>
       <td style="text-align:right">
-        ${isYou ? '' : `<button class="btn-del" onclick="deleteUser(${u.id}, '${u.email}')">Remove</button>`}
+        ${(isAdmin && !isYou) ? `<button class="btn-del" onclick="deleteUser('${esc(u.email)}')">Remove</button>` : ''}
       </td>
     </tr>`;
   }
@@ -153,25 +189,47 @@ async function loadUsers() {
   document.getElementById('content').innerHTML = html;
 }
 
+function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
 async function addUser() {
   const email = document.getElementById('newEmail').value.trim().toLowerCase();
   const name = document.getElementById('newName').value.trim() || null;
   if (!email) return;
-
-  const { error } = await db.from('allowed_users').insert({ email, name });
-  if (error) { showToast('Error: ' + error.message, true); return; }
-
+  const resp = await fetch(WORKER_URL + '/admin-add-user', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requesterId: userId, email, name }),
+  });
+  const data = await resp.json();
+  if (!data.success) { showToast('Error: ' + data.error, true); return; }
   document.getElementById('newEmail').value = '';
   document.getElementById('newName').value = '';
   showToast(`${email} added`);
   loadUsers();
 }
 
-async function deleteUser(id, email) {
+async function deleteUser(email) {
   if (!confirm(`Really remove ${email}?`)) return;
-  const { error } = await db.from('allowed_users').delete().eq('id', id);
-  if (error) { showToast('Error: ' + error.message, true); return; }
+  const resp = await fetch(WORKER_URL + '/admin-remove-user', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requesterId: userId, email }),
+  });
+  const data = await resp.json();
+  if (!data.success) { showToast('Error: ' + data.error, true); return; }
   showToast(`${email} removed`);
+  loadUsers();
+}
+
+async function toggleHousehold(email, checked) {
+  const resp = await fetch(WORKER_URL + '/admin-set-household', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requesterId: userId, email, inHousehold: checked }),
+  });
+  const data = await resp.json();
+  if (!data.success) { showToast('Error: ' + data.error, true); loadUsers(); return; }
+  showToast(checked ? `${email} zum Haushalt hinzugefügt` : `${email} aus Haushalt entfernt`);
   loadUsers();
 }
 
