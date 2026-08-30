@@ -150,8 +150,9 @@ const HEADERS = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Co
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 db.auth.getSession().then(({ data }) => {
-  if (!data.session) window.location.href = 'me-db-login.html';
-  else loadParams();
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  HEADERS.Authorization = 'Bearer ' + data.session.access_token;
+  loadParams();
 });
 
 async function logout() {
