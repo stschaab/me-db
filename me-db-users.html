@@ -133,8 +133,9 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 let currentEmail = '';
 let userId = null;
 let isAdmin = false;
-let memberHouseholdIds = new Set(); // household_ids the current viewer belongs to (just to find "the" household)
-let householdId = null;
+let allUsers = [];
+let allHouseholds = [];     // admin: every household. non-admin: just their own (via RLS).
+let membershipByUser = {};  // email -> household_id (or undefined)
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
@@ -143,7 +144,7 @@ db.auth.getSession().then(({ data }) => {
   isAdmin = userId === ADMIN_USER_ID;
   document.getElementById('addCard').style.display = isAdmin ? '' : 'none';
   document.getElementById('hintCard').style.display = isAdmin ? 'none' : '';
-  init();
+  loadUsers();
 });
 
 async function logout() {
@@ -151,34 +152,55 @@ async function logout() {
   window.location.href = 'me-db-login.html';
 }
 
-async function init() {
-  const { data: hh } = await db.from('household_members').select('household_id').eq('user_id', userId);
-  memberHouseholdIds = new Set((hh || []).map(r => r.household_id));
-  householdId = hh?.[0]?.household_id ?? null;
-  loadUsers();
+// Admin overview goes through the Worker (service key) — regular household_members
+// RLS only lets each person see their own membership row, so a client-side query
+// here would never show OTHER people's household assignment (that's the bug Stefan
+// hit: toggling Irotschka's membership worked, but the tick never appeared).
+async function loadHouseholdsAdmin() {
+  const resp = await fetch(WORKER_URL + '/admin-list-households', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requesterId: userId }),
+  });
+  const data = await resp.json();
+  if (!data.success) { showToast('Error: ' + data.error, true); return; }
+  allHouseholds = data.households;
+  const byUserId = {};
+  for (const m of data.memberships) byUserId[m.user_id] = m.household_id;
+  membershipByUser = {};
+  for (const u of allUsers) if (u.id && byUserId[u.id] != null) membershipByUser[u.email] = byUserId[u.id];
 }
 
 async function loadUsers() {
-  const [{ data: users, error }, { data: members }] = await Promise.all([
-    db.from('app_users').select('*').order('name'),
-    householdId != null
-      ? db.from('household_members').select('user_id').eq('household_id', householdId)
-      : Promise.resolve({ data: [] }),
-  ]);
+  const { data: users, error } = await db.from('app_users').select('*').order('name');
   if (error) { showToast('Error: ' + error.message, true); return; }
-  const inHousehold = new Set((members || []).map(m => m.user_id));
+  allUsers = users;
 
-  let html = `<table><thead><tr><th>Email</th><th>Name</th><th>Im Haushalt "Familie Schaab"</th><th></th></tr></thead><tbody>`;
+  if (isAdmin) {
+    await loadHouseholdsAdmin();
+  } else {
+    // Non-admin: RLS only shows your own membership + household, nothing about others.
+    const { data: hh } = await db.from('household_members').select('household_id, households(name)').eq('user_id', userId);
+    allHouseholds = (hh || []).map(r => ({ id: r.household_id, name: r.households?.name }));
+    membershipByUser = {};
+    if (hh?.[0]) membershipByUser[currentEmail] = hh[0].household_id;
+  }
+
+  const hhOptions = '<option value="">— kein Haushalt —</option>' + allHouseholds.map(h => `<option value="${h.id}">${esc(h.name)}</option>`).join('');
+
+  let html = `<table><thead><tr><th>Email</th><th>Name</th><th>Haushalt</th><th></th></tr></thead><tbody>`;
   for (const u of users) {
     const isYou = u.email === currentEmail;
     const linked = !!u.id;
-    const checked = linked && inHousehold.has(u.id);
+    const currentHh = membershipByUser[u.email];
+    const canEditHousehold = isAdmin && linked;
     html += `<tr>
       <td>${esc(u.email)}${isYou ? '<span class="you">(you)</span>' : ''}${!linked ? '<span class="pending">noch nie eingeloggt</span>' : ''}</td>
       <td>${esc(u.name) || '—'}</td>
       <td>
-        <input type="checkbox" class="hh-chk" ${checked?'checked':''} ${(!isAdmin || !linked)?'disabled':''}
-          onchange="toggleHousehold('${esc(u.email)}', this.checked)">
+        ${canEditHousehold
+          ? `<select onchange="setHousehold('${esc(u.email)}', this.value)">${hhOptions}</select>`
+          : esc(allHouseholds.find(h => h.id === currentHh)?.name || '—')}
       </td>
       <td style="text-align:right">
         ${(isAdmin && !isYou) ? `<button class="btn-del" onclick="deleteUser('${esc(u.email)}')">Remove</button>` : ''}
@@ -186,7 +208,53 @@ async function loadUsers() {
     </tr>`;
   }
   html += '</tbody></table>';
+  if (isAdmin) {
+    html += `<div style="margin-top:14px;display:flex;gap:8px;align-items:center">
+      <button class="btn" onclick="createHousehold()">+ Neuer Haushalt</button>
+      <span style="font-size:0.8rem;color:#888">${allHouseholds.map(h => esc(h.name)).join(', ') || 'keine Haushalte'}</span>
+    </div>`;
+  }
   document.getElementById('content').innerHTML = html;
+
+  // Select boxes need their current value set after insertion (a plain string
+  // interpolation into the option list would need a second pass anyway, this
+  // is simpler: walk the rendered <select> elements in the same order as `users`).
+  if (isAdmin) {
+    const selects = [...document.querySelectorAll('#content select')];
+    let idx = 0;
+    for (const u of users) {
+      if (!u.id) continue;
+      if (selects[idx]) selects[idx].value = membershipByUser[u.email] ?? '';
+      idx++;
+    }
+  }
+}
+
+async function createHousehold() {
+  const name = prompt('Name des neuen Haushalts:');
+  if (!name || !name.trim()) return;
+  const resp = await fetch(WORKER_URL + '/admin-create-household', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requesterId: userId, name: name.trim() }),
+  });
+  const data = await resp.json();
+  if (!data.success) { showToast('Error: ' + data.error, true); return; }
+  showToast(`Haushalt "${name.trim()}" angelegt`);
+  loadUsers();
+}
+
+async function setHousehold(email, householdIdRaw) {
+  const householdId = householdIdRaw === '' ? null : parseInt(householdIdRaw);
+  const resp = await fetch(WORKER_URL + '/admin-set-household', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requesterId: userId, email, householdId }),
+  });
+  const data = await resp.json();
+  if (!data.success) { showToast('Error: ' + data.error, true); loadUsers(); return; }
+  showToast(householdId != null ? `${email} zugeordnet` : `${email} aus Haushalt entfernt`);
+  loadUsers();
 }
 
 function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
