@@ -487,11 +487,12 @@ function renderProdPanel() {
   if (!products.length) { document.getElementById('prodList').innerHTML = '<div style="color:#aaa;font-size:0.85rem">No products yet</div>'; return; }
   document.getElementById('prodList').innerHTML = products.map(p=>{
     const opts = '<option value="">– Default shop –</option>' + shops.map(s=>`<option value="${s.id}" ${p.default_shop_id===s.id?'selected':''}>${esc(s.name)}</option>`).join('');
-    const inCart = items.find(i=>i.product_id===p.id);
+    const cartCount = items.filter(i=>i.product_id===p.id).length;
     return `<div class="mrow">
       <span class="grow">${esc(p.name)}</span>
       <select onchange="setProdShop(${p.id}, this.value)">${opts}</select>
-      <button class="tabbtn" onclick="addProductToList(${p.id})" title="Add to list">🛒${inCart ? `<span style="font-size:0.7rem;font-weight:700;color:#e53935;margin-left:2px">${esc(inCart.qty || '✓')}</span>` : ''}</button>
+      <button class="tabbtn" onclick="addProductToList(${p.id})" title="Add to list">🛒${cartCount > 0 ? `<span style="font-size:0.7rem;font-weight:700;color:#e53935;margin-left:2px">${cartCount}</span>` : ''}</button>
+      <button class="tabbtn" onclick="renameProduct(${p.id})" title="Rename">✏️</button>
       <button class="tabbtn" onclick="deleteProduct(${p.id})" title="Delete">🗑</button>
     </div>`;
   }).join('');
@@ -508,6 +509,20 @@ async function setProdShop(id, shopId) {
   if (error) { showToast('Error: '+error.message); return; }
   const p = products.find(p=>p.id===id); if (p) p.default_shop_id = shopId? +shopId : null;
   showToast('Default shop set');
+}
+async function renameProduct(id) {
+  const p = products.find(p=>p.id===id);
+  if (!p) return;
+  const name = prompt('New product name:', p.name);
+  if (!name || !name.trim() || name.trim() === p.name) return;
+  const newName = name.trim();
+  const { error } = await db.from('products').update({ name: newName }).eq('id', id);
+  if (error) { showToast('Error: '+error.message); return; }
+  p.name = newName;
+  products.sort((a,b)=>a.name.localeCompare(b.name));
+  for (const it of items) if (it.product_id === id && it.products) it.products.name = newName;
+  renderProdPanel(); render();
+  showToast('Renamed');
 }
 async function deleteProduct(id) {
   if (!confirm('Delete product from catalog? (open list entries will be removed too)')) return;
