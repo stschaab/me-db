@@ -53,8 +53,6 @@
   .i-name { font-size: 0.95rem; font-weight: 600; }
   .i-qty { font-size: 0.78rem; color: #999; }
   .i-shop { border: 1px solid #e0e0e0; border-radius: 6px; padding: 5px 8px; font-size: 0.78rem; background: #fafafa; }
-  .icon-btn { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 4px 6px; border-radius: 6px; color: #bbb; }
-  .icon-btn:hover { background: #f5f5f5; color: #c62828; }
 
   .empty { text-align: center; padding: 50px; color: #aaa; }
   .loading { text-align: center; padding: 60px; color: #aaa; }
@@ -383,13 +381,6 @@ async function buyItem(id) {
   if (it?.products?.name) showToast(it.products.name + ' ✓');
 }
 
-async function deleteItem(id) {
-  const { error } = await db.from('shopping_items').delete().eq('id', id);
-  if (error) { showToast('Error: ' + error.message); return; }
-  items = items.filter(i=>i.id!==id);
-  renderChips(); render(); renderProdPanel();
-}
-
 async function changeItemShop(id, shopId) {
   const { error } = await db.from('shopping_items').update({ shop_id: shopId || null }).eq('id', id);
   if (error) { showToast('Error: ' + error.message); return; }
@@ -450,7 +441,6 @@ function itemRow(it) {
         ${it.qty?`<div class="i-qty">${esc(it.qty)}</div>`:''}
       </div>
       <select class="i-shop" onchange="changeItemShop(${it.id}, this.value)">${shopOpts}</select>
-      <button class="icon-btn" onclick="deleteItem(${it.id})" title="Remove">🗑</button>
     </div>`;
 }
 
