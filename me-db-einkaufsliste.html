@@ -48,8 +48,6 @@
   .shop-dot { width: 9px; height: 9px; border-radius: 50%; background: #7ec8e3; }
 
   .item { background: white; border-radius: 10px; padding: 11px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 12px; margin-bottom: 7px; }
-  .item.checked { opacity: 0.5; }
-  .item.checked .i-name { text-decoration: line-through; }
   .chk { width: 20px; height: 20px; cursor: pointer; accent-color: #2e7d32; flex-shrink: 0; }
   .i-main { flex: 1; min-width: 0; }
   .i-name { font-size: 0.95rem; font-weight: 600; }
@@ -158,8 +156,6 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <div id="shopChips"></div>
     <div class="right">
       <button class="linkbtn" onclick="togglePanel('shopPanel')">Shops</button>
-
-      <button class="linkbtn" onclick="clearChecked()">Remove checked</button>
     </div>
   </div>
 
@@ -375,11 +371,16 @@ async function addProductToList(pid) {
   showToast(p.name + ' added');
 }
 
-async function toggleChecked(id, cur) {
-  const { error } = await db.from('shopping_items').update({ checked: !cur }).eq('id', id);
+async function buyItem(id) {
+  // Checking an item off means "bought it" — remove it from the cart outright
+  // instead of leaving a checked=true row lying around forever (that was the
+  // old "Done" list, which just accumulated stale entries no one cleared).
+  const it = items.find(i=>i.id===id);
+  const { error } = await db.from('shopping_items').delete().eq('id', id);
   if (error) { showToast('Error: ' + error.message); return; }
-  const it = items.find(i=>i.id===id); if (it) it.checked = !cur;
-  render();
+  items = items.filter(i=>i.id!==id);
+  renderChips(); render(); renderProdPanel();
+  if (it?.products?.name) showToast(it.products.name + ' ✓');
 }
 
 async function deleteItem(id) {
@@ -394,16 +395,6 @@ async function changeItemShop(id, shopId) {
   if (error) { showToast('Error: ' + error.message); return; }
   const it = items.find(i=>i.id===id); if (it) it.shop_id = shopId ? +shopId : null;
   renderChips(); render();
-}
-
-async function clearChecked() {
-  const ids = items.filter(i=>i.checked).map(i=>i.id);
-  if (!ids.length) { showToast('Nothing checked off'); return; }
-  const { error } = await db.from('shopping_items').delete().in('id', ids);
-  if (error) { showToast('Error: ' + error.message); return; }
-  items = items.filter(i=>!i.checked);
-  renderChips(); render(); renderProdPanel();
-  showToast(ids.length + ' removed');
 }
 
 /* ---------- Filter chips ---------- */
@@ -422,10 +413,9 @@ function setShop(id){ activeShop = id; renderChips(); render(); }
 
 /* ---------- Render list ---------- */
 function render() {
-  const open = items.filter(i => !i.checked && (activeShop==='' || String(i.shop_id)===activeShop));
-  const done = items.filter(i => i.checked && (activeShop==='' || String(i.shop_id)===activeShop));
+  const open = items.filter(i => activeShop==='' || String(i.shop_id)===activeShop);
 
-  if (open.length === 0 && done.length === 0) {
+  if (open.length === 0) {
     document.getElementById('content').innerHTML = '<div class="empty">List is empty. Type a product above.</div>';
     return;
   }
@@ -446,11 +436,6 @@ function render() {
     for (const it of groups[k]) html += itemRow(it);
     html += `</div>`;
   }
-  if (done.length) {
-    html += `<div class="shopgroup"><div class="shop-h" style="color:#bbb"><span class="shop-dot" style="background:#ccc"></span>Done (${done.length})</div>`;
-    for (const it of done) html += itemRow(it);
-    html += `</div>`;
-  }
   document.getElementById('content').innerHTML = html;
 }
 
@@ -458,8 +443,8 @@ function itemRow(it) {
   const name = it.products ? it.products.name : '(deleted)';
   const shopOpts = '<option value="">– Shop –</option>' + shops.map(s=>`<option value="${s.id}" ${it.shop_id===s.id?'selected':''}>${esc(s.name)}</option>`).join('');
   return `
-    <div class="item ${it.checked?'checked':''}">
-      <input type="checkbox" class="chk" ${it.checked?'checked':''} onchange="toggleChecked(${it.id}, ${it.checked})">
+    <div class="item">
+      <input type="checkbox" class="chk" onchange="buyItem(${it.id})" title="Bought">
       <div class="i-main">
         <div class="i-name">${esc(name)}</div>
         ${it.qty?`<div class="i-qty">${esc(it.qty)}</div>`:''}
@@ -502,10 +487,11 @@ function renderProdPanel() {
   if (!products.length) { document.getElementById('prodList').innerHTML = '<div style="color:#aaa;font-size:0.85rem">No products yet</div>'; return; }
   document.getElementById('prodList').innerHTML = products.map(p=>{
     const opts = '<option value="">– Default shop –</option>' + shops.map(s=>`<option value="${s.id}" ${p.default_shop_id===s.id?'selected':''}>${esc(s.name)}</option>`).join('');
+    const inCart = items.find(i=>i.product_id===p.id);
     return `<div class="mrow">
       <span class="grow">${esc(p.name)}</span>
       <select onchange="setProdShop(${p.id}, this.value)">${opts}</select>
-      <button class="tabbtn" onclick="addProductToList(${p.id})" title="Add to list">🛒${items.some(i=>i.product_id===p.id) ? '<span style="font-size:0.7rem;font-weight:700;color:#e53935;margin-left:2px">1</span>' : ''}</button>
+      <button class="tabbtn" onclick="addProductToList(${p.id})" title="Add to list">🛒${inCart ? `<span style="font-size:0.7rem;font-weight:700;color:#e53935;margin-left:2px">${esc(inCart.qty || '✓')}</span>` : ''}</button>
       <button class="tabbtn" onclick="deleteProduct(${p.id})" title="Delete">🗑</button>
     </div>`;
   }).join('');
