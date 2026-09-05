@@ -119,7 +119,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
   <div class="controls">
     <button class="btn btn-start" id="startBtn" onclick="startSession()">🎤 Gespräch starten</button>
-    <button class="btn btn-stop" id="stopBtn" onclick="stopSession()" disabled>⏹ Beenden</button>
+    <button class="btn btn-stop" id="stopBtn" onclick="requestEndSession()" disabled>⏹ Beenden</button>
   </div>
 
   <div class="status" id="statusLine">&nbsp;</div>
@@ -179,6 +179,7 @@ let sourceNode = null;
 let muteNode = null;
 let running = false;
 let currentConversationId = null;
+let endingTimeout = null;
 
 function setStatus(msg) { document.getElementById('statusLine').textContent = msg; }
 
@@ -378,8 +379,24 @@ async function handleClientToolCall(call) {
   }
 }
 
+function requestEndSession() {
+  if (!running || !ws || ws.readyState !== WebSocket.OPEN) { stopSession(); return; }
+  if (endingTimeout) { stopSession(); return; } // zweiter Klick waehrend der Verabschiedung = sofort beenden
+  ws.send(JSON.stringify({
+    type: 'user_message',
+    text: 'Ich muss jetzt gleich los. Kannst du mich noch schnell etwas fragen, um zu sehen, was ich mir gemerkt habe, und dich dann von mir verabschieden?',
+    source_medium: 'text'
+  }));
+  setStatus('Newton fragt noch kurz was und verabschiedet sich…');
+  document.getElementById('stopBtn').textContent = '⏹ Jetzt sofort beenden';
+  endingTimeout = setTimeout(stopSession, 35000);
+}
+window.requestEndSession = requestEndSession;
+
 function stopSession() {
   running = false;
+  if (endingTimeout) { clearTimeout(endingTimeout); endingTimeout = null; }
+  document.getElementById('stopBtn').textContent = '⏹ Beenden';
   if (currentConversationId) {
     // Best-effort, fire-and-forget: wertet das Transkript nachtraeglich aus und
     // aktualisiert die Wissens-Chunks. Ein Fehler hier verschlechtert nur den
