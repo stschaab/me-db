@@ -57,6 +57,11 @@
   .parent-panel td { padding: 6px 8px; border-bottom: 1px solid #f2f2f2; vertical-align: top; }
   .parent-panel .due-today { color: #c62828; font-weight: 700; }
   .parent-panel .loading, .parent-panel .empty { color: #aaa; font-size: 0.85rem; padding: 8px 0; }
+  .parent-panel input.edit-field { border: 1px solid #ddd; border-radius: 5px; padding: 3px 5px; font-size: 0.78rem; font-family: inherit; transition: background 0.4s; }
+  .parent-panel input.edit-field[type="date"] { width: 128px; }
+  .parent-panel input.edit-field[type="number"] { width: 56px; }
+  .parent-panel input.edit-field.saved { background: #e8f5e9; }
+  .parent-panel input.edit-field.save-error { background: #ffebee; }
   .story-text { font-size: 0.9rem; line-height: 1.6; }
   .story-text .meta { font-size: 0.72rem; color: #aaa; margin-top: 10px; }
   .transcript .empty { color: #bbb; font-size: 0.82rem; }
@@ -526,22 +531,43 @@ async function loadChunksPanel() {
   const el = document.querySelector('#panelChunks .ptable-wrap');
   try {
     const { data, error } = await db.from('tutor_knowledge_chunks')
-      .select('topic_label,category,content,review_count,next_review_date,interval_days,last_result')
+      .select('id,topic_label,category,content,review_count,next_review_date,interval_days,last_result')
       .eq('kid_name', KID_NAME)
       .order('next_review_date', { ascending: true });
     if (error) throw error;
     if (!data || !data.length) { el.innerHTML = '<div class="empty">Noch keine Themen besprochen.</div>'; return; }
     const today = new Date().toISOString().substring(0, 10);
-    el.innerHTML = `<table><thead><tr><th>Thema</th><th>Kategorie</th><th>Inhalt</th><th>Wdh.</th><th>Fällig am</th><th>Intervall</th></tr></thead><tbody>${
+    el.innerHTML = `<table><thead><tr><th>Thema</th><th>Kategorie</th><th>Inhalt</th><th>Wdh.</th><th>Fällig am</th><th>Intervall (Tage)</th></tr></thead><tbody>${
       data.map(c => {
         const dueClass = c.next_review_date && c.next_review_date <= today ? ' class="due-today"' : '';
-        return `<tr><td>${esc(c.topic_label)}</td><td>${esc(c.category || '–')}</td><td>${esc(c.content)}</td><td>${c.review_count ?? 0}</td><td${dueClass}>${esc(c.next_review_date || '–')}</td><td>${Math.round(c.interval_days || 1)}d</td></tr>`;
+        return `<tr><td>${esc(c.topic_label)}</td><td>${esc(c.category || '–')}</td><td>${esc(c.content)}</td><td>${c.review_count ?? 0}</td>
+          <td${dueClass}><input class="edit-field" type="date" value="${c.next_review_date || ''}" onchange="updateChunkField(${c.id}, 'next_review_date', this.value, this)"></td>
+          <td><input class="edit-field" type="number" min="1" value="${Math.round(c.interval_days || 1)}" onchange="updateChunkField(${c.id}, 'interval_days', this.value, this)"></td>
+        </tr>`;
       }).join('')
     }</tbody></table>`;
   } catch (e) {
     el.innerHTML = `<div class="empty">Fehler beim Laden: ${esc(e.message)}</div>`;
   }
 }
+
+async function updateChunkField(id, field, rawValue, inputEl) {
+  const value = field === 'interval_days' ? Math.max(1, parseInt(rawValue, 10) || 1) : rawValue;
+  inputEl.classList.remove('saved', 'save-error');
+  try {
+    const { error } = await db.from('tutor_knowledge_chunks')
+      .update({ [field]: value, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+    if (field === 'interval_days') inputEl.value = value;
+    inputEl.classList.add('saved');
+    setTimeout(() => inputEl.classList.remove('saved'), 1200);
+  } catch (e) {
+    inputEl.classList.add('save-error');
+    alert('Speichern fehlgeschlagen: ' + e.message);
+  }
+}
+window.updateChunkField = updateChunkField;
 
 async function loadStoryPanel() {
   const el = document.querySelector('#panelStory .story-text');
