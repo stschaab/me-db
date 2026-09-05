@@ -425,6 +425,7 @@ async function handleClientToolCall(call) {
   }
   const beschreibung = call.parameters?.beschreibung || '';
   const anlaut = call.parameters?.anlaut || '';
+  const newtonImBild = !!call.parameters?.newton_im_bild;
   const layer = document.getElementById('graphicLayer');
   layer.innerHTML = '<div class="graphic-loading">🎨 Newton zeichnet…</div>';
   layer.classList.add('show');
@@ -432,7 +433,7 @@ async function handleClientToolCall(call) {
   try {
     const resp = await fetch(WORKER_URL + '/tutor-generate-image', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ beschreibung, anlaut })
+      body: JSON.stringify({ beschreibung, anlaut, newton_im_bild: newtonImBild })
     }).then(r => r.json());
     if (!resp.success) throw new Error(resp.error || 'Bildgenerierung fehlgeschlagen');
     layer.innerHTML = `<img src="data:${resp.mime_type};base64,${resp.image_base64}" alt="${beschreibung.replace(/"/g, '')}">`;
