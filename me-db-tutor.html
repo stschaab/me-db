@@ -18,7 +18,6 @@
 
   .avatar-wrap { background: #111; border-radius: 16px; overflow: hidden; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; position: relative; }
   .avatar-wrap video { width: 100%; height: 100%; object-fit: cover; }
-  .avatar-placeholder { color: #666; font-size: 0.85rem; text-align: center; padding: 20px; }
 
   .controls { display: flex; gap: 10px; margin-top: 16px; }
   .btn { flex: 1; border: none; border-radius: 10px; padding: 14px; font-size: 1rem; font-weight: 700; cursor: pointer; }
@@ -95,7 +94,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="avatar-wrap">
     <video id="avatarVideo" autoplay playsinline></video>
     <audio id="avatarAudio" autoplay></audio>
-    <div class="avatar-placeholder" id="avatarPlaceholder">Bereit zum Start — Held erscheint hier, sobald das Gespräch beginnt.</div>
+    <img id="avatarPlaceholderImg" src="tutor-avatar-placeholder.png" alt="Held (Platzhalter)" style="width:100%;height:100%;object-fit:cover">
   </div>
 
   <div class="controls">
@@ -209,7 +208,7 @@ async function startSession() {
     if (!simliResp.success) throw new Error('Simli: ' + simliResp.error);
     if (!elResp.success) throw new Error('ElevenLabs: ' + elResp.error);
 
-    document.getElementById('avatarPlaceholder').style.display = 'none';
+    document.getElementById('avatarPlaceholderImg').style.display = 'none';
     const videoEl = document.getElementById('avatarVideo');
     const audioEl = document.getElementById('avatarAudio');
 
@@ -294,7 +293,7 @@ function stopSession() {
   try { micStream && micStream.getTracks().forEach(t => t.stop()); } catch {}
   try { simliClient && simliClient.close && simliClient.close(); } catch {}
   ws = null; audioCtx = null; micStream = null; processorNode = null; sourceNode = null; muteNode = null; simliClient = null;
-  document.getElementById('avatarPlaceholder').style.display = 'flex';
+  document.getElementById('avatarPlaceholderImg').style.display = 'block';
   document.getElementById('startBtn').disabled = false;
   document.getElementById('stopBtn').disabled = true;
   if (!document.getElementById('statusLine').textContent.startsWith('Fehler')) setStatus('Gestoppt.');
