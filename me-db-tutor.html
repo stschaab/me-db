@@ -16,8 +16,8 @@
   .logout-btn:hover { text-decoration: underline; }
   .container { max-width: 640px; margin: 28px auto; padding: 0 24px 60px; }
 
-  .avatar-wrap { background: #111; border-radius: 16px; overflow: hidden; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; position: relative; }
-  .avatar-wrap video { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-wrap { background: #111; border-radius: 16px; overflow: hidden; aspect-ratio: 1/1; position: relative; }
+  .avatar-wrap video, .avatar-wrap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
   .controls { display: flex; gap: 10px; margin-top: 16px; }
   .btn { flex: 1; border: none; border-radius: 10px; padding: 14px; font-size: 1rem; font-weight: 700; cursor: pointer; }
