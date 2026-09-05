@@ -123,7 +123,12 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 </div>
 
 <script type="module">
-import { SimliClient, LogLevel } from 'https://esm.sh/simli-client';
+// Hinweis: simli-client@3.0.2 hat einen Paketier-Bug (index.js importiert
+// "./Client" statt "./client" — Gross-/Kleinschreibung passt nicht zur echten
+// Datei), das laesst esm.sh/jsdelivr beim automatischen Browser-Buendeln ueber
+// den normalen Paketnamen abstuerzen. Fix: direkt den korrekt benannten
+// Unterpfad importieren, der das umgeht.
+import { SimliClient, LogLevel } from 'https://esm.sh/simli-client/dist/client.js';
 
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
