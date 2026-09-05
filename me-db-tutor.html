@@ -39,7 +39,7 @@
   .setup-box label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: #888; display: block; margin-bottom: 4px; }
   .setup-box input { width: 100%; border: 1px solid #e0e0e0; border-radius: 7px; padding: 9px 10px; font-size: 0.9rem; font-family: inherit; margin-bottom: 8px; }
   .setup-box .savebtn { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.82rem; cursor: pointer; }
-  .setup-box .hint { font-size: 0.72rem; color: #aaa; margin-top: 4px; line-height: 1.4; }
+  .setup-box .hint, .hint { font-size: 0.72rem; color: #aaa; margin-top: 4px; line-height: 1.4; }
 
   .transcript { margin-top: 20px; background: white; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); max-height: 260px; overflow-y: auto; }
   .transcript .line { font-size: 0.85rem; line-height: 1.5; margin-bottom: 6px; }
@@ -169,6 +169,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <button class="parent-btn" id="btnPanelCurriculum" onclick="toggleParentPanel('curriculum')">📋 Lehrplan (Soll)</button>
       <button class="parent-btn" id="btnPanelChunks" onclick="toggleParentPanel('chunks')">🧠 Wissens-Chunks</button>
       <button class="parent-btn" id="btnPanelStory" onclick="toggleParentPanel('story')">📖 Story bisher</button>
+      <button class="parent-btn" id="btnPanelBible" onclick="toggleParentPanel('bible')">🚀 Story-Rahmen</button>
     </div>
 
     <div class="parent-panel" id="panelCurriculum">
@@ -179,6 +180,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     </div>
     <div class="parent-panel" id="panelStory">
       <div class="story-text"><div class="loading">Lädt…</div></div>
+    </div>
+    <div class="parent-panel" id="panelBible">
+      <div class="hint" style="margin-bottom:8px">Grundidee/Ideen-Sammlung für die Geschichte — ändert sich nicht automatisch, nur wenn du es hier bearbeitest. Newton nutzt es als lose Inspiration, nicht als festes Drehbuch.</div>
+      <div id="bibleContent"><div class="loading">Lädt…</div></div>
     </div>
   </div>
 
@@ -489,26 +494,27 @@ window.stopSession = stopSession;
 // ---------- Eltern-Übersicht: Lehrplan / Wissens-Chunks / Story ----------
 function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
 
-const parentPanelsLoaded = { curriculum: false, chunks: false, story: false };
+const parentPanelsLoaded = { curriculum: false, chunks: false, story: false, bible: false };
+const PANEL_IDS = { curriculum: 'panelCurriculum', chunks: 'panelChunks', story: 'panelStory', bible: 'panelBible' };
+const PANEL_BTN_IDS = { curriculum: 'btnPanelCurriculum', chunks: 'btnPanelChunks', story: 'btnPanelStory', bible: 'btnPanelBible' };
 
 function toggleParentPanel(name) {
-  const panelIds = { curriculum: 'panelCurriculum', chunks: 'panelChunks', story: 'panelStory' };
-  const btnIds = { curriculum: 'btnPanelCurriculum', chunks: 'btnPanelChunks', story: 'btnPanelStory' };
-  const isOpen = document.getElementById(panelIds[name]).classList.contains('show');
+  const isOpen = document.getElementById(PANEL_IDS[name]).classList.contains('show');
 
-  for (const key of Object.keys(panelIds)) {
-    document.getElementById(panelIds[key]).classList.remove('show');
-    document.getElementById(btnIds[key]).classList.remove('active');
+  for (const key of Object.keys(PANEL_IDS)) {
+    document.getElementById(PANEL_IDS[key]).classList.remove('show');
+    document.getElementById(PANEL_BTN_IDS[key]).classList.remove('active');
   }
   if (isOpen) return; // war schon offen -> nur schliessen
 
-  document.getElementById(panelIds[name]).classList.add('show');
-  document.getElementById(btnIds[name]).classList.add('active');
+  document.getElementById(PANEL_IDS[name]).classList.add('show');
+  document.getElementById(PANEL_BTN_IDS[name]).classList.add('active');
   if (!parentPanelsLoaded[name]) {
     parentPanelsLoaded[name] = true;
     if (name === 'curriculum') loadCurriculumPanel();
     if (name === 'chunks') loadChunksPanel();
     if (name === 'story') loadStoryPanel();
+    if (name === 'bible') loadBiblePanel();
   }
 }
 window.toggleParentPanel = toggleParentPanel;
@@ -588,6 +594,38 @@ async function loadStoryPanel() {
     el.innerHTML = `<div class="empty">Fehler beim Laden: ${esc(e.message)}</div>`;
   }
 }
+
+async function loadBiblePanel() {
+  const el = document.getElementById('bibleContent');
+  try {
+    const { data, error } = await db.from('tutor_story_state')
+      .select('story_bible').eq('kid_name', KID_NAME).maybeSingle();
+    if (error) throw error;
+    const text = data?.story_bible || '';
+    el.innerHTML = `
+      <textarea id="bibleTextarea" style="width:100%;min-height:260px;border:1px solid #e0e0e0;border-radius:7px;padding:10px;font-size:0.85rem;font-family:inherit;line-height:1.5">${esc(text)}</textarea>
+      <button class="savebtn" style="margin-top:8px" onclick="saveBible()">Speichern</button>
+      <span id="bibleSaveStatus" style="margin-left:10px;font-size:0.78rem;color:#2e7d32"></span>`;
+  } catch (e) {
+    el.innerHTML = `<div class="empty">Fehler beim Laden: ${esc(e.message)}</div>`;
+  }
+}
+
+async function saveBible() {
+  const text = document.getElementById('bibleTextarea').value;
+  const statusEl = document.getElementById('bibleSaveStatus');
+  try {
+    const { error } = await db.from('tutor_story_state')
+      .update({ story_bible: text, updated_at: new Date().toISOString() })
+      .eq('kid_name', KID_NAME);
+    if (error) throw error;
+    statusEl.textContent = 'Gespeichert ✓';
+    setTimeout(() => { statusEl.textContent = ''; }, 2000);
+  } catch (e) {
+    alert('Speichern fehlgeschlagen: ' + e.message);
+  }
+}
+window.saveBible = saveBible;
 </script>
 </body>
 </html>
