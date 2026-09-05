@@ -131,6 +131,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <div class="hint">Diese ID kommt aus dem Simli-Dashboard (Your Faces). Wird nur lokal in diesem Browser gespeichert, nicht in der Datenbank.</div>
   </div>
 
+  <div class="setup-box">
+    <label>📖 Story-Wunsch für heute (optional)</label>
+    <input type="text" id="storyNudgeInput" placeholder="z.B. 'heute soll ein Drache vorkommen' — nur eine Anregung, Newton webt es nur ein wenn's passt">
+    <button class="savebtn" onclick="saveStoryNudge()">Speichern</button>
+    <div class="hint">Nur du siehst dieses Feld — Henry gestaltet die Geschichte selbst über seine eigenen Antworten im Gespräch, das hier ist nur ein optionaler kleiner Anstoß.</div>
+  </div>
+
   <div class="transcript" id="transcript">
     <div class="empty">Gesprächsverlauf erscheint hier, sobald ihr sprecht.</div>
   </div>
@@ -168,6 +175,16 @@ function saveFaceId() {
   setStatus('Face-ID gespeichert.');
 }
 window.saveFaceId = saveFaceId;
+
+// ---------- Story-Wunsch der Eltern (lokal, optional) ----------
+const STORY_NUDGE_KEY = 'medb_tutor_story_nudge';
+document.getElementById('storyNudgeInput').value = localStorage.getItem(STORY_NUDGE_KEY) || '';
+function saveStoryNudge() {
+  const v = document.getElementById('storyNudgeInput').value.trim();
+  localStorage.setItem(STORY_NUDGE_KEY, v);
+  setStatus('Story-Wunsch gespeichert.');
+}
+window.saveStoryNudge = saveStoryNudge;
 
 // ---------- Session state ----------
 let simliClient = null;
@@ -266,6 +283,8 @@ async function startSession() {
     if (!elResp.success) throw new Error('ElevenLabs: ' + elResp.error);
     if (!audioOnly && !simliResp.success) throw new Error('Simli: ' + simliResp.error);
     const learningContext = contextResp.success ? contextResp.learning_context : 'Noch keine vorherigen Themen.';
+    const storyContext = contextResp.success ? contextResp.story_context : 'Es gibt noch keine gemeinsame Geschichte.';
+    const storyNudge = localStorage.getItem(STORY_NUDGE_KEY) || '';
 
     if (!audioOnly) {
       document.getElementById('avatarPlaceholderImg').style.display = 'none';
@@ -293,7 +312,7 @@ async function startSession() {
     ws.onopen = () => {
       ws.send(JSON.stringify({
         type: 'conversation_initiation_client_data',
-        dynamic_variables: { learning_context: learningContext, graphics_enabled: graphicsEnabled ? 'ja' : 'nein' }
+        dynamic_variables: { learning_context: learningContext, graphics_enabled: graphicsEnabled ? 'ja' : 'nein', story_context: storyContext, story_nudge: storyNudge }
       }));
       running = true;
       setStatus('Verbunden — sprich einfach los!');
