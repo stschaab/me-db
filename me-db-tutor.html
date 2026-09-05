@@ -211,9 +211,10 @@ db.auth.getSession().then(({ data }) => {
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 window.logout = logout;
 
-// ---------- Face-ID (lokal, noch nicht final) ----------
+// ---------- Face-ID (Newtons fertiges Simli-Face, seit 2026-09-05) ----------
 const FACE_ID_KEY = 'medb_tutor_face_id';
-document.getElementById('faceIdInput').value = localStorage.getItem(FACE_ID_KEY) || '';
+const DEFAULT_FACE_ID = '8e029f49-310e-49e0-a885-a771364ce00a';
+document.getElementById('faceIdInput').value = localStorage.getItem(FACE_ID_KEY) || DEFAULT_FACE_ID;
 function saveFaceId() {
   const v = document.getElementById('faceIdInput').value.trim();
   localStorage.setItem(FACE_ID_KEY, v);
@@ -299,8 +300,7 @@ function playPcmChunk(bytes) {
 
 async function startSession() {
   const audioOnly = document.getElementById('audioOnlyMode').checked;
-  const faceId = localStorage.getItem(FACE_ID_KEY) || '';
-  if (!audioOnly && !faceId) { alert('Bitte zuerst eine Simli Face-ID eintragen und speichern, oder "Nur Sprache testen" anhaken.'); return; }
+  const faceId = localStorage.getItem(FACE_ID_KEY) || DEFAULT_FACE_ID;
 
   document.getElementById('startBtn').disabled = true;
   setStatus('Verbinde…');
