@@ -134,6 +134,7 @@ const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
 const ELEVENLABS_AGENT_ID = 'agent_3801m1rfmm9yfd1teb2frdha5zyb';
+const KID_NAME = 'Henry';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
 db.auth.getSession().then(({ data }) => {
@@ -162,6 +163,7 @@ let processorNode = null;
 let sourceNode = null;
 let muteNode = null;
 let running = false;
+let currentConversationId = null;
 
 function setStatus(msg) { document.getElementById('statusLine').textContent = msg; }
 
@@ -231,7 +233,11 @@ async function startSession() {
       fetch(WORKER_URL + '/elevenlabs-signed-url', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agent_id: ELEVENLABS_AGENT_ID })
-      }).then(r => r.json())
+      }).then(r => r.json()),
+      fetch(WORKER_URL + '/tutor-session-context', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kid_name: KID_NAME })
+      }).then(r => r.json()).catch(() => ({ success: false }))
     ];
     if (!audioOnly) {
       fetches.push(fetch(WORKER_URL + '/simli-session-token', {
@@ -239,10 +245,11 @@ async function startSession() {
         body: JSON.stringify({ face_id: faceId })
       }).then(r => r.json()));
     }
-    const [elResp, simliResp] = await Promise.all(fetches);
+    const [elResp, contextResp, simliResp] = await Promise.all(fetches);
 
     if (!elResp.success) throw new Error('ElevenLabs: ' + elResp.error);
     if (!audioOnly && !simliResp.success) throw new Error('Simli: ' + simliResp.error);
+    const learningContext = contextResp.success ? contextResp.learning_context : 'Noch keine vorherigen Themen.';
 
     if (!audioOnly) {
       document.getElementById('avatarPlaceholderImg').style.display = 'none';
@@ -267,7 +274,10 @@ async function startSession() {
     ws = new WebSocket(elResp.signed_url);
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({ type: 'conversation_initiation_client_data' }));
+      ws.send(JSON.stringify({
+        type: 'conversation_initiation_client_data',
+        dynamic_variables: { learning_context: learningContext }
+      }));
       running = true;
       setStatus('Verbunden — sprich einfach los!');
       document.getElementById('stopBtn').disabled = false;
@@ -276,6 +286,9 @@ async function startSession() {
     ws.onmessage = (event) => {
       let msg;
       try { msg = JSON.parse(event.data); } catch { return; }
+      if (msg.type === 'conversation_initiation_metadata') {
+        currentConversationId = msg.conversation_initiation_metadata_event?.conversation_id || null;
+      }
       handleElevenLabsMessage(msg);
     };
 
@@ -323,6 +336,16 @@ function handleElevenLabsMessage(msg) {
 
 function stopSession() {
   running = false;
+  if (currentConversationId) {
+    // Best-effort, fire-and-forget: wertet das Transkript nachtraeglich aus und
+    // aktualisiert die Wissens-Chunks. Ein Fehler hier verschlechtert nur den
+    // Lernfortschritt-Kontext beim naechsten Mal, nie das laufende Gespraech.
+    fetch(WORKER_URL + '/tutor-process-conversation', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: currentConversationId, kid_name: KID_NAME })
+    }).catch(() => {});
+    currentConversationId = null;
+  }
   try { ws && ws.close(); } catch {}
   try { processorNode && processorNode.disconnect(); } catch {}
   try { sourceNode && sourceNode.disconnect(); } catch {}
