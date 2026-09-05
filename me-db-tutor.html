@@ -16,8 +16,15 @@
   .logout-btn:hover { text-decoration: underline; }
   .container { max-width: 640px; margin: 28px auto; padding: 0 24px 60px; }
 
-  .avatar-wrap { background: #111; border-radius: 16px; overflow: hidden; aspect-ratio: 1/1; position: relative; }
+  .stage { position: relative; aspect-ratio: 1/1; }
+  .avatar-wrap { background: #111; border-radius: 16px; overflow: hidden; position: absolute; inset: 0; transition: all 0.35s ease; z-index: 2; }
   .avatar-wrap video, .avatar-wrap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .avatar-wrap.pip { width: 30%; height: 30%; inset: auto 12px 12px auto; border: 3px solid white; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+
+  .graphic-layer { display: none; position: absolute; inset: 0; background: #fff; border-radius: 16px; overflow: hidden; align-items: center; justify-content: center; z-index: 1; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .graphic-layer.show { display: flex; }
+  .graphic-layer img { width: 100%; height: 100%; object-fit: contain; }
+  .graphic-loading { font-size: 0.9rem; color: #aaa; text-align: center; padding: 20px; }
 
   .controls { display: flex; gap: 10px; margin-top: 16px; }
   .btn { flex: 1; border: none; border-radius: 10px; padding: 14px; font-size: 1rem; font-weight: 700; cursor: pointer; }
@@ -91,15 +98,23 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
 <div class="container">
 
-  <div class="avatar-wrap">
-    <video id="avatarVideo" autoplay playsinline></video>
-    <audio id="avatarAudio" autoplay></audio>
-    <img id="avatarPlaceholderImg" src="tutor-avatar-placeholder.png" alt="Held (Platzhalter)" style="width:100%;height:100%;object-fit:cover">
+  <div class="stage">
+    <div class="graphic-layer" id="graphicLayer"></div>
+    <div class="avatar-wrap" id="avatarWrap">
+      <video id="avatarVideo" autoplay playsinline></video>
+      <audio id="avatarAudio" autoplay></audio>
+      <img id="avatarPlaceholderImg" src="tutor-avatar-placeholder.png" alt="Held (Platzhalter)" style="width:100%;height:100%;object-fit:cover">
+    </div>
   </div>
 
   <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:0.85rem;color:#555">
     <input type="checkbox" id="audioOnlyMode" style="width:auto">
     Nur Sprache testen (ohne Avatar-Video, kein Simli nötig)
+  </label>
+
+  <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:0.85rem;color:#555">
+    <input type="checkbox" id="graphicsMode" style="width:auto">
+    🎨 Grafiken an (Newton kann live Cartoon-Bilder zum Thema malen — experimentell, standardmäßig aus)
   </label>
 
   <div class="controls">
@@ -273,10 +288,11 @@ async function startSession() {
 
     ws = new WebSocket(elResp.signed_url);
 
+    const graphicsEnabled = document.getElementById('graphicsMode').checked;
     ws.onopen = () => {
       ws.send(JSON.stringify({
         type: 'conversation_initiation_client_data',
-        dynamic_variables: { learning_context: learningContext }
+        dynamic_variables: { learning_context: learningContext, graphics_enabled: graphicsEnabled ? 'ja' : 'nein' }
       }));
       running = true;
       setStatus('Verbunden — sprich einfach los!');
@@ -326,11 +342,39 @@ function handleElevenLabsMessage(msg) {
     case 'agent_response':
       addTranscriptLine('🦸 ' + msg.agent_response_event.agent_response);
       break;
+    case 'client_tool_call':
+      handleClientToolCall(msg.client_tool_call);
+      break;
     // 'interruption' (Kind unterbricht den Helden): wird aktuell nicht extra
     // behandelt (kein Abbruch der laufenden Simli-Wiedergabe) — bekannte
     // Einschränkung dieser ersten Version.
     default:
       break;
+  }
+}
+
+async function handleClientToolCall(call) {
+  if (call.tool_name !== 'zeige_bild') {
+    ws.send(JSON.stringify({ type: 'client_tool_result', tool_call_id: call.tool_call_id, result: 'Unbekanntes Werkzeug.', is_error: true, error_type: 'unknown' }));
+    return;
+  }
+  const beschreibung = call.parameters?.beschreibung || '';
+  const layer = document.getElementById('graphicLayer');
+  layer.innerHTML = '<div class="graphic-loading">🎨 Newton zeichnet…</div>';
+  layer.classList.add('show');
+  document.getElementById('avatarWrap').classList.add('pip');
+  try {
+    const resp = await fetch(WORKER_URL + '/tutor-generate-image', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ beschreibung })
+    }).then(r => r.json());
+    if (!resp.success) throw new Error(resp.error || 'Bildgenerierung fehlgeschlagen');
+    layer.innerHTML = `<img src="data:${resp.mime_type};base64,${resp.image_base64}" alt="${beschreibung.replace(/"/g, '')}">`;
+    ws.send(JSON.stringify({ type: 'client_tool_result', tool_call_id: call.tool_call_id, result: 'Bild wurde Henry angezeigt.', is_error: false }));
+  } catch (e) {
+    layer.classList.remove('show');
+    document.getElementById('avatarWrap').classList.remove('pip');
+    ws.send(JSON.stringify({ type: 'client_tool_result', tool_call_id: call.tool_call_id, result: 'Bild konnte gerade nicht gezeichnet werden: ' + e.message, is_error: true, error_type: 'external_server' }));
   }
 }
 
@@ -356,6 +400,9 @@ function stopSession() {
   try { playCtx && playCtx.close(); } catch {}
   ws = null; audioCtx = null; micStream = null; processorNode = null; sourceNode = null; muteNode = null; simliClient = null; playCtx = null;
   document.getElementById('avatarPlaceholderImg').style.display = 'block';
+  document.getElementById('avatarWrap').classList.remove('pip');
+  document.getElementById('graphicLayer').classList.remove('show');
+  document.getElementById('graphicLayer').innerHTML = '';
   document.getElementById('startBtn').disabled = false;
   document.getElementById('stopBtn').disabled = true;
   if (!document.getElementById('statusLine').textContent.startsWith('Fehler')) setStatus('Gestoppt.');
