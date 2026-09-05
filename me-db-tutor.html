@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; KI-Tutor</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 640px; margin: 28px auto; padding: 0 24px 60px; }
+
+  .avatar-wrap { background: #111; border-radius: 16px; overflow: hidden; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; position: relative; }
+  .avatar-wrap video { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-placeholder { color: #666; font-size: 0.85rem; text-align: center; padding: 20px; }
+
+  .controls { display: flex; gap: 10px; margin-top: 16px; }
+  .btn { flex: 1; border: none; border-radius: 10px; padding: 14px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+  .btn-start { background: #2e7d32; color: white; }
+  .btn-start:disabled { background: #a5d6a7; cursor: not-allowed; }
+  .btn-stop { background: #c62828; color: white; }
+  .btn-stop:disabled { background: #ef9a9a; cursor: not-allowed; }
+
+  .status { text-align: center; margin-top: 12px; font-size: 0.85rem; color: #888; min-height: 1.2em; }
+
+  .setup-box { background: white; border-radius: 12px; padding: 16px; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .setup-box label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: #888; display: block; margin-bottom: 4px; }
+  .setup-box input { width: 100%; border: 1px solid #e0e0e0; border-radius: 7px; padding: 9px 10px; font-size: 0.9rem; font-family: inherit; margin-bottom: 8px; }
+  .setup-box .savebtn { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.82rem; cursor: pointer; }
+  .setup-box .hint { font-size: 0.72rem; color: #aaa; margin-top: 4px; line-height: 1.4; }
+
+  .transcript { margin-top: 20px; background: white; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); max-height: 260px; overflow-y: auto; }
+  .transcript .line { font-size: 0.85rem; line-height: 1.5; margin-bottom: 6px; }
+  .transcript .empty { color: #bbb; font-size: 0.82rem; }
+
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+/* === Hamburger-Navigation (immer aktiv) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 0.95rem; flex-wrap: wrap; }
+  .container { padding: 0 14px 60px; margin: 18px auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">KI-Tutor</span></h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-tagebuch.html">Tagebuch</a>
+    <a href="me-db-tutor.html">🦸 KI-Tutor</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <div class="avatar-wrap">
+    <video id="avatarVideo" autoplay playsinline></video>
+    <audio id="avatarAudio" autoplay></audio>
+    <div class="avatar-placeholder" id="avatarPlaceholder">Bereit zum Start — Held erscheint hier, sobald das Gespräch beginnt.</div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-start" id="startBtn" onclick="startSession()">🎤 Gespräch starten</button>
+    <button class="btn btn-stop" id="stopBtn" onclick="stopSession()" disabled>⏹ Beenden</button>
+  </div>
+
+  <div class="status" id="statusLine">&nbsp;</div>
+
+  <div class="setup-box">
+    <label>Simli Face-ID</label>
+    <input type="text" id="faceIdInput" placeholder="z.B. Preset-ID zum Testen, später die eigene Helden-Face-ID">
+    <button class="savebtn" onclick="saveFaceId()">Speichern</button>
+    <div class="hint">Diese ID kommt aus dem Simli-Dashboard (Your Faces). Wird nur lokal in diesem Browser gespeichert, nicht in der Datenbank.</div>
+  </div>
+
+  <div class="transcript" id="transcript">
+    <div class="empty">Gesprächsverlauf erscheint hier, sobald ihr sprecht.</div>
+  </div>
+
+</div>
+
+<script type="module">
+import { SimliClient, LogLevel } from 'https://esm.sh/simli-client';
+
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
+const ELEVENLABS_AGENT_ID = 'agent_3801m1rfmm9yfd1teb2frdha5zyb';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+});
+
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+window.logout = logout;
+
+// ---------- Face-ID (lokal, noch nicht final) ----------
+const FACE_ID_KEY = 'medb_tutor_face_id';
+document.getElementById('faceIdInput').value = localStorage.getItem(FACE_ID_KEY) || '';
+function saveFaceId() {
+  const v = document.getElementById('faceIdInput').value.trim();
+  localStorage.setItem(FACE_ID_KEY, v);
+  setStatus('Face-ID gespeichert.');
+}
+window.saveFaceId = saveFaceId;
+
+// ---------- Session state ----------
+let simliClient = null;
+let ws = null;
+let audioCtx = null;
+let micStream = null;
+let processorNode = null;
+let sourceNode = null;
+let muteNode = null;
+let running = false;
+
+function setStatus(msg) { document.getElementById('statusLine').textContent = msg; }
+
+function addTranscriptLine(text) {
+  const el = document.getElementById('transcript');
+  if (el.querySelector('.empty')) el.innerHTML = '';
+  const line = document.createElement('div');
+  line.className = 'line';
+  line.textContent = text;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function floatTo16BitPCM(float32Array) {
+  const out = new Int16Array(float32Array.length);
+  for (let i = 0; i < float32Array.length; i++) {
+    const s = Math.max(-1, Math.min(1, float32Array[i]));
+    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  }
+  return out;
+}
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+function base64ToUint8Array(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function startSession() {
+  const faceId = localStorage.getItem(FACE_ID_KEY) || '';
+  if (!faceId) { alert('Bitte zuerst eine Simli Face-ID eintragen und speichern.'); return; }
+
+  document.getElementById('startBtn').disabled = true;
+  setStatus('Verbinde…');
+
+  try {
+    const [simliResp, elResp] = await Promise.all([
+      fetch(WORKER_URL + '/simli-session-token', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ face_id: faceId })
+      }).then(r => r.json()),
+      fetch(WORKER_URL + '/elevenlabs-signed-url', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent_id: ELEVENLABS_AGENT_ID })
+      }).then(r => r.json())
+    ]);
+
+    if (!simliResp.success) throw new Error('Simli: ' + simliResp.error);
+    if (!elResp.success) throw new Error('ElevenLabs: ' + elResp.error);
+
+    document.getElementById('avatarPlaceholder').style.display = 'none';
+    const videoEl = document.getElementById('avatarVideo');
+    const audioEl = document.getElementById('avatarAudio');
+
+    simliClient = new SimliClient(simliResp.session_token, videoEl, audioEl, null, LogLevel.DEBUG, 'livekit');
+    await simliClient.start();
+
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    sourceNode = audioCtx.createMediaStreamSource(micStream);
+    processorNode = audioCtx.createScriptProcessor(4096, 1, 1);
+    // Mikrofon-Rohsignal NICHT hörbar durchreichen (sonst Rückkopplung) — stumme
+    // Gain-Node nur damit der Audiograph läuft und onaudioprocess feuert.
+    muteNode = audioCtx.createGain();
+    muteNode.gain.value = 0;
+    sourceNode.connect(processorNode);
+    processorNode.connect(muteNode);
+    muteNode.connect(audioCtx.destination);
+
+    ws = new WebSocket(elResp.signed_url);
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'conversation_initiation_client_data' }));
+      running = true;
+      setStatus('Verbunden — sprich einfach los!');
+      document.getElementById('stopBtn').disabled = false;
+    };
+
+    ws.onmessage = (event) => {
+      let msg;
+      try { msg = JSON.parse(event.data); } catch { return; }
+      handleElevenLabsMessage(msg);
+    };
+
+    ws.onerror = () => setStatus('Verbindungsfehler.');
+    ws.onclose = () => { if (running) { setStatus('Verbindung getrennt.'); stopSession(); } };
+
+    processorNode.onaudioprocess = (e) => {
+      if (!running || !ws || ws.readyState !== WebSocket.OPEN) return;
+      const input = e.inputBuffer.getChannelData(0);
+      const pcm16 = floatTo16BitPCM(input);
+      ws.send(JSON.stringify({ user_audio_chunk: arrayBufferToBase64(pcm16.buffer) }));
+    };
+  } catch (e) {
+    setStatus('Fehler: ' + e.message);
+    document.getElementById('startBtn').disabled = false;
+    stopSession();
+  }
+}
+window.startSession = startSession;
+
+function handleElevenLabsMessage(msg) {
+  switch (msg.type) {
+    case 'ping':
+      ws.send(JSON.stringify({ type: 'pong', event_id: msg.ping_event.event_id }));
+      break;
+    case 'audio': {
+      const bytes = base64ToUint8Array(msg.audio_event.audio_base_64);
+      simliClient?.sendAudioData(bytes);
+      break;
+    }
+    case 'user_transcript':
+      addTranscriptLine('🧒 ' + msg.user_transcription_event.user_transcript);
+      break;
+    case 'agent_response':
+      addTranscriptLine('🦸 ' + msg.agent_response_event.agent_response);
+      break;
+    // 'interruption' (Kind unterbricht den Helden): wird aktuell nicht extra
+    // behandelt (kein Abbruch der laufenden Simli-Wiedergabe) — bekannte
+    // Einschränkung dieser ersten Version.
+    default:
+      break;
+  }
+}
+
+function stopSession() {
+  running = false;
+  try { ws && ws.close(); } catch {}
+  try { processorNode && processorNode.disconnect(); } catch {}
+  try { sourceNode && sourceNode.disconnect(); } catch {}
+  try { muteNode && muteNode.disconnect(); } catch {}
+  try { audioCtx && audioCtx.close(); } catch {}
+  try { micStream && micStream.getTracks().forEach(t => t.stop()); } catch {}
+  try { simliClient && simliClient.close && simliClient.close(); } catch {}
+  ws = null; audioCtx = null; micStream = null; processorNode = null; sourceNode = null; muteNode = null; simliClient = null;
+  document.getElementById('avatarPlaceholder').style.display = 'flex';
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  if (!document.getElementById('statusLine').textContent.startsWith('Fehler')) setStatus('Gestoppt.');
+}
+window.stopSession = stopSession;
+</script>
+</body>
+</html>
