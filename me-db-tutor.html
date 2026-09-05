@@ -43,6 +43,22 @@
 
   .transcript { margin-top: 20px; background: white; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); max-height: 260px; overflow-y: auto; }
   .transcript .line { font-size: 0.85rem; line-height: 1.5; margin-bottom: 6px; }
+
+  .parent-section { margin-top: 28px; border-top: 1px solid #e0e0e0; padding-top: 18px; }
+  .parent-section h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #999; margin-bottom: 10px; }
+  .parent-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+  .parent-btn { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 9px 14px; font-size: 0.82rem; cursor: pointer; color: #444; }
+  .parent-btn.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+  .parent-panel { display: none; margin-top: 14px; background: white; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .parent-panel.show { display: block; }
+  .parent-panel .ptable-wrap { overflow-x: auto; }
+  .parent-panel table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .parent-panel th { text-align: left; padding: 6px 8px; border-bottom: 2px solid #eee; color: #888; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
+  .parent-panel td { padding: 6px 8px; border-bottom: 1px solid #f2f2f2; vertical-align: top; }
+  .parent-panel .due-today { color: #c62828; font-weight: 700; }
+  .parent-panel .loading, .parent-panel .empty { color: #aaa; font-size: 0.85rem; padding: 8px 0; }
+  .story-text { font-size: 0.9rem; line-height: 1.6; }
+  .story-text .meta { font-size: 0.72rem; color: #aaa; margin-top: 10px; }
   .transcript .empty { color: #bbb; font-size: 0.82rem; }
 
 /* navdrop */
@@ -140,6 +156,25 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
   <div class="transcript" id="transcript">
     <div class="empty">Gesprächsverlauf erscheint hier, sobald ihr sprecht.</div>
+  </div>
+
+  <div class="parent-section">
+    <h3>Für Eltern</h3>
+    <div class="parent-buttons">
+      <button class="parent-btn" id="btnPanelCurriculum" onclick="toggleParentPanel('curriculum')">📋 Lehrplan (Soll)</button>
+      <button class="parent-btn" id="btnPanelChunks" onclick="toggleParentPanel('chunks')">🧠 Wissens-Chunks</button>
+      <button class="parent-btn" id="btnPanelStory" onclick="toggleParentPanel('story')">📖 Story bisher</button>
+    </div>
+
+    <div class="parent-panel" id="panelCurriculum">
+      <div class="ptable-wrap"><div class="loading">Lädt…</div></div>
+    </div>
+    <div class="parent-panel" id="panelChunks">
+      <div class="ptable-wrap"><div class="loading">Lädt…</div></div>
+    </div>
+    <div class="parent-panel" id="panelStory">
+      <div class="story-text"><div class="loading">Lädt…</div></div>
+    </div>
   </div>
 
 </div>
@@ -444,6 +479,88 @@ function stopSession() {
   if (!document.getElementById('statusLine').textContent.startsWith('Fehler')) setStatus('Gestoppt.');
 }
 window.stopSession = stopSession;
+
+// ---------- Eltern-Übersicht: Lehrplan / Wissens-Chunks / Story ----------
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+const parentPanelsLoaded = { curriculum: false, chunks: false, story: false };
+
+function toggleParentPanel(name) {
+  const panelIds = { curriculum: 'panelCurriculum', chunks: 'panelChunks', story: 'panelStory' };
+  const btnIds = { curriculum: 'btnPanelCurriculum', chunks: 'btnPanelChunks', story: 'btnPanelStory' };
+  const isOpen = document.getElementById(panelIds[name]).classList.contains('show');
+
+  for (const key of Object.keys(panelIds)) {
+    document.getElementById(panelIds[key]).classList.remove('show');
+    document.getElementById(btnIds[key]).classList.remove('active');
+  }
+  if (isOpen) return; // war schon offen -> nur schliessen
+
+  document.getElementById(panelIds[name]).classList.add('show');
+  document.getElementById(btnIds[name]).classList.add('active');
+  if (!parentPanelsLoaded[name]) {
+    parentPanelsLoaded[name] = true;
+    if (name === 'curriculum') loadCurriculumPanel();
+    if (name === 'chunks') loadChunksPanel();
+    if (name === 'story') loadStoryPanel();
+  }
+}
+window.toggleParentPanel = toggleParentPanel;
+
+async function loadCurriculumPanel() {
+  const el = document.querySelector('#panelCurriculum .ptable-wrap');
+  try {
+    const { data, error } = await db.from('tutor_curriculum_topics')
+      .select('subject,topic_label,description').order('sort_order', { ascending: true });
+    if (error) throw error;
+    if (!data || !data.length) { el.innerHTML = '<div class="empty">Noch kein Lehrplan hinterlegt.</div>'; return; }
+    el.innerHTML = `<table><thead><tr><th>Fach</th><th>Thema</th><th>Worum geht's</th></tr></thead><tbody>${
+      data.map(c => `<tr><td>${esc(c.subject)}</td><td>${esc(c.topic_label)}</td><td>${esc(c.description)}</td></tr>`).join('')
+    }</tbody></table>`;
+  } catch (e) {
+    el.innerHTML = `<div class="empty">Fehler beim Laden: ${esc(e.message)}</div>`;
+  }
+}
+
+async function loadChunksPanel() {
+  const el = document.querySelector('#panelChunks .ptable-wrap');
+  try {
+    const { data, error } = await db.from('tutor_knowledge_chunks')
+      .select('topic_label,category,content,review_count,next_review_date,interval_days,last_result')
+      .eq('kid_name', KID_NAME)
+      .order('next_review_date', { ascending: true });
+    if (error) throw error;
+    if (!data || !data.length) { el.innerHTML = '<div class="empty">Noch keine Themen besprochen.</div>'; return; }
+    const today = new Date().toISOString().substring(0, 10);
+    el.innerHTML = `<table><thead><tr><th>Thema</th><th>Kategorie</th><th>Inhalt</th><th>Wdh.</th><th>Fällig am</th><th>Intervall</th></tr></thead><tbody>${
+      data.map(c => {
+        const dueClass = c.next_review_date && c.next_review_date <= today ? ' class="due-today"' : '';
+        return `<tr><td>${esc(c.topic_label)}</td><td>${esc(c.category || '–')}</td><td>${esc(c.content)}</td><td>${c.review_count ?? 0}</td><td${dueClass}>${esc(c.next_review_date || '–')}</td><td>${Math.round(c.interval_days || 1)}d</td></tr>`;
+      }).join('')
+    }</tbody></table>`;
+  } catch (e) {
+    el.innerHTML = `<div class="empty">Fehler beim Laden: ${esc(e.message)}</div>`;
+  }
+}
+
+async function loadStoryPanel() {
+  const el = document.querySelector('#panelStory .story-text');
+  try {
+    const { data, error } = await db.from('tutor_story_state')
+      .select('chapter_number,current_situation,last_cliffhanger,key_decisions,updated_at')
+      .eq('kid_name', KID_NAME).maybeSingle();
+    if (error) throw error;
+    if (!data || !data.current_situation) { el.innerHTML = '<div class="empty">Es gibt noch keine gemeinsame Geschichte.</div>'; return; }
+    const updated = data.updated_at ? new Date(data.updated_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+    el.innerHTML = `
+      <div>${esc(data.current_situation)}</div>
+      ${data.last_cliffhanger ? `<div style="margin-top:8px"><em>Zuletzt: ${esc(data.last_cliffhanger)}</em></div>` : ''}
+      ${data.key_decisions ? `<div style="margin-top:8px;color:#666">Henrys Entscheidungen bisher: ${esc(data.key_decisions)}</div>` : ''}
+      <div class="meta">Kapitel ${data.chapter_number ?? 0} · zuletzt aktualisiert ${updated}</div>`;
+  } catch (e) {
+    el.innerHTML = `<div class="empty">Fehler beim Laden: ${esc(e.message)}</div>`;
+  }
+}
 </script>
 </body>
 </html>
