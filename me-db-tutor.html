@@ -144,6 +144,11 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     🎨 Grafiken an (Newton kann live Cartoon-Bilder zum Thema malen — experimentell, standardmäßig aus)
   </label>
 
+  <label style="display:flex;align-items:center;gap:12px;margin-top:10px;padding:6px 0;font-size:0.9rem;color:#555">
+    <input type="checkbox" id="localAudioMode" checked style="width:26px;height:26px;flex-shrink:0;accent-color:#1a1a2e">
+    🔈 Ton selbst abspielen statt über Simli (Video/Lippen bleiben von Simli — hilft, wenn der Ton mittendrin wegfällt)
+  </label>
+
   <div class="controls">
     <button class="btn btn-start" id="startBtn" onclick="startSession()">🎤 Gespräch starten</button>
     <button class="btn btn-stop" id="stopBtn" onclick="requestEndSession()" disabled>⏹ Beenden</button>
@@ -275,6 +280,7 @@ let muteNode = null;
 let running = false;
 let currentConversationId = null;
 let endingTimeout = null;
+let localAudioActive = false; // Ton kommt aus unserem Web-Audio-Pfad statt von Simli
 
 function setStatus(msg) { document.getElementById('statusLine').textContent = msg; }
 
@@ -339,6 +345,7 @@ async function startSession() {
   const audioOnly = document.getElementById('audioOnlyMode').checked;
   const faceId = localStorage.getItem(FACE_ID_KEY) || DEFAULT_FACE_ID;
 
+  localAudioActive = document.getElementById('localAudioMode').checked;
   document.getElementById('startBtn').disabled = true;
   setStatus('Verbinde…');
   nextPlayTime = 0;
@@ -373,10 +380,19 @@ async function startSession() {
       const videoEl = document.getElementById('avatarVideo');
       const audioEl = document.getElementById('avatarAudio');
       simliClient = new SimliClient(simliResp.session_token, videoEl, audioEl, null, LogLevel.DEBUG, 'livekit');
+      // Diagnose: Simli meldet Verbindungsprobleme über diese Events - ohne sie
+      // sind wir blind, wenn die Audiospur mittendrin stirbt.
+      try {
+        simliClient.on('start', () => addTranscriptLine('⚙️ Simli verbunden'));
+        simliClient.on('stop', () => addTranscriptLine('⚠️ Simli-Verbindung beendet'));
+        simliClient.on('error', (e) => addTranscriptLine('⚠️ Simli-Fehler: ' + (e?.message || e || 'unbekannt')));
+        simliClient.on('startup_error', (e) => addTranscriptLine('⚠️ Simli-Startfehler: ' + (e?.message || e || 'unbekannt')));
+      } catch {}
       await simliClient.start();
       // Priming-Stille: ohne diesen ersten Puffer kommt die Audiospur bei Simli
       // nicht sauber zustande (so macht es auch Simlis eigene Referenz-App).
       try { simliClient.sendAudioData(new Uint8Array(6000)); } catch {}
+      if (localAudioActive) { videoEl.muted = true; audioEl.muted = true; }
       applyVolume(document.getElementById('volumeSlider').value);
     }
 
@@ -443,8 +459,11 @@ function handleElevenLabsMessage(msg) {
       break;
     case 'audio': {
       const bytes = base64ToUint8Array(msg.audio_event.audio_base_64);
+      // Simli bekommt die Daten immer (treibt die Lippenbewegung an). Der hörbare
+      // Ton kommt entweder von Simli selbst oder - wenn "Ton selbst abspielen"
+      // aktiv ist - aus unserem eigenen, stabilen Web-Audio-Pfad.
       if (simliClient) simliClient.sendAudioData(bytes);
-      else playPcmChunk(bytes);
+      if (!simliClient || localAudioActive) playPcmChunk(bytes);
       break;
     }
     case 'user_transcript':
@@ -532,6 +551,10 @@ function stopSession() {
   try { simliClient && simliClient.close && simliClient.close(); } catch {}
   try { playCtx && playCtx.close(); } catch {}
   ws = null; audioCtx = null; micStream = null; processorNode = null; sourceNode = null; muteNode = null; simliClient = null; playCtx = null; masterGain = null;
+  localAudioActive = false;
+  const vEl = document.getElementById('avatarVideo'), aEl = document.getElementById('avatarAudio');
+  if (vEl) vEl.muted = false;
+  if (aEl) aEl.muted = false;
   document.getElementById('avatarPlaceholderImg').style.display = 'block';
   document.getElementById('avatarWrap').classList.remove('pip');
   document.getElementById('graphicLayer').classList.remove('show');
