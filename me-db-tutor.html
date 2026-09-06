@@ -374,9 +374,17 @@ async function startSession() {
       const audioEl = document.getElementById('avatarAudio');
       simliClient = new SimliClient(simliResp.session_token, videoEl, audioEl, null, LogLevel.DEBUG, 'livekit');
       await simliClient.start();
+      // Priming-Stille: ohne diesen ersten Puffer kommt die Audiospur bei Simli
+      // nicht sauber zustande (so macht es auch Simlis eigene Referenz-App).
+      try { simliClient.sendAudioData(new Uint8Array(6000)); } catch {}
+      applyVolume(document.getElementById('volumeSlider').value);
     }
 
-    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Echo-Unterdrückung ist hier wichtig: sonst hört das Mikrofon Newtons eigene
+    // Stimme aus dem Lautsprecher und löst laufend falsche Unterbrechungen aus.
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
     audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
     sourceNode = audioCtx.createMediaStreamSource(micStream);
     processorNode = audioCtx.createScriptProcessor(4096, 1, 1);
@@ -396,6 +404,7 @@ async function startSession() {
         type: 'conversation_initiation_client_data',
         dynamic_variables: { learning_context: learningContext, graphics_enabled: graphicsEnabled ? 'ja' : 'nein', story_context: storyContext, story_nudge: storyNudge }
       }));
+      try { simliClient && simliClient.ClearBuffer && simliClient.ClearBuffer(); } catch {}
       running = true;
       setStatus('Verbunden — sprich einfach los!');
       document.getElementById('stopBtn').disabled = false;
@@ -447,9 +456,13 @@ function handleElevenLabsMessage(msg) {
     case 'client_tool_call':
       handleClientToolCall(msg.client_tool_call);
       break;
-    // 'interruption' (Kind unterbricht den Helden): wird aktuell nicht extra
-    // behandelt (kein Abbruch der laufenden Simli-Wiedergabe) — bekannte
-    // Einschränkung dieser ersten Version.
+    case 'interruption':
+      // Henry redet dazwischen: Simlis noch gepufferte Restaudio verwerfen.
+      // Ohne das wächst der Puffer über die Gesprächsrunden immer weiter an,
+      // das Audio läuft der Mundanimation davon und bleibt irgendwann ganz weg.
+      try { simliClient && simliClient.ClearBuffer && simliClient.ClearBuffer(); } catch {}
+      nextPlayTime = 0;
+      break;
     default:
       break;
   }
