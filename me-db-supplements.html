@@ -38,6 +38,7 @@
   .supp-title { font-size: 0.95rem; font-weight: 600; word-break: break-word; }
   .supp-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; font-size: 0.78rem; color: #888; }
   .supp-meta .badge { background: #f0f0f0; padding: 2px 8px; border-radius: 20px; }
+  .supp-meta .badge.warn { background: #fff3e0; color: #e65100; }
   .supp-cost { font-weight: 700; font-size: 0.95rem; white-space: nowrap; flex-shrink: 0; align-self: center; }
   .supp-cost .u { font-size: 0.68rem; color: #aaa; font-weight: 500; }
 
@@ -194,6 +195,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <input id="dDensity" type="number" step="0.01" placeholder="e.g. 0.5 — nur für lose Pulver relevant">
       <div style="font-size:0.72rem;color:#aaa;margin-top:4px">Für die AG-Me-Batch-Mix-Rechnung (Gramm → ml/Scoops). Bei Kapseln/Tropfen/Tabletten leer lassen.</div>
       <button type="button" class="scan-btn" style="margin-top:8px;background:#ede7f6;color:#5e35b1;" onclick="openDensityTest()">🧪 Dichte-Test (Scoop abwiegen)</button>
+      <button type="button" class="scan-btn" id="estimateDensityBtn" style="margin-top:8px" onclick="estimateDensity()">🤖 Dichte per KI schätzen</button>
+      <div id="densityAiStatus" style="font-size:0.78rem;color:#888;margin-top:6px"></div>
     </div>
     <div class="dfield">
       <label>Price/Package €</label>
@@ -216,7 +219,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none" onchange="handlePhotoSelected(event)">
     </div>
     <div id="scanBtnWrap" style="display:none;margin-bottom:14px">
-      <button class="scan-btn" onclick="scanWithAI()">🤖 AI Scan – fill fields from photos</button>
+      <button class="scan-btn" id="scanBtn" onclick="scanWithAI()">🤖 AI Scan – fill fields from photos</button>
       <div id="scanStatus" style="font-size:0.78rem;color:#888;margin-top:6px"></div>
     </div>
     <div class="dfield">
@@ -453,6 +456,47 @@ function calcDensityTest() {
   el.textContent = `→ ${density.toFixed(3)} g/ml`;
   btn.disabled = false;
 }
+async function estimateDensity() {
+  const statusEl = document.getElementById('densityAiStatus');
+  const btn = document.getElementById('estimateDensityBtn');
+  const name = document.getElementById('dName').value.trim();
+  if (!name) { showToast('Bitte zuerst einen Namen eingeben'); return; }
+  btn.disabled = true;
+  statusEl.style.color = '#888';
+  statusEl.textContent = '🔎 Claude sucht eine Schüttdichte… (kann bis zu 45s dauern)';
+  try {
+    const resp = await fetch(WORKER_URL + '/estimate-density', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        product_name: document.getElementById('dProductName').value.trim() || null,
+        manufacturer: document.getElementById('dManufacturer').value.trim() || null,
+        package_amount: document.getElementById('dPackageAmount').value || null,
+        package_unit: document.getElementById('dPackageUnit').value.trim() || null,
+      }),
+    });
+    const d = await resp.json();
+    if (!d.success) throw new Error(d.error);
+    if (d.density_g_per_ml == null) {
+      statusEl.style.color = '#c62828';
+      statusEl.textContent = d.note || 'Keine Dichte gefunden — bitte per Dichte-Test selbst abwiegen.';
+      return;
+    }
+    document.getElementById('dDensity').value = d.density_g_per_ml;
+    statusEl.style.color = '#e65100';
+    statusEl.textContent = `≈ ${d.density_g_per_ml} g/ml (KI-Schätzung${d.confidence ? ', ' + d.confidence : ''})`
+      + (d.source ? ` · ${d.source}` : '')
+      + (d.note ? ` — ${d.note}` : '')
+      + ' — überschreibbar, zum Speichern "Save" klicken';
+  } catch (e) {
+    statusEl.style.color = '#c62828';
+    statusEl.textContent = 'Fehler: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function applyDensityTest() {
   const ml = parseFloat(document.getElementById('tDensityMl').value);
   const g = parseFloat(document.getElementById('tDensityG').value);
@@ -518,6 +562,13 @@ function render() {
   document.getElementById('content').innerHTML = list.map(supRow).join('');
 }
 
+// Same condition as me-db-ag-me.html's batch badge: only a mix ingredient dosed by
+// mass can be converted g → ml, and only with a density. Warn exactly where the
+// mixer shows its yellow "Dichte fehlt" badge, so the fix happens here.
+function densityMissing(s) {
+  return agMeMap.has(s.id) && !s.density_g_per_ml && toGrams(s.daily_amount, s.unit) != null;
+}
+
 function supRow(s) {
   const cost = dailyCost(s);
   const meta = [];
@@ -527,13 +578,16 @@ function supRow(s) {
   if (s.timing) meta.push(esc(s.timing));
   if (s.manufacturer) meta.push(esc(s.manufacturer));
   if (s.package_amount) meta.push(`Package: ${s.package_amount}${s.package_unit ? ' '+esc(s.package_unit) : ''}`);
+  const densityBadge = densityMissing(s)
+    ? '<span class="badge warn">Dichte fehlt — für AG-Me Mix nötig</span>'
+    : '';
   return `
     <div class="supp-row ${s.active ? '' : 'inactive'}" data-id="${s.id}">
       <input type="checkbox" class="chk" ${s.active?'checked':''} onchange="toggleActive(${s.id}, this.checked)" title="Active" onclick="event.stopPropagation()">
       <input type="checkbox" class="chk chk-agme" ${agMeMap.has(s.id)?'checked':''} onchange="toggleAgMe(${s.id}, this.checked)" title="In AG-Me Mix" onclick="event.stopPropagation()">
       <div class="supp-main" onclick="openDetail(${s.id})">
         <div class="supp-title">${esc(s.name)}</div>
-        <div class="supp-meta">${meta.map(m=>`<span class="badge">${m}</span>`).join('')}</div>
+        <div class="supp-meta">${meta.map(m=>`<span class="badge">${m}</span>`).join('')}${densityBadge}</div>
       </div>
       <div class="supp-cost" onclick="openDetail(${s.id})">${cost!=null ? cost.toFixed(2)+'<span class="u"> €/day</span>' : '<span class="u">– €/day</span>'}</div>
     </div>`;
@@ -556,6 +610,7 @@ function openDetail(id) {
   document.getElementById('dPackageAmount').value = s.package_amount ?? '';
   document.getElementById('dPackageUnit').value = s.package_unit || '';
   document.getElementById('dDensity').value = s.density_g_per_ml ?? '';
+  document.getElementById('densityAiStatus').textContent = '';
   document.getElementById('dPackagePrice').value = s.package_price ?? '';
   document.getElementById('dDailyCostOverride').value = s.daily_cost_override ?? '';
   document.getElementById('dActive').checked = isNew ? true : !!s.active;
@@ -740,7 +795,7 @@ function fileToBase64(blob) {
 
 async function scanWithAI() {
   const statusEl = document.getElementById('scanStatus');
-  const btn = document.querySelector('.scan-btn');
+  const btn = document.getElementById('scanBtn');
   statusEl.style.color = '#888';
   statusEl.textContent = 'Analyzing photos…';
   btn.disabled = true;
