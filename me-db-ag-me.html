@@ -22,8 +22,11 @@
   .hero .label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
   .hero .sub { font-size: 0.8rem; color: #aaa; margin-top: 6px; }
   .hero .savings { font-size: 0.85rem; color: #2e7d32; font-weight: 700; margin-top: 4px; }
-  .hero .settings-btn { background: none; border: 1px solid #e0e0e0; border-radius: 7px; padding: 6px 12px; font-size: 0.78rem; cursor: pointer; color: #666; align-self: flex-start; margin-left: auto; }
+  .hero .hero-actions { margin-left: auto; align-self: flex-start; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .hero .settings-btn { background: none; border: 1px solid #e0e0e0; border-radius: 7px; padding: 6px 12px; font-size: 0.78rem; cursor: pointer; color: #666; }
   .hero .settings-btn:hover { background: #f5f5f5; }
+  /* Gegenstück zum "🥣 AG-Me Mix"-Knopf in me-db-supplements.html — gleicher Stil, andere Richtung. */
+  .hero .back-link { background: #1a1a2e; color: white; text-decoration: none; border-radius: 7px; padding: 8px 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; }
 
   .filters { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
   .chip { border: 1px solid #d8d8d8; background: white; border-radius: 20px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; }
@@ -95,7 +98,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   .dgrid { grid-template-columns: 1fr; }
   .ing-row { flex-wrap: wrap; }
   .ing-scoop { margin-left: 31px; width: 100%; justify-content: space-between; }
-  .hero .settings-btn { margin-left: 0; }
+  .hero .hero-actions { margin-left: 0; }
 }
 </style>
 </head>
@@ -155,7 +158,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div class="label">Cheaper than AG1</div>
       <div class="savings" id="savingsAbs"></div>
     </div>
-    <button class="settings-btn" onclick="openSettings()">⚙ Batch / AG1 settings</button>
+    <div class="hero-actions">
+      <a class="back-link" href="me-db-supplements.html">💊 Supplements</a>
+      <button class="settings-btn" onclick="openSettings()">⚙ Batch / AG1 settings</button>
+    </div>
   </div>
 
   <div class="filters">
