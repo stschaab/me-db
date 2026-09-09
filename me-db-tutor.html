@@ -222,9 +222,9 @@ db.auth.getSession().then(({ data }) => {
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 window.logout = logout;
 
-// ---------- Face-ID (Newtons fertiges Simli-Face, seit 2026-09-05) ----------
+// ---------- Face-ID (Deutschlehrerin-Clone, seit 2026-09-09) ----------
 const FACE_ID_KEY = 'medb_tutor_face_id';
-const DEFAULT_FACE_ID = '8e029f49-310e-49e0-a885-a771364ce00a';
+const DEFAULT_FACE_ID = 'e845a652-f44a-4629-974c-45f262c9487f';
 document.getElementById('faceIdInput').value = localStorage.getItem(FACE_ID_KEY) || DEFAULT_FACE_ID;
 function saveFaceId() {
   const v = document.getElementById('faceIdInput').value.trim();
