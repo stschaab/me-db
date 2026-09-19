@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Chinese Teacher</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/microsoft-cognitiveservices-speech-sdk@1.51.0/distrib/browser/microsoft.cognitiveservices.speech.sdk.bundle-min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 680px; margin: 28px auto; padding: 0 24px 60px; }
+
+  .controls { display: flex; gap: 10px; }
+  .btn { flex: 1; border: none; border-radius: 10px; padding: 14px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+  .btn-start { background: #2e7d32; color: white; }
+  .btn-start:disabled { background: #a5d6a7; cursor: not-allowed; }
+  .btn-stop { background: #c62828; color: white; }
+  .btn-stop:disabled { background: #ef9a9a; cursor: not-allowed; }
+  .btn-retry { display: none; background: #1a1a2e; color: white; margin-top: 10px; }
+
+  .status { text-align: center; margin-top: 12px; font-size: 0.9rem; color: #666; min-height: 1.3em; }
+  .partial { text-align: center; margin-top: 4px; font-size: 0.85rem; color: #aaa; min-height: 1.2em; }
+
+  .transcript { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .card { background: white; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); max-width: 88%; }
+  .card.teacher { align-self: flex-start; border-left: 3px solid #1a1a2e; }
+  .card.student { align-self: flex-end; border-left: 3px solid #2e7d32; }
+  .card .role { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: #aaa; margin-bottom: 4px; }
+  .card .hanzi { font-size: 1.3rem; line-height: 1.4; }
+  .card .pinyin { font-size: 0.85rem; color: #888; margin-top: 3px; }
+  .card .correction { margin-top: 8px; padding: 7px 9px; border-radius: 7px; background: #fff3e0; font-size: 0.8rem; color: #8a5a00; }
+  .empty { color: #bbb; font-size: 0.85rem; text-align: center; margin-top: 20px; }
+
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+/* === Hamburger-Navigation (immer aktiv) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 0.95rem; flex-wrap: wrap; }
+  .container { padding: 0 14px 60px; margin: 18px auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Chinese Teacher</span></h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-tagebuch.html">Tagebuch</a>
+    <a href="me-db-tutor.html">🦸 KI-Tutor</a>
+    <a href="me-db-chinese-teacher.html">🀄 Chinese Teacher</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <div class="controls">
+    <button class="btn btn-start" id="startBtn" onclick="startSession()">🀄 Gespräch starten</button>
+    <button class="btn btn-stop" id="stopBtn" onclick="stopSession()" disabled>⏹ Beenden</button>
+  </div>
+
+  <div class="status" id="statusLine">&nbsp;</div>
+  <div class="partial" id="partialLine">&nbsp;</div>
+  <button class="btn btn-retry" id="retryBtn" onclick="retryListen()">🎤 Nochmal versuchen</button>
+
+  <div class="transcript" id="transcript">
+    <div class="empty" id="transcriptEmpty">Gespräch erscheint hier, sobald ihr sprecht. Niveau: A1, langsames Tempo.</div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
+const AZURE_VOICE = 'zh-CN-XiaoxiaoNeural';
+const TOKEN_REFRESH_MS = 8 * 60 * 1000; // Azure-Token laeuft nach ~10 Min ab
+
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+});
+
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+window.logout = logout;
+
+// ---------- Session state ----------
+let recognizer = null;
+let synthesizer = null;
+let running = false;
+let conversationHistory = []; // [{role:'teacher'|'student', text}]
+let tokenRefreshTimer = null;
+
+function setStatus(msg) { document.getElementById('statusLine').textContent = msg; }
+function setPartial(msg) { document.getElementById('partialLine').textContent = msg || ' '; }
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeXml(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
+
+function addTranscriptCard(role, hanzi, pinyin, correctionNote) {
+  const empty = document.getElementById('transcriptEmpty');
+  if (empty) empty.remove();
+  const el = document.getElementById('transcript');
+  const card = document.createElement('div');
+  card.className = 'card ' + role;
+  let html = `<div class="role">${role === 'teacher' ? '🀄 Lehrerin' : '🗣️ Du'}</div>`;
+  html += `<div class="hanzi">${escapeHtml(hanzi)}</div>`;
+  if (pinyin) html += `<div class="pinyin">${escapeHtml(pinyin)}</div>`;
+  if (correctionNote) html += `<div class="correction">💡 ${escapeHtml(correctionNote)}</div>`;
+  card.innerHTML = html;
+  el.appendChild(card);
+  card.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+async function mintAzureToken() {
+  const resp = await fetch(WORKER_URL + '/azure-speech-token', { method: 'POST' }).then(r => r.json());
+  if (!resp.success) throw new Error('Azure-Token: ' + resp.error);
+  return resp; // { token, region }
+}
+
+async function refreshAzureToken() {
+  try {
+    const { token } = await mintAzureToken();
+    if (recognizer) recognizer.authorizationToken = token;
+    if (synthesizer) synthesizer.authorizationToken = token;
+  } catch (e) {
+    // best-effort: falls es schiefgeht, faellt die naechste Aktion mit einem
+    // klaren Fehler auf, statt hier eine laufende Session hart abzubrechen
+    console.warn('Azure-Token-Refresh fehlgeschlagen:', e.message);
+  }
+}
+
+async function startSession() {
+  document.getElementById('startBtn').disabled = true;
+  setStatus('Verbinde mit Azure…');
+  conversationHistory = [];
+  document.getElementById('transcript').innerHTML = '';
+
+  try {
+    const { token, region } = await mintAzureToken();
+    const speechConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(token, region);
+    speechConfig.speechRecognitionLanguage = 'zh-CN';
+    speechConfig.speechSynthesisVoiceName = AZURE_VOICE;
+
+    recognizer = new SpeechSDK.SpeechRecognizer(speechConfig, SpeechSDK.AudioConfig.fromDefaultMicrophoneInput());
+    synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, SpeechSDK.AudioConfig.fromDefaultSpeakerOutput());
+    recognizer.recognizing = (s, e) => setPartial(e.result.text);
+
+    running = true;
+    document.getElementById('stopBtn').disabled = false;
+    tokenRefreshTimer = setInterval(refreshAzureToken, TOKEN_REFRESH_MS);
+
+    await teacherTurn(''); // Eroeffnung durch die Lehrerin
+  } catch (e) {
+    setStatus('Fehler: ' + e.message);
+    document.getElementById('startBtn').disabled = false;
+    stopSession();
+  }
+}
+window.startSession = startSession;
+
+async function teacherTurn(recognizedText) {
+  setStatus('🀄 Lehrerin überlegt…');
+  setPartial('');
+  let data;
+  try {
+    data = await fetch(WORKER_URL + '/chinese-teacher-turn', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recognized_text: recognizedText, conversation_history: conversationHistory })
+    }).then(r => r.json());
+  } catch (e) {
+    setStatus('Fehler: ' + e.message);
+    return;
+  }
+  if (!data.success) { setStatus('Fehler: ' + data.error); return; }
+
+  conversationHistory.push({ role: 'teacher', text: data.reply_hanzi });
+  // Hanzi+Pinyin erscheinen sofort, synchron mit dem Start der Sprachausgabe,
+  // nicht erst wenn sie fertig gesprochen ist.
+  addTranscriptCard('teacher', data.reply_hanzi, data.reply_pinyin, data.correction_note);
+
+  try {
+    await speakSlow(data.reply_hanzi);
+  } catch (e) {
+    setStatus('TTS-Fehler: ' + e.message);
+  }
+
+  if (running) listenOnce();
+}
+
+function speakSlow(text) {
+  return new Promise((resolve, reject) => {
+    setStatus('🔊 Lehrerin spricht…');
+    const ssml = `<speak version="1.0" xml:lang="zh-CN"><voice name="${AZURE_VOICE}"><prosody rate="-20%">${escapeXml(text)}</prosody></voice></speak>`;
+    synthesizer.speakSsmlAsync(
+      ssml,
+      () => resolve(),
+      (err) => reject(new Error(String(err)))
+    );
+  });
+}
+
+function listenOnce() {
+  if (!running || !recognizer) return;
+  setStatus('🎤 Du bist dran — sprich Mandarin…');
+  setPartial('');
+  document.getElementById('retryBtn').style.display = 'none';
+  recognizer.recognizeOnceAsync(
+    (result) => {
+      if (!running) return;
+      setPartial('');
+      if (result.reason === SpeechSDK.ResultReason.RecognizedSpeech && result.text) {
+        conversationHistory.push({ role: 'student', text: result.text });
+        addTranscriptCard('student', result.text, '', null);
+        teacherTurn(result.text);
+      } else {
+        setStatus('Nichts verstanden.');
+        document.getElementById('retryBtn').style.display = 'block';
+      }
+    },
+    (err) => {
+      setStatus('Fehler bei der Spracherkennung: ' + err);
+      document.getElementById('retryBtn').style.display = 'block';
+    }
+  );
+}
+
+function retryListen() { listenOnce(); }
+window.retryListen = retryListen;
+
+function stopSession() {
+  running = false;
+  if (tokenRefreshTimer) { clearInterval(tokenRefreshTimer); tokenRefreshTimer = null; }
+  try { recognizer && recognizer.close(); } catch {}
+  try { synthesizer && synthesizer.close(); } catch {}
+  recognizer = null; synthesizer = null;
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('retryBtn').style.display = 'none';
+  setPartial('');
+  setStatus('Beendet.');
+}
+window.stopSession = stopSession;
+</script>
+</body>
+</html>
