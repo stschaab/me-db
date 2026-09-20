@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Chinese Teacher &ndash; Architektur</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 1040px; margin: 28px auto; padding: 0 24px 80px; }
+
+  h2 { font-size: 1.05rem; margin: 32px 0 10px; color: #1a1a2e; }
+  h2:first-of-type { margin-top: 0; }
+  p.lead { font-size: 0.92rem; line-height: 1.6; color: #444; max-width: 70ch; }
+  p.lead + p.lead { margin-top: 10px; }
+
+  /* ---- Legende ---- */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 16px 0 4px; font-size: 0.78rem; color: #555; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+
+  /* ---- Zwei Spalten, auf schmalen Schirmen untereinander ---- */
+  .lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 14px; align-items: start; }
+  .lane { background: white; border-radius: 14px; padding: 16px 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+  .lane.now { border-top: 4px solid #2e7d32; }
+  .lane.idea { border-top: 4px solid #6a4c93; }
+  .lane-head { font-size: 0.95rem; font-weight: 700; color: #1a1a2e; }
+  .lane-tag { display: inline-block; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 4px; padding: 2px 7px; margin-left: 8px; vertical-align: 2px; }
+  .tag-live { background: #e4f1e4; color: #2e7d32; }
+  .tag-idea { background: #ece4f5; color: #6a4c93; }
+  .lane-sub { font-size: 0.78rem; color: #777; margin-top: 4px; line-height: 1.45; }
+
+  .flow { margin-top: 14px; }
+  .step { border-radius: 10px; padding: 9px 12px; border-left: 4px solid #999; background: #fafafa; }
+  .step-kind { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8a8a99; }
+  .step-title { font-size: 0.92rem; font-weight: 600; margin-top: 1px; }
+  .step-note { font-size: 0.76rem; color: #666; margin-top: 3px; line-height: 1.4; }
+
+  .s-browser { border-left-color: #546e7a; background: #f3f6f7; }
+  .s-azure   { border-left-color: #0078d4; background: #eff6fc; }
+  .s-worker  { border-left-color: #f38020; background: #fef4ec; }
+  .s-claude  { border-left-color: #8b5cf6; background: #f5f1fe; }
+  .s-gemini  { border-left-color: #0f9d58; background: #edf8f2; }
+
+  .arrow { text-align: center; color: #bbb; font-size: 1rem; line-height: 1.1; margin: 5px 0; }
+
+  .branch { margin: 6px 0 6px 16px; padding-left: 12px; border-left: 2px dashed #d5d5dd; }
+  .branch-label { font-size: 0.7rem; color: #999; margin-bottom: 5px; }
+
+  .flag { margin-top: 8px; border-radius: 9px; padding: 9px 11px; font-size: 0.79rem; line-height: 1.5; }
+  .flag-bad  { background: #fdecea; color: #8c2f26; border-left: 4px solid #c62828; }
+  .flag-good { background: #e9f4ec; color: #1f5c2e; border-left: 4px solid #2e7d32; }
+  .flag b { font-weight: 700; }
+
+  /* ---- Bilanz ---- */
+  .balance { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
+  .bal { background: white; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .bal h3 { font-size: 0.85rem; margin-bottom: 8px; }
+  .bal.plus h3 { color: #2e7d32; }
+  .bal.minus h3 { color: #b3261e; }
+  .bal ul { list-style: none; }
+  .bal li { font-size: 0.82rem; line-height: 1.5; padding-left: 17px; position: relative; margin-bottom: 7px; color: #444; }
+  .bal.plus li::before  { content: '+'; position: absolute; left: 0; color: #2e7d32; font-weight: 700; }
+  .bal.minus li::before { content: '\2212'; position: absolute; left: 0; color: #b3261e; font-weight: 700; }
+  .bal li b { color: #222; }
+
+  /* ---- Roadmap ---- */
+  .road { display: flex; gap: 10px; margin-top: 12px; overflow-x: auto; padding-bottom: 6px; }
+  .road-item { flex: 1 0 190px; background: white; border-radius: 12px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-top: 3px solid #cfcfda; }
+  .road-item.done { border-top-color: #2e7d32; }
+  .road-num { font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: #9a9aa8; }
+  .road-title { font-size: 0.86rem; font-weight: 600; margin-top: 2px; }
+  .road-note { font-size: 0.76rem; color: #666; margin-top: 4px; line-height: 1.45; }
+
+  .footnote { font-size: 0.76rem; color: #888; margin-top: 26px; line-height: 1.6; max-width: 80ch; }
+
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+/* === Hamburger-Navigation (immer aktiv) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+
+@media (max-width: 820px) {
+  .lanes, .balance { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 0.95rem; flex-wrap: wrap; }
+  .container { padding: 0 14px 60px; margin: 18px auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 style="display:flex;align-items:center;gap:0;flex-wrap:wrap"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><a href="me-db-chinese-teacher.html" style="color:#fff;text-decoration:none">Chinese Teacher</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Architektur</span></h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-chinese-teacher.html">&larr; Zurück zum Gespräch</a>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-tagebuch.html">Tagebuch</a>
+    <a href="me-db-tutor.html">🦸 KI-Tutor</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <h2>Wie eine Gesprächsrunde läuft</h2>
+  <p class="lead">
+    Links der Weg, der heute live ist. Rechts die Alternative, über die wir gesprochen haben: das Audio geht
+    direkt in ein Modell, das hören kann — dann muss überhaupt niemand mehr vorab entscheiden, welche Sprache
+    gerade gesprochen wird.
+  </p>
+
+  <div class="legend">
+    <span><i class="dot" style="background:#546e7a"></i> Browser</span>
+    <span><i class="dot" style="background:#0078d4"></i> Azure Speech</span>
+    <span><i class="dot" style="background:#f38020"></i> Cloudflare Worker</span>
+    <span><i class="dot" style="background:#8b5cf6"></i> Claude (Text)</span>
+    <span><i class="dot" style="background:#0f9d58"></i> Gemini (Audio)</span>
+  </div>
+
+  <div class="lanes">
+
+    <!-- ===================== HEUTE ===================== -->
+    <div class="lane now">
+      <div class="lane-head">Heute<span class="lane-tag tag-live">live</span></div>
+      <div class="lane-sub">Zwei getrennte Schritte: erst Text erzeugen, dann verstehen.</div>
+
+      <div class="flow">
+        <div class="step s-browser">
+          <div class="step-kind">Browser</div>
+          <div class="step-title">Mikrofon, durchgehend an</div>
+          <div class="step-note">Pausiert automatisch, solange die Lehrerin spricht — sonst hört es sich selbst.</div>
+        </div>
+        <div class="arrow">&darr;</div>
+
+        <div class="step s-azure">
+          <div class="step-kind">Azure Speech · STT</div>
+          <div class="step-title">Spracherkennung, fest auf zh-CN</div>
+          <div class="step-note">Live-Zwischentext schon beim Sprechen. Kennt nur Mandarin.</div>
+        </div>
+
+        <div class="branch">
+          <div class="branch-label">Nur nach Druck auf „Hilfe“</div>
+          <div class="step s-azure">
+            <div class="step-kind">Azure Speech · STT</div>
+            <div class="step-title">Zweiter Erkenner: Deutsch / Englisch</div>
+            <div class="step-note">Gilt für genau eine Äußerung, danach wieder Mandarin.</div>
+          </div>
+        </div>
+
+        <div class="flag flag-bad">
+          <b>Der wunde Punkt.</b> Die Sprache muss feststehen, <i>bevor</i> es Text gibt — und der Dienst
+          entscheidet pro Satz, nie pro Wort. „wǒ de míngzi shì Stefan“ wurde als Deutsch gehört und kam als
+          „Oder Minze.“ an. Ein falscher Griff zerstört den Satz, er lässt sich danach nicht mehr rekonstruieren.
+          Deshalb steht Mandarin jetzt fest und Deutsch kostet einen Knopfdruck.
+        </div>
+
+        <div class="arrow">&darr;</div>
+        <div class="step s-worker">
+          <div class="step-kind">Cloudflare Worker</div>
+          <div class="step-title">/chinese-teacher-turn</div>
+          <div class="step-note">Bekommt Text + erkannte Sprache + bisherigen Gesprächsverlauf.</div>
+        </div>
+        <div class="arrow">&darr;</div>
+
+        <div class="step s-claude">
+          <div class="step-kind">Claude Sonnet 5 · nur Text</div>
+          <div class="step-title">Die Lehrerin denkt</div>
+          <div class="step-note">Antwort, Pinyin (auch für deinen Satz), Korrektur, Erklärung auf Deutsch.</div>
+        </div>
+        <div class="arrow">&darr;</div>
+
+        <div class="step s-azure">
+          <div class="step-kind">Azure Speech · TTS</div>
+          <div class="step-title">Sprachausgabe, 20 % langsamer</div>
+          <div class="step-note">Mandarin-Stimme; Erklärungen mit deutscher bzw. englischer Stimme.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== IDEE ===================== -->
+    <div class="lane idea">
+      <div class="lane-head">Möglich<span class="lane-tag tag-idea">noch nicht gebaut</span></div>
+      <div class="lane-sub">Ein Schritt statt zwei: das Modell hört die Aufnahme selbst.</div>
+
+      <div class="flow">
+        <div class="step s-browser">
+          <div class="step-kind">Browser</div>
+          <div class="step-title">Mikrofon nimmt auf</div>
+          <div class="step-note">Die Äußerung wird mitgeschnitten statt sofort in Text verwandelt.</div>
+        </div>
+        <div class="arrow">&darr;</div>
+
+        <div class="step s-worker">
+          <div class="step-kind">Cloudflare Worker</div>
+          <div class="step-title">Audio weiterreichen</div>
+          <div class="step-note">Schlüssel liegt schon im Worker — Gemini wird dort heute für Bilder genutzt.</div>
+        </div>
+        <div class="arrow">&darr;</div>
+
+        <div class="step s-gemini">
+          <div class="step-kind">Gemini · hört Audio direkt</div>
+          <div class="step-title">Hören und Verstehen in einem</div>
+          <div class="step-note">
+            Transkript, Pinyin, Korrektur und Antwort in einem einzigen Aufruf. Keine Sprachwahl vorab —
+            das Modell schreibt auf, was es hört, gemischt oder nicht.
+          </div>
+        </div>
+
+        <div class="flag flag-good">
+          <b>Denglisch wird möglich.</b> „Wie sagt man <i>müde</i> auf Chinesisch?“ mitten im Satz braucht dann
+          keinen Knopf mehr. Der Zwang, sich für eine Sprache zu entscheiden, fällt nicht durch einen Trick weg —
+          er entsteht gar nicht erst.
+        </div>
+
+        <div class="arrow">&darr;</div>
+        <div class="step s-azure">
+          <div class="step-kind">Azure Speech · TTS</div>
+          <div class="step-title">Sprachausgabe bleibt wie heute</div>
+          <div class="step-note">An der Stimme ändert sich nichts.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <h2>Was der Wechsel kostet und bringt</h2>
+  <div class="balance">
+    <div class="bal plus">
+      <h3>Dafür spricht</h3>
+      <ul>
+        <li><b>Sprachmischung wird möglich</b> — der eigentliche Grund für die ganze Überlegung.</li>
+        <li><b>Ein Aufruf statt zwei</b>: Erkennung und Lehrerin fallen zusammen, ein Netzweg weniger.</li>
+        <li><b>Kein Rateschritt</b>, der einen ganzen Satz unbrauchbar machen kann.</li>
+        <li><b>Zugang steht schon</b>: Gemini-Schlüssel und Worker-Anbindung sind vorhanden.</li>
+      </ul>
+    </div>
+    <div class="bal minus">
+      <h3>Dagegen spricht</h3>
+      <ul>
+        <li><b>Kein Live-Text beim Sprechen.</b> Eine fertige Aufnahme lässt sich nicht mitlesen — in deinem Projektpapier steht „Live-Transkription“ aber als Ziel.</li>
+        <li><b>Aussprachebewertung fällt weg.</b> Azures Pronunciation Assessment gibt Ton- und Silbenwerte; ein Sprachmodell kann nur einen Eindruck schildern.</li>
+        <li><b>Latenz und Kosten</b> verschieben sich — Audio hochladen wiegt schwerer als Text schicken.</li>
+      </ul>
+    </div>
+  </div>
+  <p class="lead" style="margin-top:12px">
+    Deshalb wäre mein Vorschlag kein Entweder-oder: Azure behalten, wo es stark ist (Stimme, später
+    Aussprachebewertung), und nur die Erkennung deiner Sätze umstellen — also genau die Stelle, an der es
+    heute versagt.
+  </p>
+
+  <h2>Wo wir im größeren Plan stehen</h2>
+  <div class="road">
+    <div class="road-item done">
+      <div class="road-num">Schritt 1 · fertig</div>
+      <div class="road-title">Gespräch führen</div>
+      <div class="road-note">Durchgehendes Mikro, Pinyin, Korrekturen, Hilfe auf Deutsch, Zeichen abschaltbar.</div>
+    </div>
+    <div class="road-item">
+      <div class="road-num">Schritt 2 · offen</div>
+      <div class="road-title">Vokabelverwaltung</div>
+      <div class="road-note">Bekannte Wörter in Supabase, Übersicht in der Kachel.</div>
+    </div>
+    <div class="road-item">
+      <div class="road-num">Schritt 3 · offen</div>
+      <div class="road-title">Spaced Repetition</div>
+      <div class="road-note">Wiederholen, was zu kippen droht — baut auf Schritt 2 auf.</div>
+    </div>
+    <div class="road-item">
+      <div class="road-num">Schritt 4 · offen</div>
+      <div class="road-title">Aussprachebewertung</div>
+      <div class="road-note">Töne und Silben messen statt nur erkennen. Laut deinem Projektpapier das eigentlich Wertvolle.</div>
+    </div>
+  </div>
+
+  <p class="footnote">
+    Der Gesprächsverlauf lebt bis heute nur im Browser-Tab und wird bei jeder Runde komplett mitgeschickt —
+    absichtlich so, solange es keine Vokabelverwaltung gibt. Stand dieser Übersicht: 20.09.2026.
+  </p>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+});
+
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+window.logout = logout;
+</script>
+</body>
+</html>
