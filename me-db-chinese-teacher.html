@@ -17,15 +17,19 @@
   .logout-btn:hover { text-decoration: underline; }
   .container { max-width: 680px; margin: 28px auto; padding: 0 24px 60px; }
 
-  .controls { display: flex; gap: 10px; }
-  .btn { flex: 1; border: none; border-radius: 10px; padding: 14px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn { flex: 1; min-width: 130px; border: none; border-radius: 10px; padding: 14px; font-size: 1rem; font-weight: 700; cursor: pointer; }
   .btn-start { background: #2e7d32; color: white; }
   .btn-start:disabled { background: #a5d6a7; cursor: not-allowed; }
   .btn-stop { background: #c62828; color: white; }
   .btn-stop:disabled { background: #ef9a9a; cursor: not-allowed; }
-  .btn-retry { display: none; background: #1a1a2e; color: white; margin-top: 10px; }
+  .btn-mic { background: #1a1a2e; color: white; }
+  .btn-mic:disabled { background: #9e9eb5; cursor: not-allowed; }
+
+  .hint { margin-top: 12px; padding: 10px 12px; border-radius: 9px; background: #e8f1fb; color: #24486e; font-size: 0.8rem; line-height: 1.45; }
 
   .status { text-align: center; margin-top: 12px; font-size: 0.9rem; color: #666; min-height: 1.3em; }
+  .status.listening { color: #2e7d32; font-weight: 600; }
   .partial { text-align: center; margin-top: 4px; font-size: 0.85rem; color: #aaa; min-height: 1.2em; }
 
   .transcript { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
@@ -33,9 +37,13 @@
   .card.teacher { align-self: flex-start; border-left: 3px solid #1a1a2e; }
   .card.student { align-self: flex-end; border-left: 3px solid #2e7d32; }
   .card .role { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: #aaa; margin-bottom: 4px; }
+  .card .langtag { font-size: 0.6rem; background: #eceff4; color: #6a7183; border-radius: 4px; padding: 1px 5px; margin-left: 6px; letter-spacing: 0.04em; }
   .card .hanzi { font-size: 1.3rem; line-height: 1.4; }
+  .card .latin { font-size: 1rem; line-height: 1.45; color: #445; }
   .card .pinyin { font-size: 0.85rem; color: #888; margin-top: 3px; }
+  .card .pinyin.pending { color: #ccc; font-style: italic; }
   .card .correction { margin-top: 8px; padding: 7px 9px; border-radius: 7px; background: #fff3e0; font-size: 0.8rem; color: #8a5a00; }
+  .card .explain { margin-top: 8px; padding: 7px 9px; border-radius: 7px; background: #e8f1fb; font-size: 0.82rem; color: #24486e; line-height: 1.45; }
   .empty { color: #bbb; font-size: 0.85rem; text-align: center; margin-top: 20px; }
 
 /* navdrop */
@@ -94,12 +102,19 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
   <div class="controls">
     <button class="btn btn-start" id="startBtn" onclick="startSession()">🀄 Gespräch starten</button>
+    <button class="btn btn-mic" id="micBtn" onclick="toggleMic()" disabled>⏸ Mikro pausieren</button>
     <button class="btn btn-stop" id="stopBtn" onclick="stopSession()" disabled>⏹ Beenden</button>
+  </div>
+
+  <div class="hint">
+    Das Mikrofon läuft durchgehend — einfach sprechen, keine Knöpfe zwischendurch. Während die Lehrerin spricht,
+    hört es kurz weg (sonst nimmt es sich selbst auf). <b>Du darfst jederzeit auf Deutsch oder Englisch ausweichen</b>
+    („wie sagt man …?“, „was heißt das?“) — dann erklärt sie es dir in deiner Sprache und gibt dir den passenden
+    Mandarin-Satz zum Nachsprechen.
   </div>
 
   <div class="status" id="statusLine">&nbsp;</div>
   <div class="partial" id="partialLine">&nbsp;</div>
-  <button class="btn btn-retry" id="retryBtn" onclick="retryListen()">🎤 Nochmal versuchen</button>
 
   <div class="transcript" id="transcript">
     <div class="empty" id="transcriptEmpty">Gespräch erscheint hier, sobald ihr sprecht. Niveau: A1, langsames Tempo.</div>
@@ -112,7 +127,13 @@ const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
 const AZURE_VOICE = 'zh-CN-XiaoxiaoNeural';
+// Erklaerstimmen fuer den Notausgang "ich weiss nicht weiter" -- Schluessel ist
+// das 2-Buchstaben-Praefix der von Azure erkannten Sprache.
+const EXPLAIN_VOICES = { de: 'de-DE-KatjaNeural', en: 'en-US-JennyNeural' };
+// Azure Language ID im Dauerbetrieb: maximal 4 Sprachen erlaubt.
+const RECOGNITION_LANGUAGES = ['zh-CN', 'de-DE', 'en-US'];
 const TOKEN_REFRESH_MS = 8 * 60 * 1000; // Azure-Token laeuft nach ~10 Min ab
+const RESUME_DELAY_MS = 350;            // Nachhall der Lautsprecher abklingen lassen
 
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
@@ -124,33 +145,85 @@ async function logout() { await db.auth.signOut(); window.location.href = 'me-db
 window.logout = logout;
 
 // ---------- Session state ----------
+// Gespraechsfuehrung seit 2026-09-20: das Mikrofon laeuft durchgehend
+// (startContinuousRecognitionAsync) statt pro Runde per Knopfdruck
+// (recognizeOnceAsync). Halbduplex: waehrend die Lehrerin spricht, wird die
+// Erkennung gestoppt und danach wieder gestartet -- sonst nimmt das Mikro die
+// eigene Sprachausgabe auf (Stefan nutzt Lautsprecher, nicht Kopfhoerer).
 let recognizer = null;
 let synthesizer = null;
-let running = false;
+let running = false;          // Session laeuft (Start gedrueckt, noch kein Beenden)
+let micPaused = false;        // Nutzer hat das Mikro von Hand pausiert
+let listening = false;        // Erkennung laeuft gerade wirklich
+let busy = false;             // Lehrerin denkt oder spricht -> Eingaben ignorieren
 let conversationHistory = []; // [{role:'teacher'|'student', text}]
 let tokenRefreshTimer = null;
 
-function setStatus(msg) { document.getElementById('statusLine').textContent = msg; }
-function setPartial(msg) { document.getElementById('partialLine').textContent = msg || ' '; }
+function setStatus(msg, listeningStyle) {
+  const el = document.getElementById('statusLine');
+  el.textContent = msg;
+  el.className = 'status' + (listeningStyle ? ' listening' : '');
+}
+function setPartial(msg) { document.getElementById('partialLine').textContent = msg || ' '; }
 
 function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 function escapeXml(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
 
-function addTranscriptCard(role, hanzi, pinyin, correctionNote) {
+function isMandarin(lang) { return !lang || lang.toLowerCase().startsWith('zh'); }
+
+function langLabel(lang) {
+  if (!lang) return '';
+  if (lang.toLowerCase().startsWith('de')) return 'Deutsch';
+  if (lang.toLowerCase().startsWith('en')) return 'English';
+  return '';
+}
+
+let cardSeq = 0;
+
+// Liefert die Karten-ID zurueck, damit das Pinyin der eigenen Aeusserung
+// nachgetragen werden kann, sobald die Worker-Antwort da ist (Azure liefert
+// nur Hanzi, das Pinyin kommt vom Modell).
+function addTranscriptCard(role, text, opts) {
+  opts = opts || {};
   const empty = document.getElementById('transcriptEmpty');
   if (empty) empty.remove();
   const el = document.getElementById('transcript');
   const card = document.createElement('div');
+  const id = 'card' + (++cardSeq);
+  card.id = id;
   card.className = 'card ' + role;
-  let html = `<div class="role">${role === 'teacher' ? '🀄 Lehrerin' : '🗣️ Du'}</div>`;
-  html += `<div class="hanzi">${escapeHtml(hanzi)}</div>`;
-  if (pinyin) html += `<div class="pinyin">${escapeHtml(pinyin)}</div>`;
-  if (correctionNote) html += `<div class="correction">💡 ${escapeHtml(correctionNote)}</div>`;
+
+  const tag = langLabel(opts.lang);
+  let html = `<div class="role">${role === 'teacher' ? '🀄 Lehrerin' : '🗣️ Du'}`;
+  if (tag) html += `<span class="langtag">${escapeHtml(tag)}</span>`;
+  html += `</div>`;
+  html += `<div class="${isMandarin(opts.lang) ? 'hanzi' : 'latin'}">${escapeHtml(text)}</div>`;
+  if (opts.pinyin) {
+    html += `<div class="pinyin">${escapeHtml(opts.pinyin)}</div>`;
+  } else if (opts.pinyinPending) {
+    html += `<div class="pinyin pending">Pinyin …</div>`;
+  }
+  if (opts.explanation) html += `<div class="explain">🧭 ${escapeHtml(opts.explanation)}</div>`;
+  if (opts.correctionNote) html += `<div class="correction">💡 ${escapeHtml(opts.correctionNote)}</div>`;
   card.innerHTML = html;
   el.appendChild(card);
   card.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  return id;
+}
+
+function fillPinyin(cardId, pinyin) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  const slot = card.querySelector('.pinyin');
+  if (!slot) return;
+  if (pinyin) {
+    slot.textContent = pinyin;
+    slot.className = 'pinyin';
+  } else {
+    slot.remove();
+  }
 }
 
 async function mintAzureToken() {
@@ -171,27 +244,88 @@ async function refreshAzureToken() {
   }
 }
 
+// ---------- Erkennung an/aus ----------
+function startListening() {
+  return new Promise((resolve) => {
+    if (!running || !recognizer || listening || micPaused) return resolve();
+    recognizer.startContinuousRecognitionAsync(
+      () => { listening = true; resolve(); },
+      (err) => { setStatus('Mikro-Fehler: ' + err); resolve(); }
+    );
+  });
+}
+
+function stopListening() {
+  return new Promise((resolve) => {
+    if (!recognizer || !listening) return resolve();
+    recognizer.stopContinuousRecognitionAsync(
+      () => { listening = false; resolve(); },
+      () => { listening = false; resolve(); }
+    );
+  });
+}
+
+function idleStatus() {
+  if (!running) return;
+  if (micPaused) { setStatus('⏸ Mikro pausiert — zum Weitersprechen wieder einschalten.'); return; }
+  setStatus('🎤 Ich höre zu — sprich einfach los (Mandarin, Deutsch oder Englisch).', true);
+}
+
+async function toggleMic() {
+  if (!running) return;
+  micPaused = !micPaused;
+  document.getElementById('micBtn').textContent = micPaused ? '🎤 Mikro an' : '⏸ Mikro pausieren';
+  if (micPaused) { await stopListening(); setPartial(''); }
+  else if (!busy) { await startListening(); }
+  idleStatus();
+}
+window.toggleMic = toggleMic;
+
+// ---------- Session ----------
 async function startSession() {
   document.getElementById('startBtn').disabled = true;
   setStatus('Verbinde mit Azure…');
   conversationHistory = [];
+  micPaused = false;
+  document.getElementById('micBtn').textContent = '⏸ Mikro pausieren';
   document.getElementById('transcript').innerHTML = '';
 
   try {
     const { token, region } = await mintAzureToken();
     const speechConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(token, region);
-    speechConfig.speechRecognitionLanguage = 'zh-CN';
     speechConfig.speechSynthesisVoiceName = AZURE_VOICE;
+    // Language ID im Dauerbetrieb: Stefan darf mitten im Gespraech auf Deutsch
+    // oder Englisch wechseln, wenn er nicht weiterweiss. Azure erlaubt in
+    // diesem Modus maximal 4 Sprachen.
+    // ACHTUNG: der Modus MUSS an der AutoDetect-Config haengen, nicht an der
+    // SpeechConfig -- AutoDetectSourceLanguageConfig setzt sich selbst auf
+    // "AtStart" und ueberschreibt beim FromConfig() jede manuelle Einstellung
+    // an der SpeechConfig. Mit "AtStart" wuerde die Sprache nur einmal zu
+    // Sessionbeginn bestimmt und ein Wechsel mitten im Gespraech nicht erkannt.
+    // Der mode-Setter schaltet zusaetzlich auf Recognition-Endpoint v2.
+    const autoDetect = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages(RECOGNITION_LANGUAGES);
+    autoDetect.mode = SpeechSDK.LanguageIdMode.Continuous;
 
-    recognizer = new SpeechSDK.SpeechRecognizer(speechConfig, SpeechSDK.AudioConfig.fromDefaultMicrophoneInput());
+    recognizer = SpeechSDK.SpeechRecognizer.FromConfig(
+      speechConfig, autoDetect, SpeechSDK.AudioConfig.fromDefaultMicrophoneInput()
+    );
     synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, SpeechSDK.AudioConfig.fromDefaultSpeakerOutput());
-    recognizer.recognizing = (s, e) => setPartial(e.result.text);
+
+    recognizer.recognizing = (s, e) => { if (!busy) setPartial(e.result.text); };
+    recognizer.recognized = (s, e) => onRecognized(e.result);
+    recognizer.canceled = (s, e) => {
+      if (e.reason === SpeechSDK.CancellationReason.Error) {
+        setStatus('Spracherkennung abgebrochen: ' + e.errorDetails);
+      }
+      listening = false;
+    };
 
     running = true;
     document.getElementById('stopBtn').disabled = false;
+    document.getElementById('micBtn').disabled = false;
     tokenRefreshTimer = setInterval(refreshAzureToken, TOKEN_REFRESH_MS);
 
-    await teacherTurn(''); // Eroeffnung durch die Lehrerin
+    await teacherTurn('', ''); // Eroeffnung durch die Lehrerin
   } catch (e) {
     setStatus('Fehler: ' + e.message);
     document.getElementById('startBtn').disabled = false;
@@ -200,84 +334,113 @@ async function startSession() {
 }
 window.startSession = startSession;
 
-async function teacherTurn(recognizedText) {
+function onRecognized(result) {
+  // Waehrend die Lehrerin denkt/spricht laeuft die Erkennung gar nicht --
+  // dieser Riegel faengt nur noch Ereignisse ab, die beim Stoppen unterwegs
+  // waren, damit nicht zwei Runden gleichzeitig starten.
+  if (!running || busy || micPaused) return;
+  if (result.reason !== SpeechSDK.ResultReason.RecognizedSpeech) return;
+  const text = (result.text || '').trim();
+  if (!text) return; // Stille/NoMatch: einfach weiterhoeren, kein Knopf noetig
+
+  let lang = '';
+  try {
+    lang = SpeechSDK.AutoDetectSourceLanguageResult.fromResult(result).language || '';
+  } catch { lang = ''; }
+
+  busy = true;
+  setPartial('');
+  conversationHistory.push({ role: 'student', text });
+  const cardId = addTranscriptCard('student', text, {
+    lang,
+    pinyinPending: isMandarin(lang)   // Pinyin kommt gleich vom Worker nach
+  });
+  teacherTurn(text, lang, cardId);
+}
+
+async function teacherTurn(recognizedText, detectedLanguage, studentCardId) {
+  busy = true;
+  await stopListening();          // Halbduplex: Mikro aus, solange sie dran ist
   setStatus('🀄 Lehrerin überlegt…');
   setPartial('');
+
   let data;
   try {
     data = await fetch(WORKER_URL + '/chinese-teacher-turn', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recognized_text: recognizedText, conversation_history: conversationHistory })
+      body: JSON.stringify({
+        recognized_text: recognizedText,
+        detected_language: detectedLanguage || '',
+        conversation_history: conversationHistory
+      })
     }).then(r => r.json());
   } catch (e) {
     setStatus('Fehler: ' + e.message);
-    return;
+    return resumeListening();
   }
-  if (!data.success) { setStatus('Fehler: ' + data.error); return; }
+  if (!data.success) { setStatus('Fehler: ' + data.error); return resumeListening(); }
+
+  if (studentCardId) fillPinyin(studentCardId, data.student_pinyin);
 
   conversationHistory.push({ role: 'teacher', text: data.reply_hanzi });
   // Hanzi+Pinyin erscheinen sofort, synchron mit dem Start der Sprachausgabe,
   // nicht erst wenn sie fertig gesprochen ist.
-  addTranscriptCard('teacher', data.reply_hanzi, data.reply_pinyin, data.correction_note);
+  addTranscriptCard('teacher', data.reply_hanzi, {
+    pinyin: data.reply_pinyin,
+    explanation: data.explanation,
+    correctionNote: data.correction_note
+  });
 
   try {
-    await speakSlow(data.reply_hanzi);
+    await speak(data.reply_hanzi, data.explanation, detectedLanguage);
   } catch (e) {
     setStatus('TTS-Fehler: ' + e.message);
   }
 
-  if (running) listenOnce();
+  return resumeListening();
 }
 
-function speakSlow(text) {
+async function resumeListening() {
+  busy = false;
+  if (!running) return;
+  // Kurze Pause, damit der Nachhall der Lautsprecher nicht als erste Silbe
+  // der naechsten Antwort erkannt wird.
+  await new Promise(r => setTimeout(r, RESUME_DELAY_MS));
+  if (!running || busy) return;
+  await startListening();
+  idleStatus();
+}
+
+function speak(hanzi, explanation, detectedLanguage) {
   return new Promise((resolve, reject) => {
     setStatus('🔊 Lehrerin spricht…');
-    const ssml = `<speak version="1.0" xml:lang="zh-CN"><voice name="${AZURE_VOICE}"><prosody rate="-20%">${escapeXml(text)}</prosody></voice></speak>`;
-    synthesizer.speakSsmlAsync(
-      ssml,
-      () => resolve(),
-      (err) => reject(new Error(String(err)))
-    );
+    // Erklaerungen werden in der Sprache gesprochen, in der gefragt wurde --
+    // nur so hilft der Notausgang "ich weiss nicht weiter" wirklich.
+    const explainVoice = EXPLAIN_VOICES[(detectedLanguage || '').toLowerCase().slice(0, 2)] || EXPLAIN_VOICES.de;
+    let inner = '';
+    if (explanation) {
+      inner += `<voice name="${explainVoice}"><prosody rate="-8%">${escapeXml(explanation)}</prosody></voice>`;
+    }
+    inner += `<voice name="${AZURE_VOICE}"><prosody rate="-20%">${escapeXml(hanzi)}</prosody></voice>`;
+    const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="zh-CN">${inner}</speak>`;
+    synthesizer.speakSsmlAsync(ssml, () => resolve(), (err) => reject(new Error(String(err))));
   });
 }
 
-function listenOnce() {
-  if (!running || !recognizer) return;
-  setStatus('🎤 Du bist dran — sprich Mandarin…');
-  setPartial('');
-  document.getElementById('retryBtn').style.display = 'none';
-  recognizer.recognizeOnceAsync(
-    (result) => {
-      if (!running) return;
-      setPartial('');
-      if (result.reason === SpeechSDK.ResultReason.RecognizedSpeech && result.text) {
-        conversationHistory.push({ role: 'student', text: result.text });
-        addTranscriptCard('student', result.text, '', null);
-        teacherTurn(result.text);
-      } else {
-        setStatus('Nichts verstanden.');
-        document.getElementById('retryBtn').style.display = 'block';
-      }
-    },
-    (err) => {
-      setStatus('Fehler bei der Spracherkennung: ' + err);
-      document.getElementById('retryBtn').style.display = 'block';
-    }
-  );
-}
-
-function retryListen() { listenOnce(); }
-window.retryListen = retryListen;
-
 function stopSession() {
   running = false;
+  busy = false;
+  listening = false;
+  micPaused = false;
   if (tokenRefreshTimer) { clearInterval(tokenRefreshTimer); tokenRefreshTimer = null; }
+  try { recognizer && recognizer.stopContinuousRecognitionAsync(() => {}, () => {}); } catch {}
   try { recognizer && recognizer.close(); } catch {}
   try { synthesizer && synthesizer.close(); } catch {}
   recognizer = null; synthesizer = null;
   document.getElementById('startBtn').disabled = false;
   document.getElementById('stopBtn').disabled = true;
-  document.getElementById('retryBtn').style.display = 'none';
+  document.getElementById('micBtn').disabled = true;
+  document.getElementById('micBtn').textContent = '⏸ Mikro pausieren';
   setPartial('');
   setStatus('Beendet.');
 }
