@@ -23,6 +23,8 @@
   .btn-stop { background: #c62828; color: white; }
   .btn-stop:disabled { background: #ef9a9a; cursor: not-allowed; }
   .btn-mic { background: #1a1a2e; color: white; }
+  .btn-new { background: #eceff4; color: #4a4a58; }
+  .daysep { text-align: center; font-size: 0.7rem; color: #a5a5b3; letter-spacing: 0.05em; text-transform: uppercase; margin: 6px 0 2px; }
   .btn-mic:disabled { background: #9e9eb5; cursor: not-allowed; }
 
   .hint { margin-top: 12px; padding: 10px 12px; border-radius: 9px; background: #e8f1fb; color: #24486e; font-size: 0.8rem; line-height: 1.45; }
@@ -125,6 +127,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <button class="btn btn-start" id="startBtn" onclick="startSession()">🀄 Gespräch starten</button>
     <button class="btn btn-mic" id="micBtn" onclick="toggleMic()" disabled>⏸ Mikro pausieren</button>
     <button class="btn btn-stop" id="stopBtn" onclick="stopSession()" disabled>⏹ Beenden</button>
+    <button class="btn btn-new" id="newBtn" onclick="newConversation()">🆕 Neu anfangen</button>
   </div>
 
 
@@ -250,6 +253,82 @@ async function saveInstructions() {
   setPrefsState('Gespeichert — gilt ab der nächsten Antwort.');
 }
 window.saveInstructions = saveInstructions;
+
+// ---------- Gespraechsverlauf (dauerhaft) ----------
+// Bis 2026-09-20 lebte der Verlauf nur im Browser-Tab und war nach jedem
+// Neustart weg. Jetzt liegt er in Supabase (chinese_teacher_turns), wird beim
+// Oeffnen der Seite geladen und beim Start NICHT geleert -- das Gespraech
+// laeuft ueber Tage weiter. Nur "Neu anfangen" setzt es bewusst zurueck.
+const HISTORY_LOAD = 200;   // so viele Runden werden angezeigt
+const HISTORY_SEND = 40;    // so viele gehen an das Modell (Prompt begrenzen)
+
+async function currentUserId() {
+  const { data: { session } } = await db.auth.getSession();
+  return session ? session.user.id : null;
+}
+
+async function loadConversation() {
+  const uid = await currentUserId();
+  if (!uid) return;
+  const { data, error } = await db
+    .from('chinese_teacher_turns')
+    .select('role, text, pinyin, lang, explanation, correction, created_at')
+    .eq('user_id', uid)
+    .order('created_at', { ascending: false })
+    .limit(HISTORY_LOAD);
+  if (error) { setStatus('Verlauf konnte nicht geladen werden: ' + error.message); return; }
+  const rows = (data || []).reverse();
+  if (!rows.length) return;
+
+  conversationHistory = rows.map(r => ({ role: r.role, text: r.text }));
+  let lastDay = '';
+  for (const r of rows) {
+    const day = new Date(r.created_at).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+    if (day !== lastDay) { addDaySeparator(day); lastDay = day; }
+    addTranscriptCard(r.role, r.text, {
+      lang: r.lang, pinyin: r.pinyin, explanation: r.explanation, correctionNote: r.correction
+    });
+  }
+  setStatus('Gespräch von zuletzt geladen — „Gespräch starten“ setzt es fort.');
+}
+
+// Best effort: wenn das Speichern scheitert, laeuft das Gespraech trotzdem
+// weiter -- der Verlauf im Tab ist die Arbeitskopie, die DB das Gedaechtnis.
+async function saveTurn(role, text, opts) {
+  opts = opts || {};
+  try {
+    const uid = await currentUserId();
+    if (!uid) return;
+    await db.from('chinese_teacher_turns').insert({
+      user_id: uid, role, text,
+      pinyin: opts.pinyin || null,
+      lang: opts.lang || null,
+      explanation: opts.explanation || null,
+      correction: opts.correctionNote || null
+    });
+  } catch (e) {
+    console.warn('Verlauf nicht gespeichert:', e.message);
+  }
+}
+
+async function newConversation() {
+  if (!confirm('Das bisherige Gespräch wird gelöscht und ihr fangt bei null an. Wirklich?')) return;
+  const uid = await currentUserId();
+  if (uid) await db.from('chinese_teacher_turns').delete().eq('user_id', uid);
+  conversationHistory = [];
+  document.getElementById('transcript').innerHTML =
+    '<div class="empty" id="transcriptEmpty">Gespräch erscheint hier, sobald ihr sprecht. Niveau: A1, langsames Tempo.</div>';
+  setStatus('Neues Gespräch — auf „Gespräch starten“ tippen.');
+}
+window.newConversation = newConversation;
+
+function addDaySeparator(label) {
+  const el = document.getElementById('transcript');
+  const sep = document.createElement('div');
+  sep.className = 'daysep';
+  sep.textContent = label;
+  el.appendChild(sep);
+}
 
 // ---------- Zustand ----------
 let running = false;      // Gespraech laeuft
@@ -418,7 +497,7 @@ async function teacherTurn(audioB64, mimeType) {
         audio_b64: audioB64 || '',
         mime_type: mimeType || 'audio/webm',
         learner_instructions: learnerInstructions,
-        conversation_history: conversationHistory
+        conversation_history: conversationHistory.slice(-HISTORY_SEND)
       })
     }).then(r => r.json());
   } catch (e) {
@@ -433,6 +512,7 @@ async function teacherTurn(audioB64, mimeType) {
       lang: data.student_language,
       pinyin: data.student_pinyin
     });
+    saveTurn('student', data.student_text, { lang: data.student_language, pinyin: data.student_pinyin });
   }
 
   conversationHistory.push({ role: 'teacher', text: data.reply_hanzi });
@@ -440,6 +520,9 @@ async function teacherTurn(audioB64, mimeType) {
     pinyin: data.reply_pinyin,
     explanation: data.explanation,
     correctionNote: data.correction_note
+  });
+  saveTurn('teacher', data.reply_hanzi, {
+    pinyin: data.reply_pinyin, explanation: data.explanation, correctionNote: data.correction_note
   });
 
   try {
@@ -504,10 +587,10 @@ function idleStatus() {
 async function startSession() {
   document.getElementById('startBtn').disabled = true;
   setStatus('Mikrofon wird freigegeben…');
-  conversationHistory = [];
+  // Verlauf bewusst NICHT leeren: das Gespraech soll ueber Sitzungen hinweg
+  // weiterlaufen. Zuruecksetzen geht nur ueber "Neu anfangen".
   micPaused = false;
   document.getElementById('micBtn').textContent = '⏸ Mikro pausieren';
-  document.getElementById('transcript').innerHTML = '';
 
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -567,6 +650,7 @@ window.stopSession = stopSession;
 
 // Ganz am Ende, damit die Zustandsvariablen oben sicher initialisiert sind.
 loadInstructions();
+loadConversation();
 </script>
 </body>
 </html>
