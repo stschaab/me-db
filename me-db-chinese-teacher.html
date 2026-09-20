@@ -48,6 +48,19 @@
   body.hide-hanzi .card .pinyin { font-size: 1.15rem; color: #333; margin-top: 0; }
   .card .correction { margin-top: 8px; padding: 7px 9px; border-radius: 7px; background: #fff3e0; font-size: 0.8rem; color: #8a5a00; }
   .card .explain { margin-top: 8px; padding: 7px 9px; border-radius: 7px; background: #e8f1fb; font-size: 0.82rem; color: #24486e; line-height: 1.45; }
+  details.prefs { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-top: 12px; }
+  details.prefs > summary { cursor: pointer; padding: 12px 14px; font-size: 0.86rem; font-weight: 600; color: #1a1a2e; list-style: none; display: flex; align-items: center; gap: 8px; }
+  details.prefs > summary::-webkit-details-marker { display: none; }
+  details.prefs > summary::before { content: '▸'; color: #9a9aa8; font-size: 0.8rem; }
+  details.prefs[open] > summary::before { content: '▾'; }
+  .prefs-body { padding: 0 14px 14px; }
+  .prefs-help { font-size: 0.78rem; color: #666; line-height: 1.5; margin-bottom: 9px; }
+  .prefs-body textarea { width: 100%; min-height: 150px; border: 1px solid #dcdce4; border-radius: 9px; padding: 10px 11px; font: inherit; font-size: 0.85rem; line-height: 1.5; resize: vertical; color: #333; }
+  .prefs-body textarea:focus { outline: none; border-color: #2e7d32; }
+  .prefs-row { display: flex; align-items: center; gap: 12px; margin-top: 9px; }
+  .prefs-save { background: #2e7d32; color: white; border: none; border-radius: 8px; padding: 9px 18px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+  .prefs-save:disabled { background: #a5d6a7; cursor: not-allowed; }
+  .prefs-state { font-size: 0.78rem; color: #777; }
   .optbar { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.85rem; color: #444; }
   .optbar input { width: 17px; height: 17px; accent-color: #2e7d32; cursor: pointer; }
   .optbar label { cursor: pointer; user-select: none; }
@@ -119,6 +132,21 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <input type="checkbox" id="hanziToggle" onchange="setHanziVisible(this.checked)">
     <label for="hanziToggle">汉字 — chinesische Zeichen anzeigen (aus: nur Pinyin)</label>
   </div>
+  <details class="prefs" id="prefsBox">
+    <summary>📝 So möchte ich lernen — Anweisungen an die Lehrerin</summary>
+    <div class="prefs-body">
+      <div class="prefs-help">
+        Gilt dauerhaft für jede Antwort und wird gespeichert — auch auf anderen Geräten und nach dem Schließen
+        des Tabs. Änderungen greifen ab der nächsten Gesprächsrunde, das laufende Gespräch musst du nicht neu starten.
+      </div>
+      <textarea id="prefsText" placeholder="z. B.: Zerlege zusammengesetzte Wörter immer in ihre einzelnen Zeichen und erkläre jede Silbe."></textarea>
+      <div class="prefs-row">
+        <button class="prefs-save" id="prefsSave" onclick="saveInstructions()">Speichern</button>
+        <span class="prefs-state" id="prefsState"></span>
+      </div>
+    </div>
+  </details>
+
   <div class="hint">
     Das Mikrofon läuft durchgehend — einfach sprechen und kurz pausieren, dann ist die Lehrerin dran.
     Keine Knöpfe zwischendurch, und <b>du darfst mitten im Satz zwischen Mandarin, Deutsch und Englisch
@@ -180,11 +208,55 @@ window.setHanziVisible = setHanziVisible;
   if (box) box.checked = show;
 })();
 
+// ---------- Dauerhafte Lernanweisungen ----------
+// Liegen in Supabase (chinese_teacher_prefs, eine Zeile pro Nutzer), damit sie
+// geraetuebergreifend gelten -- localStorage waere nur dieser Browser. Der
+// Worker bleibt zustandslos: der Text geht bei jeder Runde mit, genau wie der
+// Gespraechsverlauf.
+async function loadInstructions() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) return;
+  const { data, error } = await db
+    .from('chinese_teacher_prefs')
+    .select('instructions')
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+  if (error) { setPrefsState('Konnte nicht geladen werden: ' + error.message); return; }
+  learnerInstructions = (data && data.instructions) || '';
+  const box = document.getElementById('prefsText');
+  if (box) box.value = learnerInstructions;
+  setPrefsState(learnerInstructions ? 'Gespeichert.' : 'Noch nichts hinterlegt.');
+}
+
+function setPrefsState(msg) {
+  const el = document.getElementById('prefsState');
+  if (el) el.textContent = msg || '';
+}
+
+async function saveInstructions() {
+  const btn = document.getElementById('prefsSave');
+  const text = document.getElementById('prefsText').value.trim();
+  btn.disabled = true;
+  setPrefsState('Speichere…');
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { setPrefsState('Nicht angemeldet.'); btn.disabled = false; return; }
+  const { error } = await db
+    .from('chinese_teacher_prefs')
+    .upsert({ user_id: session.user.id, instructions: text, updated_at: new Date().toISOString() },
+            { onConflict: 'user_id' });
+  btn.disabled = false;
+  if (error) { setPrefsState('Fehler: ' + error.message); return; }
+  learnerInstructions = text;   // greift ab der naechsten Runde, ohne Neustart
+  setPrefsState('Gespeichert — gilt ab der nächsten Antwort.');
+}
+window.saveInstructions = saveInstructions;
+
 // ---------- Zustand ----------
 let running = false;      // Gespraech laeuft
 let micPaused = false;    // Nutzer hat das Mikro pausiert
 let busy = false;         // Lehrerin denkt oder spricht
 let conversationHistory = [];
+let learnerInstructions = '';   // dauerhafte "so möchte ich lernen"-Anweisungen
 
 let mediaStream = null;
 let audioCtx = null;
@@ -345,6 +417,7 @@ async function teacherTurn(audioB64, mimeType) {
       body: JSON.stringify({
         audio_b64: audioB64 || '',
         mime_type: mimeType || 'audio/webm',
+        learner_instructions: learnerInstructions,
         conversation_history: conversationHistory
       })
     }).then(r => r.json());
@@ -491,6 +564,9 @@ function stopSession() {
   setStatus('Beendet.');
 }
 window.stopSession = stopSession;
+
+// Ganz am Ende, damit die Zustandsvariablen oben sicher initialisiert sind.
+loadInstructions();
 </script>
 </body>
 </html>
