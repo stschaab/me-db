@@ -29,12 +29,13 @@
   /* ---- Zwei Spalten, auf schmalen Schirmen untereinander ---- */
   .lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 14px; align-items: start; }
   .lane { background: white; border-radius: 14px; padding: 16px 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
-  .lane.now { border-top: 4px solid #2e7d32; }
-  .lane.idea { border-top: 4px solid #6a4c93; }
+  .lane.now { border-top: 4px solid #bdbdc7; opacity: 0.72; }
+  .lane.idea { border-top: 4px solid #2e7d32; }
   .lane-head { font-size: 0.95rem; font-weight: 700; color: #1a1a2e; }
   .lane-tag { display: inline-block; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 4px; padding: 2px 7px; margin-left: 8px; vertical-align: 2px; }
   .tag-live { background: #e4f1e4; color: #2e7d32; }
   .tag-idea { background: #ece4f5; color: #6a4c93; }
+  .tag-old { background: #ececf1; color: #70707e; }
   .lane-sub { font-size: 0.78rem; color: #777; margin-top: 4px; line-height: 1.45; }
 
   .flow { margin-top: 14px; }
@@ -141,9 +142,9 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
   <h2>Wie eine Gesprächsrunde läuft</h2>
   <p class="lead">
-    Links der Weg, der heute live ist. Rechts die Alternative, über die wir gesprochen haben: das Audio geht
-    direkt in ein Modell, das hören kann — dann muss überhaupt niemand mehr vorab entscheiden, welche Sprache
-    gerade gesprochen wird.
+    Links der Weg über Azure, der bis zum 20.09.2026 lief. Rechts der Weg, der jetzt live ist: das Audio geht
+    direkt in ein Modell, das hören kann — damit muss niemand mehr vorab entscheiden, welche Sprache gerade
+    gesprochen wird. Azure ist gekündigt (25 €/Monat) und fällt komplett weg.
   </p>
 
   <div class="legend">
@@ -158,8 +159,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
     <!-- ===================== HEUTE ===================== -->
     <div class="lane now">
-      <div class="lane-head">Heute<span class="lane-tag tag-live">live</span></div>
-      <div class="lane-sub">Zwei getrennte Schritte: erst Text erzeugen, dann verstehen.</div>
+      <div class="lane-head">Bis 20.09.2026<span class="lane-tag tag-old">abgelöst</span></div>
+      <div class="lane-sub">Zwei getrennte Schritte: erst Text erzeugen, dann verstehen. Azure ist gekündigt, dieser Weg fällt weg.</div>
 
       <div class="flow">
         <div class="step s-browser">
@@ -216,8 +217,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
     <!-- ===================== IDEE ===================== -->
     <div class="lane idea">
-      <div class="lane-head">Möglich<span class="lane-tag tag-idea">noch nicht gebaut</span></div>
-      <div class="lane-sub">Ein Schritt statt zwei: das Modell hört die Aufnahme selbst.</div>
+      <div class="lane-head">Seit 20.09.2026<span class="lane-tag tag-live">live</span></div>
+      <div class="lane-sub">Das Modell hört die Aufnahme selbst — keine Sprachwahl vorab, Mischung erlaubt.</div>
 
       <div class="flow">
         <div class="step s-browser">
@@ -250,40 +251,42 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         </div>
 
         <div class="arrow">&darr;</div>
-        <div class="step s-azure">
-          <div class="step-kind">Azure Speech · TTS</div>
-          <div class="step-title">Sprachausgabe bleibt wie heute</div>
-          <div class="step-note">An der Stimme ändert sich nichts.</div>
+        <div class="step s-gemini">
+          <div class="step-kind">Gemini TTS · eigener Aufruf</div>
+          <div class="step-title">Sprachausgabe</div>
+          <div class="step-note">
+            Liefert das fertige Audio am Stück, abgespielt wird es selbst — das war bei Azure die Stelle,
+            an der mitten im Satz Lücken entstanden. Eine mehrsprachige Stimme für Mandarin und Erklärung.
+          </div>
         </div>
       </div>
     </div>
 
   </div>
 
-  <h2>Was der Wechsel kostet und bringt</h2>
+  <h2>Was der Wechsel gebracht und gekostet hat</h2>
   <div class="balance">
     <div class="bal plus">
-      <h3>Dafür spricht</h3>
+      <h3>Gewonnen</h3>
       <ul>
         <li><b>Sprachmischung wird möglich</b> — der eigentliche Grund für die ganze Überlegung.</li>
         <li><b>Ein Aufruf statt zwei</b>: Erkennung und Lehrerin fallen zusammen, ein Netzweg weniger.</li>
         <li><b>Kein Rateschritt</b>, der einen ganzen Satz unbrauchbar machen kann.</li>
-        <li><b>Zugang steht schon</b>: Gemini-Schlüssel und Worker-Anbindung sind vorhanden.</li>
+        <li><b>25 €/Monat gespart</b> und ein Dienst weniger im System: kein Azure-Token, keine Token-Erneuerung, kein zweiter Erkenner.</li>
       </ul>
     </div>
     <div class="bal minus">
-      <h3>Dagegen spricht</h3>
+      <h3>Aufgegeben</h3>
       <ul>
         <li><b>Kein Live-Text beim Sprechen.</b> Eine fertige Aufnahme lässt sich nicht mitlesen — in deinem Projektpapier steht „Live-Transkription“ aber als Ziel.</li>
-        <li><b>Aussprachebewertung fällt weg.</b> Azures Pronunciation Assessment gibt Ton- und Silbenwerte; ein Sprachmodell kann nur einen Eindruck schildern.</li>
-        <li><b>Latenz und Kosten</b> verschieben sich — Audio hochladen wiegt schwerer als Text schicken.</li>
+        <li><b>Aussprachebewertung.</b> Azures Pronunciation Assessment gab Ton- und Silbenwerte; ein Sprachmodell schildert nur einen Eindruck. Für Stefan nicht kritisch — deshalb ging der Wechsel.</li>
+        <li><b>Exaktes Sprechtempo.</b> Azure hatte einen Zahlenregler (<code>rate="-20%"</code>), Gemini nur sprachliche Anweisungen. Das ist der Punkt, der sich im Betrieb bewähren muss.</li>
       </ul>
     </div>
   </div>
   <p class="lead" style="margin-top:12px">
-    Deshalb wäre mein Vorschlag kein Entweder-oder: Azure behalten, wo es stark ist (Stimme, später
-    Aussprachebewertung), und nur die Erkennung deiner Sätze umstellen — also genau die Stelle, an der es
-    heute versagt.
+    Offen bleibt genau eine Frage: ob das Sprechtempo ohne Zahlenregler verlässlich langsam genug bleibt.
+    Falls nicht, ist das die eine Stelle, an der wir nachbessern müssen — am Rest ändert das nichts.
   </p>
 
   <h2>Wo wir im größeren Plan stehen</h2>
@@ -311,8 +314,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   </div>
 
   <p class="footnote">
-    Der Gesprächsverlauf lebt bis heute nur im Browser-Tab und wird bei jeder Runde komplett mitgeschickt —
-    absichtlich so, solange es keine Vokabelverwaltung gibt. Stand dieser Übersicht: 20.09.2026.
+    Der Gesprächsverlauf lebt weiterhin nur im Browser-Tab und wird bei jeder Runde komplett mitgeschickt —
+    absichtlich so, solange es keine Vokabelverwaltung gibt. Die Azure-Endpunkte im Worker sind noch
+    vorhanden, aber unbenutzt; sie fliegen raus, sobald der Gemini-Weg sich im Alltag bewährt hat.
+    Stand dieser Übersicht: 20.09.2026.
   </p>
 
 </div>

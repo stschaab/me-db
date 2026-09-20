@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MeDB &middot; Chinese Teacher</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/microsoft-cognitiveservices-speech-sdk@1.51.0/distrib/browser/microsoft.cognitiveservices.speech.sdk.bundle-min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
@@ -25,15 +24,13 @@
   .btn-stop:disabled { background: #ef9a9a; cursor: not-allowed; }
   .btn-mic { background: #1a1a2e; color: white; }
   .btn-mic:disabled { background: #9e9eb5; cursor: not-allowed; }
-  .btn-help { background: #ef6c00; color: white; }
-  .btn-help:disabled { background: #f5c38d; cursor: not-allowed; }
-  .btn-help.active { background: #1a1a2e; box-shadow: 0 0 0 3px #ef6c00 inset; }
 
   .hint { margin-top: 12px; padding: 10px 12px; border-radius: 9px; background: #e8f1fb; color: #24486e; font-size: 0.8rem; line-height: 1.45; }
 
   .status { text-align: center; margin-top: 12px; font-size: 0.9rem; color: #666; min-height: 1.3em; }
   .status.listening { color: #2e7d32; font-weight: 600; }
-  .partial { text-align: center; margin-top: 4px; font-size: 0.85rem; color: #aaa; min-height: 1.2em; }
+  .meter { height: 5px; background: #e6e6ec; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .meter-bar { height: 100%; width: 0; background: #2e7d32; border-radius: 3px; transition: width 60ms linear; }
 
   .transcript { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
   .card { background: white; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); max-width: 88%; }
@@ -117,25 +114,21 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <button class="btn btn-stop" id="stopBtn" onclick="stopSession()" disabled>⏹ Beenden</button>
   </div>
 
-  <div class="controls" style="margin-top:10px">
-    <button class="btn btn-help" id="helpBtn" onclick="requestHelp()" disabled>🆘 Hilfe auf Deutsch/Englisch</button>
-  </div>
-
 
   <div class="optbar">
     <input type="checkbox" id="hanziToggle" onchange="setHanziVisible(this.checked)">
     <label for="hanziToggle">汉字 — chinesische Zeichen anzeigen (aus: nur Pinyin)</label>
   </div>
   <div class="hint">
-    Das Mikrofon läuft durchgehend und erwartet <b>Mandarin</b> — einfach sprechen, keine Knöpfe zwischendurch.
-    Während die Lehrerin spricht, hört es kurz weg (sonst nimmt es sich selbst auf).
-    <b>Wenn du nicht weiterweißt:</b> einmal auf „Hilfe auf Deutsch/Englisch“ tippen, dann deine Frage stellen
-    („wie sagt man …?“, „was heißt das?“) — sie erklärt es in deiner Sprache und gibt dir den passenden
-    Mandarin-Satz zum Nachsprechen. Danach geht es automatisch wieder auf Mandarin weiter.
+    Das Mikrofon läuft durchgehend — einfach sprechen und kurz pausieren, dann ist die Lehrerin dran.
+    Keine Knöpfe zwischendurch, und <b>du darfst mitten im Satz zwischen Mandarin, Deutsch und Englisch
+    wechseln</b>: „Wie sagt man <i>müde</i>?“ funktioniert genauso wie ein ganzer chinesischer Satz.
+    Sie erklärt in der Sprache, in der du gefragt hast, und gibt dir den Mandarin-Satz zum Nachsprechen dazu.
+    Während sie spricht, hört das Mikrofon kurz weg, damit es sich nicht selbst aufnimmt.
   </div>
 
   <div class="status" id="statusLine">&nbsp;</div>
-  <div class="partial" id="partialLine">&nbsp;</div>
+  <div class="meter"><div class="meter-bar" id="levelBar"></div></div>
 
   <div class="transcript" id="transcript">
     <div class="empty" id="transcriptEmpty">Gespräch erscheint hier, sobald ihr sprecht. Niveau: A1, langsames Tempo.</div>
@@ -147,40 +140,19 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const WORKER_URL = 'https://health-db-ai.st-schaab.workers.dev';
-const AZURE_VOICE = 'zh-CN-XiaoxiaoNeural';
-// Erklaerstimmen fuer den Notausgang "ich weiss nicht weiter" -- Schluessel ist
-// das 2-Buchstaben-Praefix der von Azure erkannten Sprache.
-const EXPLAIN_VOICES = { de: 'de-DE-KatjaNeural', en: 'en-US-JennyNeural' };
-// Azure Language ID im Dauerbetrieb: maximal 4 Sprachen erlaubt.
-// Hilfe-Modus: nur Deutsch/Englisch. Mandarin laeuft ueber einen eigenen,
-// fest auf zh-CN gestellten Erkenner -- Language ID hat A1-Mandarin mit
-// deutschem Akzent zu oft als Deutsch eingestuft (s. Kommentar unten).
-const HELP_LANGUAGES = ['de-DE', 'en-US'];
-const TOKEN_REFRESH_MS = 8 * 60 * 1000; // Azure-Token laeuft nach ~10 Min ab
-const RESUME_DELAY_MS = 350;            // Nachhall der Lautsprecher abklingen lassen
 const HANZI_PREF_KEY = 'chineseTeacher.showHanzi';
 
-// Stefan hat immer mit Pinyin gelernt -- Zeichen sind daher standardmaessig aus,
-// aber pro Browser umschaltbar (andere lernen mit Zeichen).
-function setHanziVisible(show) {
-  document.body.classList.toggle('hide-hanzi', !show);
-  try { localStorage.setItem(HANZI_PREF_KEY, show ? '1' : '0'); } catch {}
-}
-window.setHanziVisible = setHanziVisible;
-
-(function initHanziPref() {
-  let show = false;
-  try { show = localStorage.getItem(HANZI_PREF_KEY) === '1'; } catch {}
-  document.body.classList.toggle('hide-hanzi', !show);
-  // Das Skript steht unterhalb der Checkbox im Dokument, das Element ist also
-  // schon da; der DOMContentLoaded-Zweig ist nur die Absicherung.
-  const box = document.getElementById('hanziToggle');
-  if (box) box.checked = show;
-  else document.addEventListener('DOMContentLoaded', () => {
-    const b = document.getElementById('hanziToggle');
-    if (b) b.checked = show;
-  });
-})();
+// --- Sprechpausen-Erkennung (ersetzt Azures Erkenner) -----------------------
+// Azure hat uns gesagt, wann eine Aeusserung zu Ende war. Ohne Azure muessen
+// wir das selbst entscheiden: Lautstaerke messen und bei genug Stille
+// abschicken. Die Werte sind bewusst als Konstanten oben, weil sie die
+// einzigen sind, die man im Betrieb wirklich nachjustieren muss.
+const SILENCE_RMS = 0.012;       // darunter gilt als Stille
+const SILENCE_HOLD_MS = 1100;    // so lange Stille = Aeusserung fertig
+const MIN_SPEECH_MS = 350;       // kuerzeres ignorieren (Huesteln, Klicken)
+const MAX_UTTERANCE_MS = 20000;  // Notbremse, falls die Stille nie kommt
+const IDLE_RESTART_MS = 10000;   // Aufnahme neu starten, wenn nur Stille kam
+const RESUME_DELAY_MS = 250;     // Nachhall abklingen lassen, bevor es weitergeht
 
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
@@ -191,73 +163,70 @@ db.auth.getSession().then(({ data }) => {
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 window.logout = logout;
 
-// ---------- Session state ----------
-// Gespraechsfuehrung seit 2026-09-20: das Mikrofon laeuft durchgehend
-// (startContinuousRecognitionAsync) statt pro Runde per Knopfdruck
-// (recognizeOnceAsync). Halbduplex: waehrend die Lehrerin spricht, wird die
-// Erkennung gestoppt und danach wieder gestartet -- sonst nimmt das Mikro die
-// eigene Sprachausgabe auf (Stefan nutzt Lautsprecher, nicht Kopfhoerer).
-//
-// Sprachwahl (ueberarbeitet nach Stefans Test am 2026-09-20): KEINE
-// automatische Sprachidentifikation ueber zh/de/en mehr. Azures Language ID
-// hat A1-Mandarin mit deutschem Akzent zuverlaessig als Deutsch eingestuft
-// ("wo de mingzi shi Stefan" -> "Oder Minze."), und eine falsche Sprachwahl
-// zerstoert das Transkript komplett -- der Satz ist dann nicht mehr
-// rekonstruierbar, weil die deutsche Erkennung deutsche Woerter liefert.
-// Stattdessen: Standard fest zh-CN, und ein eigener Hilfe-Knopf schaltet fuer
-// GENAU EINE Aeusserung auf Deutsch/Englisch um. Dort ist Language ID
-// unkritisch, weil de vs. en akustisch weit auseinander liegt -- anders als
-// Deutsch vs. akzentbehaftetes Mandarin.
-let zhRecognizer = null;     // Standard: Mandarin
-let helpRecognizer = null;   // Notausgang: Deutsch/Englisch
-let synthesizer = null;
-let running = false;         // Session laeuft (Start gedrueckt, noch kein Beenden)
-let micPaused = false;       // Nutzer hat das Mikro von Hand pausiert
-let listening = false;       // Erkennung laeuft gerade wirklich
-let busy = false;            // Lehrerin denkt oder spricht -> Eingaben ignorieren
-let helpMode = false;        // naechste Aeusserung wird auf Deutsch/Englisch erwartet
-let conversationHistory = []; // [{role:'teacher'|'student', text}]
-let tokenRefreshTimer = null;
+// ---------- Hanzi ein/aus ----------
+// Stefan hat immer mit Pinyin gelernt -- Zeichen standardmaessig aus, aber pro
+// Browser umschaltbar (andere lernen mit Zeichen).
+function setHanziVisible(show) {
+  document.body.classList.toggle('hide-hanzi', !show);
+  try { localStorage.setItem(HANZI_PREF_KEY, show ? '1' : '0'); } catch {}
+}
+window.setHanziVisible = setHanziVisible;
 
-function currentRecognizer() { return helpMode ? helpRecognizer : zhRecognizer; }
+(function initHanziPref() {
+  let show = false;
+  try { show = localStorage.getItem(HANZI_PREF_KEY) === '1'; } catch {}
+  document.body.classList.toggle('hide-hanzi', !show);
+  const box = document.getElementById('hanziToggle');
+  if (box) box.checked = show;
+})();
+
+// ---------- Zustand ----------
+let running = false;      // Gespraech laeuft
+let micPaused = false;    // Nutzer hat das Mikro pausiert
+let busy = false;         // Lehrerin denkt oder spricht
+let conversationHistory = [];
+
+let mediaStream = null;
+let audioCtx = null;
+let analyser = null;
+let levelTimer = null;
+let recorder = null;
+let chunks = [];
+let speechStartedAt = 0;
+let lastLoudAt = 0;
+let recStartedAt = 0;
+let currentSource = null;
 
 function setStatus(msg, listeningStyle) {
   const el = document.getElementById('statusLine');
   el.textContent = msg;
   el.className = 'status' + (listeningStyle ? ' listening' : '');
 }
-function setPartial(msg) { document.getElementById('partialLine').textContent = msg || ' '; }
-
+function setLevel(v) {
+  const bar = document.getElementById('levelBar');
+  if (bar) bar.style.width = Math.min(100, Math.round(v * 900)) + '%';
+}
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
-function escapeXml(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
-
-function isMandarin(lang) { return !lang || lang.toLowerCase().startsWith('zh'); }
-
+function isMandarin(lang) { return !lang || lang === 'zh'; }
 function langLabel(lang) {
-  if (!lang) return '';
-  if (lang.toLowerCase().startsWith('de')) return 'Deutsch';
-  if (lang.toLowerCase().startsWith('en')) return 'English';
+  if (lang === 'de') return 'Deutsch';
+  if (lang === 'en') return 'English';
+  if (lang === 'mixed') return 'gemischt';
   return '';
 }
 
 let cardSeq = 0;
-
-// Liefert die Karten-ID zurueck, damit das Pinyin der eigenen Aeusserung
-// nachgetragen werden kann, sobald die Worker-Antwort da ist (Azure liefert
-// nur Hanzi, das Pinyin kommt vom Modell).
 function addTranscriptCard(role, text, opts) {
   opts = opts || {};
   const empty = document.getElementById('transcriptEmpty');
   if (empty) empty.remove();
   const el = document.getElementById('transcript');
   const card = document.createElement('div');
-  const id = 'card' + (++cardSeq);
-  card.id = id;
-  // nopinyin: die Karte haette ohne Zeichen gar keinen Inhalt -> Hanzi bleibt
-  // sichtbar, auch wenn die Tickbox aus ist. Gilt auch, solange das Pinyin der
-  // eigenen Aeusserung noch unterwegs ist (fillPinyin nimmt die Klasse weg).
+  card.id = 'card' + (++cardSeq);
+  // nopinyin: ohne Pinyin haette die Karte bei ausgeblendeten Zeichen gar
+  // keinen Inhalt -- dann bleiben die Zeichen sichtbar.
   card.className = 'card ' + role + (opts.pinyin ? '' : ' nopinyin');
 
   const tag = langLabel(opts.lang);
@@ -265,221 +234,117 @@ function addTranscriptCard(role, text, opts) {
   if (tag) html += `<span class="langtag">${escapeHtml(tag)}</span>`;
   html += `</div>`;
   html += `<div class="${isMandarin(opts.lang) ? 'hanzi' : 'latin'}">${escapeHtml(text)}</div>`;
-  if (opts.pinyin) {
-    html += `<div class="pinyin">${escapeHtml(opts.pinyin)}</div>`;
-  } else if (opts.pinyinPending) {
-    html += `<div class="pinyin pending">Pinyin …</div>`;
-  }
+  if (opts.pinyin) html += `<div class="pinyin">${escapeHtml(opts.pinyin)}</div>`;
   if (opts.explanation) html += `<div class="explain">🧭 ${escapeHtml(opts.explanation)}</div>`;
   if (opts.correctionNote) html += `<div class="correction">💡 ${escapeHtml(opts.correctionNote)}</div>`;
   card.innerHTML = html;
   el.appendChild(card);
   card.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  return id;
 }
 
-function fillPinyin(cardId, pinyin) {
-  const card = document.getElementById(cardId);
-  if (!card) return;
-  const slot = card.querySelector('.pinyin');
-  if (!slot) return;
-  if (pinyin) {
-    slot.textContent = pinyin;
-    slot.className = 'pinyin';
-    card.classList.remove('nopinyin');  // ab jetzt darf das Hanzi verschwinden
-  } else {
-    slot.remove();   // kein Pinyin gekommen: nopinyin bleibt, Zeichen sichtbar
+// ---------- Aufnahme ----------
+function pickMimeType() {
+  // Gemini nimmt webm und opus direkt an; Safari kann nur mp4/aac.
+  const wanted = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+  for (const t of wanted) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t;
   }
+  return '';
 }
 
-async function mintAzureToken() {
-  const resp = await fetch(WORKER_URL + '/azure-speech-token', { method: 'POST' }).then(r => r.json());
-  if (!resp.success) throw new Error('Azure-Token: ' + resp.error);
-  return resp; // { token, region }
+function startRecorder() {
+  if (!mediaStream || !running) return;
+  const mimeType = pickMimeType();
+  recorder = mimeType ? new MediaRecorder(mediaStream, { mimeType }) : new MediaRecorder(mediaStream);
+  chunks = [];
+  recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  recorder.start();
+  recStartedAt = Date.now();
+  speechStartedAt = 0;
+  lastLoudAt = 0;
 }
 
-async function refreshAzureToken() {
-  try {
-    const { token } = await mintAzureToken();
-    if (zhRecognizer) zhRecognizer.authorizationToken = token;
-    if (helpRecognizer) helpRecognizer.authorizationToken = token;
-    if (synthesizer) synthesizer.authorizationToken = token;
-  } catch (e) {
-    // best-effort: falls es schiefgeht, faellt die naechste Aktion mit einem
-    // klaren Fehler auf, statt hier eine laufende Session hart abzubrechen
-    console.warn('Azure-Token-Refresh fehlgeschlagen:', e.message);
-  }
-}
-
-// ---------- Erkennung an/aus ----------
-function startListening() {
+function stopRecorder() {
   return new Promise((resolve) => {
-    const rec = currentRecognizer();
-    if (!running || !rec || listening || micPaused) return resolve();
-    rec.startContinuousRecognitionAsync(
-      () => { listening = true; resolve(); },
-      (err) => { setStatus('Mikro-Fehler: ' + err); resolve(); }
-    );
+    if (!recorder || recorder.state === 'inactive') return resolve(null);
+    recorder.onstop = () => {
+      const blob = chunks.length ? new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }) : null;
+      resolve(blob);
+    };
+    try { recorder.stop(); } catch { resolve(null); }
   });
 }
 
-// Stoppt beide Erkenner, damit beim Moduswechsel garantiert keiner weiterlaeuft.
-function stopListening() {
-  const stopOne = (rec) => new Promise((resolve) => {
-    if (!rec) return resolve();
-    rec.stopContinuousRecognitionAsync(() => resolve(), () => resolve());
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onloadend = () => resolve(String(r.result).split(',')[1] || '');
+    r.onerror = reject;
+    r.readAsDataURL(blob);
   });
-  return Promise.all([stopOne(zhRecognizer), stopOne(helpRecognizer)])
-    .then(() => { listening = false; });
 }
 
-function idleStatus() {
-  if (!running) return;
-  if (micPaused) { setStatus('⏸ Mikro pausiert — zum Weitersprechen wieder einschalten.'); return; }
-  if (helpMode) { setStatus('🆘 Frag auf Deutsch oder Englisch — danach geht es auf Mandarin weiter.', true); return; }
-  setStatus('🎤 Ich höre zu — sprich Mandarin.', true);
-}
+// Laeuft alle 50ms: Pegel messen, Sprechbeginn und Sprechende erkennen.
+function tickLevel() {
+  if (!analyser) return;
+  const buf = new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(buf);
+  let sum = 0;
+  for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+  const rms = Math.sqrt(sum / buf.length);
 
-function updateHelpButton() {
-  const b = document.getElementById('helpBtn');
-  if (!b) return;
-  b.textContent = helpMode ? '🆘 Hilfe aktiv — sprich Deutsch' : '🆘 Hilfe auf Deutsch/Englisch';
-  b.classList.toggle('active', helpMode);
-}
+  if (busy || micPaused || !running) { setLevel(0); return; }
+  setLevel(rms);
 
-async function toggleMic() {
-  if (!running) return;
-  micPaused = !micPaused;
-  document.getElementById('micBtn').textContent = micPaused ? '🎤 Mikro an' : '⏸ Mikro pausieren';
-  if (micPaused) { await stopListening(); setPartial(''); }
-  else if (!busy) { await startListening(); }
-  idleStatus();
-}
-window.toggleMic = toggleMic;
-
-// Schaltet fuer die naechste Aeusserung auf Deutsch/Englisch um. Danach geht
-// es automatisch wieder auf Mandarin -- kein Modus, in dem man haengenbleibt.
-async function requestHelp() {
-  if (!running || busy) return;
-  helpMode = !helpMode;
-  updateHelpButton();
-  await stopListening();
-  if (!micPaused) await startListening();
-  idleStatus();
-}
-window.requestHelp = requestHelp;
-
-// ---------- Session ----------
-async function startSession() {
-  document.getElementById('startBtn').disabled = true;
-  setStatus('Verbinde mit Azure…');
-  conversationHistory = [];
-  micPaused = false;
-  helpMode = false;
-  document.getElementById('micBtn').textContent = '⏸ Mikro pausieren';
-  document.getElementById('transcript').innerHTML = '';
-
-  try {
-    const { token, region } = await mintAzureToken();
-    const mic = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
-
-    // 1) Standard-Erkenner: fest auf Mandarin, keine Sprachidentifikation.
-    const zhConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(token, region);
-    zhConfig.speechRecognitionLanguage = 'zh-CN';
-    zhConfig.speechSynthesisVoiceName = AZURE_VOICE;
-    zhRecognizer = new SpeechSDK.SpeechRecognizer(zhConfig, mic);
-
-    // 2) Hilfe-Erkenner: Deutsch/Englisch per Language ID. Hier ist die
-    // Automatik vertretbar -- die beiden Sprachen sind akustisch klar
-    // unterscheidbar, anders als Deutsch vs. akzentbehaftetes Mandarin.
-    const helpConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(token, region);
-    const autoDetect = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages(HELP_LANGUAGES);
-    // Bewusst KEIN Continuous-Modus: laut Azure-Doku verlangt Continuous LID
-    // eine SpeechConfig "from endpoint" (nicht aus Region/Token), und der
-    // Modus loest ohnehin ein Problem, das hier keins ist -- der
-    // Hilfe-Erkenner wird pro Hilfe-Anfrage frisch gestartet und deckt genau
-    // eine Aeusserung in einer Sprache ab. At-Start-LID (Default) passt dazu
-    // exakt: einmal bestimmen, fertig. Continuous koennte innerhalb eines
-    // Satzes ohnehin nicht umschalten, das kann Azures LID grundsaetzlich
-    // nicht (s. MeDB.md).
-    helpRecognizer = SpeechSDK.SpeechRecognizer.FromConfig(helpConfig, autoDetect, mic);
-
-    synthesizer = new SpeechSDK.SpeechSynthesizer(zhConfig, SpeechSDK.AudioConfig.fromDefaultSpeakerOutput());
-
-    wireRecognizer(zhRecognizer, false);
-    wireRecognizer(helpRecognizer, true);
-
-    running = true;
-    document.getElementById('stopBtn').disabled = false;
-    document.getElementById('micBtn').disabled = false;
-    document.getElementById('helpBtn').disabled = false;
-    updateHelpButton();
-    tokenRefreshTimer = setInterval(refreshAzureToken, TOKEN_REFRESH_MS);
-
-    await teacherTurn('', ''); // Eroeffnung durch die Lehrerin
-  } catch (e) {
-    setStatus('Fehler: ' + e.message);
-    document.getElementById('startBtn').disabled = false;
-    stopSession();
+  const now = Date.now();
+  if (rms >= SILENCE_RMS) {
+    if (!speechStartedAt) speechStartedAt = now;
+    lastLoudAt = now;
+    return;
   }
-}
-window.startSession = startSession;
 
-function wireRecognizer(rec, isHelp) {
-  rec.recognizing = (s, e) => { if (!busy) setPartial(e.result.text); };
-  rec.recognized = (s, e) => onRecognized(e.result, isHelp);
-  rec.canceled = (s, e) => {
-    if (e.reason === SpeechSDK.CancellationReason.Error) {
-      setStatus('Spracherkennung abgebrochen: ' + e.errorDetails);
+  if (speechStartedAt) {
+    const spoken = lastLoudAt - speechStartedAt;
+    const quietFor = now - lastLoudAt;
+    if (quietFor >= SILENCE_HOLD_MS) {
+      if (spoken >= MIN_SPEECH_MS) { finishUtterance(); }
+      else { restartRecorder(); }   // zu kurz: verwerfen, weiterhoeren
     }
-    listening = false;
-  };
-}
-
-function onRecognized(result, isHelp) {
-  // Waehrend die Lehrerin denkt/spricht laeuft die Erkennung gar nicht --
-  // dieser Riegel faengt nur noch Ereignisse ab, die beim Stoppen unterwegs
-  // waren, damit nicht zwei Runden gleichzeitig starten. Zusaetzlich zaehlt
-  // nur der Erkenner, der zum aktuellen Modus gehoert.
-  if (!running || busy || micPaused) return;
-  if (isHelp !== helpMode) return;
-  if (result.reason !== SpeechSDK.ResultReason.RecognizedSpeech) return;
-  const text = (result.text || '').trim();
-  if (!text) return; // Stille/NoMatch: einfach weiterhoeren, kein Knopf noetig
-
-  let lang = 'zh-CN';
-  if (isHelp) {
-    try {
-      lang = SpeechSDK.AutoDetectSourceLanguageResult.fromResult(result).language || 'de-DE';
-    } catch { lang = 'de-DE'; }
+    return;
   }
 
-  busy = true;
-  setPartial('');
-  // Hilfe-Modus gilt immer nur fuer eine Aeusserung.
-  if (helpMode) { helpMode = false; updateHelpButton(); }
-
-  conversationHistory.push({ role: 'student', text });
-  const cardId = addTranscriptCard('student', text, {
-    lang,
-    pinyinPending: isMandarin(lang)   // Pinyin kommt gleich vom Worker nach
-  });
-  teacherTurn(text, lang, cardId);
+  // Noch gar nicht gesprochen: Aufnahme regelmaessig neu starten, damit keine
+  // Minuten Stille mitgeschickt werden.
+  if (now - recStartedAt >= IDLE_RESTART_MS) restartRecorder();
 }
 
-async function teacherTurn(recognizedText, detectedLanguage, studentCardId) {
+async function restartRecorder() {
+  await stopRecorder();
+  startRecorder();
+}
+
+async function finishUtterance() {
   busy = true;
-  await stopListening();          // Halbduplex: Mikro aus, solange sie dran ist
+  setLevel(0);
+  setStatus('🀄 Lehrerin hört zu…');
+  const blob = await stopRecorder();
+  if (!blob || blob.size < 1000) { busy = false; startRecorder(); idleStatus(); return; }
+  const b64 = await blobToBase64(blob);
+  await teacherTurn(b64, blob.type.split(';')[0] || 'audio/webm');
+}
+
+// ---------- Gespraechsrunde ----------
+async function teacherTurn(audioB64, mimeType) {
+  busy = true;
   setStatus('🀄 Lehrerin überlegt…');
-  setPartial('');
 
   let data;
   try {
-    data = await fetch(WORKER_URL + '/chinese-teacher-turn', {
+    data = await fetch(WORKER_URL + '/chinese-teacher-audio-turn', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        recognized_text: recognizedText,
-        detected_language: detectedLanguage || '',
+        audio_b64: audioB64 || '',
+        mime_type: mimeType || 'audio/webm',
         conversation_history: conversationHistory
       })
     }).then(r => r.json());
@@ -489,11 +354,15 @@ async function teacherTurn(recognizedText, detectedLanguage, studentCardId) {
   }
   if (!data.success) { setStatus('Fehler: ' + data.error); return resumeListening(); }
 
-  if (studentCardId) fillPinyin(studentCardId, data.student_pinyin);
+  if (data.student_text) {
+    conversationHistory.push({ role: 'student', text: data.student_text });
+    addTranscriptCard('student', data.student_text, {
+      lang: data.student_language,
+      pinyin: data.student_pinyin
+    });
+  }
 
   conversationHistory.push({ role: 'teacher', text: data.reply_hanzi });
-  // Hanzi+Pinyin erscheinen sofort, synchron mit dem Start der Sprachausgabe,
-  // nicht erst wenn sie fertig gesprochen ist.
   addTranscriptCard('teacher', data.reply_hanzi, {
     pinyin: data.reply_pinyin,
     explanation: data.explanation,
@@ -501,61 +370,124 @@ async function teacherTurn(recognizedText, detectedLanguage, studentCardId) {
   });
 
   try {
-    await speak(data.reply_hanzi, data.explanation, detectedLanguage);
+    await speak(data.reply_hanzi, data.explanation);
   } catch (e) {
-    setStatus('TTS-Fehler: ' + e.message);
+    setStatus('Sprachausgabe-Fehler: ' + e.message);
   }
-
   return resumeListening();
 }
 
+// Sprachausgabe: der Worker liefert fertiges PCM am Stueck, abgespielt wird es
+// selbst ueber Web Audio. Bewusst so -- Azures SDK spielte waehrend der
+// Synthese ab, was mitten im Satz Luecken gerissen hat.
+async function speak(hanzi, explanation) {
+  if (!hanzi && !explanation) return;
+  setStatus('🔊 Lehrerin spricht…');
+  const data = await fetch(WORKER_URL + '/chinese-teacher-speak', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hanzi: hanzi || '', explanation: explanation || '' })
+  }).then(r => r.json());
+  if (!data.success) throw new Error(data.error);
+  await playPcm16(data.audio_b64, data.sample_rate || 24000);
+}
+
+function playPcm16(b64, sampleRate) {
+  return new Promise((resolve, reject) => {
+    try {
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const view = new DataView(bytes.buffer);
+      const samples = Math.floor(bytes.length / 2);
+      const buffer = audioCtx.createBuffer(1, samples, sampleRate);
+      const ch = buffer.getChannelData(0);
+      for (let i = 0; i < samples; i++) ch[i] = view.getInt16(i * 2, true) / 32768;
+      const src = audioCtx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(audioCtx.destination);
+      currentSource = src;
+      src.onended = () => { currentSource = null; resolve(); };
+      src.start();
+    } catch (e) { reject(e); }
+  });
+}
+
 async function resumeListening() {
+  if (!running) return;
+  await new Promise(r => setTimeout(r, RESUME_DELAY_MS));
   busy = false;
   if (!running) return;
-  // Kurze Pause, damit der Nachhall der Lautsprecher nicht als erste Silbe
-  // der naechsten Antwort erkannt wird.
-  await new Promise(r => setTimeout(r, RESUME_DELAY_MS));
-  if (!running || busy) return;
-  await startListening();
+  startRecorder();
   idleStatus();
 }
 
-function speak(hanzi, explanation, detectedLanguage) {
-  return new Promise((resolve, reject) => {
-    setStatus('🔊 Lehrerin spricht…');
-    // Erklaerungen werden in der Sprache gesprochen, in der gefragt wurde --
-    // nur so hilft der Notausgang "ich weiss nicht weiter" wirklich.
-    const explainVoice = EXPLAIN_VOICES[(detectedLanguage || '').toLowerCase().slice(0, 2)] || EXPLAIN_VOICES.de;
-    let inner = '';
-    if (explanation) {
-      inner += `<voice name="${explainVoice}"><prosody rate="-8%">${escapeXml(explanation)}</prosody></voice>`;
-    }
-    inner += `<voice name="${AZURE_VOICE}"><prosody rate="-20%">${escapeXml(hanzi)}</prosody></voice>`;
-    const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="zh-CN">${inner}</speak>`;
-    synthesizer.speakSsmlAsync(ssml, () => resolve(), (err) => reject(new Error(String(err))));
-  });
+function idleStatus() {
+  if (!running) return;
+  if (micPaused) { setStatus('⏸ Mikro pausiert — zum Weitersprechen wieder einschalten.'); return; }
+  setStatus('🎤 Ich höre zu — sprich einfach los, Mandarin oder Deutsch.', true);
 }
+
+// ---------- Steuerung ----------
+async function startSession() {
+  document.getElementById('startBtn').disabled = true;
+  setStatus('Mikrofon wird freigegeben…');
+  conversationHistory = [];
+  micPaused = false;
+  document.getElementById('micBtn').textContent = '⏸ Mikro pausieren';
+  document.getElementById('transcript').innerHTML = '';
+
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    const src = audioCtx.createMediaStreamSource(mediaStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    src.connect(analyser);
+
+    running = true;
+    document.getElementById('stopBtn').disabled = false;
+    document.getElementById('micBtn').disabled = false;
+    levelTimer = setInterval(tickLevel, 50);
+
+    await teacherTurn('', '');   // Eroeffnung: ohne Aufnahme
+  } catch (e) {
+    setStatus('Fehler: ' + e.message);
+    document.getElementById('startBtn').disabled = false;
+    stopSession();
+  }
+}
+window.startSession = startSession;
+
+async function toggleMic() {
+  if (!running) return;
+  micPaused = !micPaused;
+  document.getElementById('micBtn').textContent = micPaused ? '🎤 Mikro an' : '⏸ Mikro pausieren';
+  if (micPaused) { await stopRecorder(); setLevel(0); }
+  else if (!busy) { startRecorder(); }
+  idleStatus();
+}
+window.toggleMic = toggleMic;
 
 function stopSession() {
   running = false;
   busy = false;
-  listening = false;
   micPaused = false;
-  helpMode = false;
-  if (tokenRefreshTimer) { clearInterval(tokenRefreshTimer); tokenRefreshTimer = null; }
-  for (const rec of [zhRecognizer, helpRecognizer]) {
-    try { rec && rec.stopContinuousRecognitionAsync(() => {}, () => {}); } catch {}
-    try { rec && rec.close(); } catch {}
-  }
-  try { synthesizer && synthesizer.close(); } catch {}
-  zhRecognizer = null; helpRecognizer = null; synthesizer = null;
+  if (levelTimer) { clearInterval(levelTimer); levelTimer = null; }
+  try { if (currentSource) currentSource.stop(); } catch {}
+  currentSource = null;
+  try { if (recorder && recorder.state !== 'inactive') recorder.stop(); } catch {}
+  recorder = null;
+  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+  if (audioCtx) { try { audioCtx.close(); } catch {} audioCtx = null; }
+  analyser = null;
   document.getElementById('startBtn').disabled = false;
   document.getElementById('stopBtn').disabled = true;
   document.getElementById('micBtn').disabled = true;
-  document.getElementById('helpBtn').disabled = true;
   document.getElementById('micBtn').textContent = '⏸ Mikro pausieren';
-  updateHelpButton();
-  setPartial('');
+  setLevel(0);
   setStatus('Beendet.');
 }
 window.stopSession = stopSession;
