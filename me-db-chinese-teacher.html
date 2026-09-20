@@ -42,8 +42,15 @@
   .card .latin { font-size: 1rem; line-height: 1.45; color: #445; }
   .card .pinyin { font-size: 0.85rem; color: #888; margin-top: 3px; }
   .card .pinyin.pending { color: #ccc; font-style: italic; }
+  /* Hanzi abschaltbar (Stefan lernt mit Pinyin). Karten ohne verfuegbares
+     Pinyin behalten die Zeichen trotzdem, sonst waeren sie leer. */
+  body.hide-hanzi .card:not(.nopinyin) .hanzi { display: none; }
+  body.hide-hanzi .card .pinyin { font-size: 1.15rem; color: #333; margin-top: 0; }
   .card .correction { margin-top: 8px; padding: 7px 9px; border-radius: 7px; background: #fff3e0; font-size: 0.8rem; color: #8a5a00; }
   .card .explain { margin-top: 8px; padding: 7px 9px; border-radius: 7px; background: #e8f1fb; font-size: 0.82rem; color: #24486e; line-height: 1.45; }
+  .optbar { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.85rem; color: #444; }
+  .optbar input { width: 17px; height: 17px; accent-color: #2e7d32; cursor: pointer; }
+  .optbar label { cursor: pointer; user-select: none; }
   .empty { color: #bbb; font-size: 0.85rem; text-align: center; margin-top: 20px; }
 
 /* navdrop */
@@ -106,6 +113,11 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <button class="btn btn-stop" id="stopBtn" onclick="stopSession()" disabled>⏹ Beenden</button>
   </div>
 
+
+  <div class="optbar">
+    <input type="checkbox" id="hanziToggle" onchange="setHanziVisible(this.checked)">
+    <label for="hanziToggle">汉字 — chinesische Zeichen anzeigen (aus: nur Pinyin)</label>
+  </div>
   <div class="hint">
     Das Mikrofon läuft durchgehend — einfach sprechen, keine Knöpfe zwischendurch. Während die Lehrerin spricht,
     hört es kurz weg (sonst nimmt es sich selbst auf). <b>Du darfst jederzeit auf Deutsch oder Englisch ausweichen</b>
@@ -134,6 +146,29 @@ const EXPLAIN_VOICES = { de: 'de-DE-KatjaNeural', en: 'en-US-JennyNeural' };
 const RECOGNITION_LANGUAGES = ['zh-CN', 'de-DE', 'en-US'];
 const TOKEN_REFRESH_MS = 8 * 60 * 1000; // Azure-Token laeuft nach ~10 Min ab
 const RESUME_DELAY_MS = 350;            // Nachhall der Lautsprecher abklingen lassen
+const HANZI_PREF_KEY = 'chineseTeacher.showHanzi';
+
+// Stefan hat immer mit Pinyin gelernt -- Zeichen sind daher standardmaessig aus,
+// aber pro Browser umschaltbar (andere lernen mit Zeichen).
+function setHanziVisible(show) {
+  document.body.classList.toggle('hide-hanzi', !show);
+  try { localStorage.setItem(HANZI_PREF_KEY, show ? '1' : '0'); } catch {}
+}
+window.setHanziVisible = setHanziVisible;
+
+(function initHanziPref() {
+  let show = false;
+  try { show = localStorage.getItem(HANZI_PREF_KEY) === '1'; } catch {}
+  document.body.classList.toggle('hide-hanzi', !show);
+  // Das Skript steht unterhalb der Checkbox im Dokument, das Element ist also
+  // schon da; der DOMContentLoaded-Zweig ist nur die Absicherung.
+  const box = document.getElementById('hanziToggle');
+  if (box) box.checked = show;
+  else document.addEventListener('DOMContentLoaded', () => {
+    const b = document.getElementById('hanziToggle');
+    if (b) b.checked = show;
+  });
+})();
 
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
@@ -193,7 +228,10 @@ function addTranscriptCard(role, text, opts) {
   const card = document.createElement('div');
   const id = 'card' + (++cardSeq);
   card.id = id;
-  card.className = 'card ' + role;
+  // nopinyin: die Karte haette ohne Zeichen gar keinen Inhalt -> Hanzi bleibt
+  // sichtbar, auch wenn die Tickbox aus ist. Gilt auch, solange das Pinyin der
+  // eigenen Aeusserung noch unterwegs ist (fillPinyin nimmt die Klasse weg).
+  card.className = 'card ' + role + (opts.pinyin ? '' : ' nopinyin');
 
   const tag = langLabel(opts.lang);
   let html = `<div class="role">${role === 'teacher' ? '🀄 Lehrerin' : '🗣️ Du'}`;
@@ -221,8 +259,9 @@ function fillPinyin(cardId, pinyin) {
   if (pinyin) {
     slot.textContent = pinyin;
     slot.className = 'pinyin';
+    card.classList.remove('nopinyin');  // ab jetzt darf das Hanzi verschwinden
   } else {
-    slot.remove();
+    slot.remove();   // kein Pinyin gekommen: nopinyin bleibt, Zeichen sichtbar
   }
 }
 
