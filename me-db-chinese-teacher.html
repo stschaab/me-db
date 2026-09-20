@@ -25,6 +25,9 @@
   .btn-stop:disabled { background: #ef9a9a; cursor: not-allowed; }
   .btn-mic { background: #1a1a2e; color: white; }
   .btn-mic:disabled { background: #9e9eb5; cursor: not-allowed; }
+  .btn-help { background: #ef6c00; color: white; }
+  .btn-help:disabled { background: #f5c38d; cursor: not-allowed; }
+  .btn-help.active { background: #1a1a2e; box-shadow: 0 0 0 3px #ef6c00 inset; }
 
   .hint { margin-top: 12px; padding: 10px 12px; border-radius: 9px; background: #e8f1fb; color: #24486e; font-size: 0.8rem; line-height: 1.45; }
 
@@ -113,16 +116,21 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <button class="btn btn-stop" id="stopBtn" onclick="stopSession()" disabled>⏹ Beenden</button>
   </div>
 
+  <div class="controls" style="margin-top:10px">
+    <button class="btn btn-help" id="helpBtn" onclick="requestHelp()" disabled>🆘 Hilfe auf Deutsch/Englisch</button>
+  </div>
+
 
   <div class="optbar">
     <input type="checkbox" id="hanziToggle" onchange="setHanziVisible(this.checked)">
     <label for="hanziToggle">汉字 — chinesische Zeichen anzeigen (aus: nur Pinyin)</label>
   </div>
   <div class="hint">
-    Das Mikrofon läuft durchgehend — einfach sprechen, keine Knöpfe zwischendurch. Während die Lehrerin spricht,
-    hört es kurz weg (sonst nimmt es sich selbst auf). <b>Du darfst jederzeit auf Deutsch oder Englisch ausweichen</b>
-    („wie sagt man …?“, „was heißt das?“) — dann erklärt sie es dir in deiner Sprache und gibt dir den passenden
-    Mandarin-Satz zum Nachsprechen.
+    Das Mikrofon läuft durchgehend und erwartet <b>Mandarin</b> — einfach sprechen, keine Knöpfe zwischendurch.
+    Während die Lehrerin spricht, hört es kurz weg (sonst nimmt es sich selbst auf).
+    <b>Wenn du nicht weiterweißt:</b> einmal auf „Hilfe auf Deutsch/Englisch“ tippen, dann deine Frage stellen
+    („wie sagt man …?“, „was heißt das?“) — sie erklärt es in deiner Sprache und gibt dir den passenden
+    Mandarin-Satz zum Nachsprechen. Danach geht es automatisch wieder auf Mandarin weiter.
   </div>
 
   <div class="status" id="statusLine">&nbsp;</div>
@@ -143,7 +151,10 @@ const AZURE_VOICE = 'zh-CN-XiaoxiaoNeural';
 // das 2-Buchstaben-Praefix der von Azure erkannten Sprache.
 const EXPLAIN_VOICES = { de: 'de-DE-KatjaNeural', en: 'en-US-JennyNeural' };
 // Azure Language ID im Dauerbetrieb: maximal 4 Sprachen erlaubt.
-const RECOGNITION_LANGUAGES = ['zh-CN', 'de-DE', 'en-US'];
+// Hilfe-Modus: nur Deutsch/Englisch. Mandarin laeuft ueber einen eigenen,
+// fest auf zh-CN gestellten Erkenner -- Language ID hat A1-Mandarin mit
+// deutschem Akzent zu oft als Deutsch eingestuft (s. Kommentar unten).
+const HELP_LANGUAGES = ['de-DE', 'en-US'];
 const TOKEN_REFRESH_MS = 8 * 60 * 1000; // Azure-Token laeuft nach ~10 Min ab
 const RESUME_DELAY_MS = 350;            // Nachhall der Lautsprecher abklingen lassen
 const HANZI_PREF_KEY = 'chineseTeacher.showHanzi';
@@ -185,14 +196,29 @@ window.logout = logout;
 // (recognizeOnceAsync). Halbduplex: waehrend die Lehrerin spricht, wird die
 // Erkennung gestoppt und danach wieder gestartet -- sonst nimmt das Mikro die
 // eigene Sprachausgabe auf (Stefan nutzt Lautsprecher, nicht Kopfhoerer).
-let recognizer = null;
+//
+// Sprachwahl (ueberarbeitet nach Stefans Test am 2026-09-20): KEINE
+// automatische Sprachidentifikation ueber zh/de/en mehr. Azures Language ID
+// hat A1-Mandarin mit deutschem Akzent zuverlaessig als Deutsch eingestuft
+// ("wo de mingzi shi Stefan" -> "Oder Minze."), und eine falsche Sprachwahl
+// zerstoert das Transkript komplett -- der Satz ist dann nicht mehr
+// rekonstruierbar, weil die deutsche Erkennung deutsche Woerter liefert.
+// Stattdessen: Standard fest zh-CN, und ein eigener Hilfe-Knopf schaltet fuer
+// GENAU EINE Aeusserung auf Deutsch/Englisch um. Dort ist Language ID
+// unkritisch, weil de vs. en akustisch weit auseinander liegt -- anders als
+// Deutsch vs. akzentbehaftetes Mandarin.
+let zhRecognizer = null;     // Standard: Mandarin
+let helpRecognizer = null;   // Notausgang: Deutsch/Englisch
 let synthesizer = null;
-let running = false;          // Session laeuft (Start gedrueckt, noch kein Beenden)
-let micPaused = false;        // Nutzer hat das Mikro von Hand pausiert
-let listening = false;        // Erkennung laeuft gerade wirklich
-let busy = false;             // Lehrerin denkt oder spricht -> Eingaben ignorieren
+let running = false;         // Session laeuft (Start gedrueckt, noch kein Beenden)
+let micPaused = false;       // Nutzer hat das Mikro von Hand pausiert
+let listening = false;       // Erkennung laeuft gerade wirklich
+let busy = false;            // Lehrerin denkt oder spricht -> Eingaben ignorieren
+let helpMode = false;        // naechste Aeusserung wird auf Deutsch/Englisch erwartet
 let conversationHistory = []; // [{role:'teacher'|'student', text}]
 let tokenRefreshTimer = null;
+
+function currentRecognizer() { return helpMode ? helpRecognizer : zhRecognizer; }
 
 function setStatus(msg, listeningStyle) {
   const el = document.getElementById('statusLine');
@@ -274,7 +300,8 @@ async function mintAzureToken() {
 async function refreshAzureToken() {
   try {
     const { token } = await mintAzureToken();
-    if (recognizer) recognizer.authorizationToken = token;
+    if (zhRecognizer) zhRecognizer.authorizationToken = token;
+    if (helpRecognizer) helpRecognizer.authorizationToken = token;
     if (synthesizer) synthesizer.authorizationToken = token;
   } catch (e) {
     // best-effort: falls es schiefgeht, faellt die naechste Aktion mit einem
@@ -286,28 +313,37 @@ async function refreshAzureToken() {
 // ---------- Erkennung an/aus ----------
 function startListening() {
   return new Promise((resolve) => {
-    if (!running || !recognizer || listening || micPaused) return resolve();
-    recognizer.startContinuousRecognitionAsync(
+    const rec = currentRecognizer();
+    if (!running || !rec || listening || micPaused) return resolve();
+    rec.startContinuousRecognitionAsync(
       () => { listening = true; resolve(); },
       (err) => { setStatus('Mikro-Fehler: ' + err); resolve(); }
     );
   });
 }
 
+// Stoppt beide Erkenner, damit beim Moduswechsel garantiert keiner weiterlaeuft.
 function stopListening() {
-  return new Promise((resolve) => {
-    if (!recognizer || !listening) return resolve();
-    recognizer.stopContinuousRecognitionAsync(
-      () => { listening = false; resolve(); },
-      () => { listening = false; resolve(); }
-    );
+  const stopOne = (rec) => new Promise((resolve) => {
+    if (!rec) return resolve();
+    rec.stopContinuousRecognitionAsync(() => resolve(), () => resolve());
   });
+  return Promise.all([stopOne(zhRecognizer), stopOne(helpRecognizer)])
+    .then(() => { listening = false; });
 }
 
 function idleStatus() {
   if (!running) return;
   if (micPaused) { setStatus('⏸ Mikro pausiert — zum Weitersprechen wieder einschalten.'); return; }
-  setStatus('🎤 Ich höre zu — sprich einfach los (Mandarin, Deutsch oder Englisch).', true);
+  if (helpMode) { setStatus('🆘 Frag auf Deutsch oder Englisch — danach geht es auf Mandarin weiter.', true); return; }
+  setStatus('🎤 Ich höre zu — sprich Mandarin.', true);
+}
+
+function updateHelpButton() {
+  const b = document.getElementById('helpBtn');
+  if (!b) return;
+  b.textContent = helpMode ? '🆘 Hilfe aktiv — sprich Deutsch' : '🆘 Hilfe auf Deutsch/Englisch';
+  b.classList.toggle('active', helpMode);
 }
 
 async function toggleMic() {
@@ -320,48 +356,59 @@ async function toggleMic() {
 }
 window.toggleMic = toggleMic;
 
+// Schaltet fuer die naechste Aeusserung auf Deutsch/Englisch um. Danach geht
+// es automatisch wieder auf Mandarin -- kein Modus, in dem man haengenbleibt.
+async function requestHelp() {
+  if (!running || busy) return;
+  helpMode = !helpMode;
+  updateHelpButton();
+  await stopListening();
+  if (!micPaused) await startListening();
+  idleStatus();
+}
+window.requestHelp = requestHelp;
+
 // ---------- Session ----------
 async function startSession() {
   document.getElementById('startBtn').disabled = true;
   setStatus('Verbinde mit Azure…');
   conversationHistory = [];
   micPaused = false;
+  helpMode = false;
   document.getElementById('micBtn').textContent = '⏸ Mikro pausieren';
   document.getElementById('transcript').innerHTML = '';
 
   try {
     const { token, region } = await mintAzureToken();
-    const speechConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(token, region);
-    speechConfig.speechSynthesisVoiceName = AZURE_VOICE;
-    // Language ID im Dauerbetrieb: Stefan darf mitten im Gespraech auf Deutsch
-    // oder Englisch wechseln, wenn er nicht weiterweiss. Azure erlaubt in
-    // diesem Modus maximal 4 Sprachen.
-    // ACHTUNG: der Modus MUSS an der AutoDetect-Config haengen, nicht an der
-    // SpeechConfig -- AutoDetectSourceLanguageConfig setzt sich selbst auf
-    // "AtStart" und ueberschreibt beim FromConfig() jede manuelle Einstellung
-    // an der SpeechConfig. Mit "AtStart" wuerde die Sprache nur einmal zu
-    // Sessionbeginn bestimmt und ein Wechsel mitten im Gespraech nicht erkannt.
-    // Der mode-Setter schaltet zusaetzlich auf Recognition-Endpoint v2.
-    const autoDetect = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages(RECOGNITION_LANGUAGES);
+    const mic = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+
+    // 1) Standard-Erkenner: fest auf Mandarin, keine Sprachidentifikation.
+    const zhConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(token, region);
+    zhConfig.speechRecognitionLanguage = 'zh-CN';
+    zhConfig.speechSynthesisVoiceName = AZURE_VOICE;
+    zhRecognizer = new SpeechSDK.SpeechRecognizer(zhConfig, mic);
+
+    // 2) Hilfe-Erkenner: Deutsch/Englisch per Language ID. Hier ist die
+    // Automatik vertretbar -- die beiden Sprachen sind akustisch klar
+    // unterscheidbar, anders als Deutsch vs. akzentbehaftetes Mandarin.
+    const helpConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(token, region);
+    const autoDetect = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages(HELP_LANGUAGES);
+    // Der Modus muss an der AutoDetect-Config haengen, nicht an der
+    // SpeechConfig: AutoDetectSourceLanguageConfig setzt sich selbst auf
+    // "AtStart" und ueberschreibt beim FromConfig() jede Einstellung dort.
     autoDetect.mode = SpeechSDK.LanguageIdMode.Continuous;
+    helpRecognizer = SpeechSDK.SpeechRecognizer.FromConfig(helpConfig, autoDetect, mic);
 
-    recognizer = SpeechSDK.SpeechRecognizer.FromConfig(
-      speechConfig, autoDetect, SpeechSDK.AudioConfig.fromDefaultMicrophoneInput()
-    );
-    synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, SpeechSDK.AudioConfig.fromDefaultSpeakerOutput());
+    synthesizer = new SpeechSDK.SpeechSynthesizer(zhConfig, SpeechSDK.AudioConfig.fromDefaultSpeakerOutput());
 
-    recognizer.recognizing = (s, e) => { if (!busy) setPartial(e.result.text); };
-    recognizer.recognized = (s, e) => onRecognized(e.result);
-    recognizer.canceled = (s, e) => {
-      if (e.reason === SpeechSDK.CancellationReason.Error) {
-        setStatus('Spracherkennung abgebrochen: ' + e.errorDetails);
-      }
-      listening = false;
-    };
+    wireRecognizer(zhRecognizer, false);
+    wireRecognizer(helpRecognizer, true);
 
     running = true;
     document.getElementById('stopBtn').disabled = false;
     document.getElementById('micBtn').disabled = false;
+    document.getElementById('helpBtn').disabled = false;
+    updateHelpButton();
     tokenRefreshTimer = setInterval(refreshAzureToken, TOKEN_REFRESH_MS);
 
     await teacherTurn('', ''); // Eroeffnung durch die Lehrerin
@@ -373,22 +420,40 @@ async function startSession() {
 }
 window.startSession = startSession;
 
-function onRecognized(result) {
+function wireRecognizer(rec, isHelp) {
+  rec.recognizing = (s, e) => { if (!busy) setPartial(e.result.text); };
+  rec.recognized = (s, e) => onRecognized(e.result, isHelp);
+  rec.canceled = (s, e) => {
+    if (e.reason === SpeechSDK.CancellationReason.Error) {
+      setStatus('Spracherkennung abgebrochen: ' + e.errorDetails);
+    }
+    listening = false;
+  };
+}
+
+function onRecognized(result, isHelp) {
   // Waehrend die Lehrerin denkt/spricht laeuft die Erkennung gar nicht --
   // dieser Riegel faengt nur noch Ereignisse ab, die beim Stoppen unterwegs
-  // waren, damit nicht zwei Runden gleichzeitig starten.
+  // waren, damit nicht zwei Runden gleichzeitig starten. Zusaetzlich zaehlt
+  // nur der Erkenner, der zum aktuellen Modus gehoert.
   if (!running || busy || micPaused) return;
+  if (isHelp !== helpMode) return;
   if (result.reason !== SpeechSDK.ResultReason.RecognizedSpeech) return;
   const text = (result.text || '').trim();
   if (!text) return; // Stille/NoMatch: einfach weiterhoeren, kein Knopf noetig
 
-  let lang = '';
-  try {
-    lang = SpeechSDK.AutoDetectSourceLanguageResult.fromResult(result).language || '';
-  } catch { lang = ''; }
+  let lang = 'zh-CN';
+  if (isHelp) {
+    try {
+      lang = SpeechSDK.AutoDetectSourceLanguageResult.fromResult(result).language || 'de-DE';
+    } catch { lang = 'de-DE'; }
+  }
 
   busy = true;
   setPartial('');
+  // Hilfe-Modus gilt immer nur fuer eine Aeusserung.
+  if (helpMode) { helpMode = false; updateHelpButton(); }
+
   conversationHistory.push({ role: 'student', text });
   const cardId = addTranscriptCard('student', text, {
     lang,
@@ -471,15 +536,20 @@ function stopSession() {
   busy = false;
   listening = false;
   micPaused = false;
+  helpMode = false;
   if (tokenRefreshTimer) { clearInterval(tokenRefreshTimer); tokenRefreshTimer = null; }
-  try { recognizer && recognizer.stopContinuousRecognitionAsync(() => {}, () => {}); } catch {}
-  try { recognizer && recognizer.close(); } catch {}
+  for (const rec of [zhRecognizer, helpRecognizer]) {
+    try { rec && rec.stopContinuousRecognitionAsync(() => {}, () => {}); } catch {}
+    try { rec && rec.close(); } catch {}
+  }
   try { synthesizer && synthesizer.close(); } catch {}
-  recognizer = null; synthesizer = null;
+  zhRecognizer = null; helpRecognizer = null; synthesizer = null;
   document.getElementById('startBtn').disabled = false;
   document.getElementById('stopBtn').disabled = true;
   document.getElementById('micBtn').disabled = true;
+  document.getElementById('helpBtn').disabled = true;
   document.getElementById('micBtn').textContent = '⏸ Mikro pausieren';
+  updateHelpButton();
   setPartial('');
   setStatus('Beendet.');
 }
