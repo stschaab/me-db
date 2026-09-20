@@ -63,6 +63,18 @@
   .prefs-save { background: #2e7d32; color: white; border: none; border-radius: 8px; padding: 9px 18px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
   .prefs-save:disabled { background: #a5d6a7; cursor: not-allowed; }
   .prefs-state { font-size: 0.78rem; color: #777; }
+  .vocab-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .vocab-col h4 { font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8a8a99; margin-bottom: 6px; }
+  .vocab-list { display: flex; flex-direction: column; gap: 5px; max-height: 340px; overflow-y: auto; }
+  .vocab-item { display: flex; align-items: baseline; gap: 7px; font-size: 0.82rem; padding: 5px 7px; border-radius: 7px; background: #fafafa; }
+  .vocab-item.due { background: #fff6e6; }
+  .vocab-hz { font-size: 1rem; font-weight: 600; min-width: 2.2em; }
+  .vocab-py { color: #6a7183; }
+  .vocab-de { color: #555; flex: 1; }
+  .vocab-box { font-size: 0.62rem; color: #9a9aa8; white-space: nowrap; }
+  .vocab-empty { font-size: 0.8rem; color: #aaa; padding: 6px 2px; }
+  body.hide-hanzi .vocab-hz { display: none; }
+  @media (max-width: 620px) { .vocab-grid { grid-template-columns: 1fr; } }
   .optbar { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.85rem; color: #444; }
   .optbar input { width: 17px; height: 17px; accent-color: #2e7d32; cursor: pointer; }
   .optbar label { cursor: pointer; user-select: none; }
@@ -146,6 +158,27 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div class="prefs-row">
         <button class="prefs-save" id="prefsSave" onclick="saveInstructions()">Speichern</button>
         <span class="prefs-state" id="prefsState"></span>
+      </div>
+    </div>
+  </details>
+
+  <details class="prefs" id="vocabBox" ontoggle="if(this.open) renderVocab()">
+    <summary>📚 Vokabeln — Zeichen und Wörter, die ihr hattet</summary>
+    <div class="prefs-body">
+      <div class="prefs-help">
+        Füllt sich von selbst aus euren Gesprächen. Orange hinterlegt heißt: steht zur Wiederholung an —
+        die Lehrerin baut solche Vokabeln von sich aus ins nächste Gespräch ein.
+        <span id="vocabCount"></span>
+      </div>
+      <div class="vocab-grid">
+        <div class="vocab-col">
+          <h4>Zeichen / Silben</h4>
+          <div class="vocab-list" id="charList"><div class="vocab-empty">wird geladen…</div></div>
+        </div>
+        <div class="vocab-col">
+          <h4>Wörter</h4>
+          <div class="vocab-list" id="wordList"><div class="vocab-empty">wird geladen…</div></div>
+        </div>
       </div>
     </div>
   </details>
@@ -330,6 +363,124 @@ function addDaySeparator(label) {
   el.appendChild(sep);
 }
 
+// ---------- Vokabeln + Spaced Repetition ----------
+// Zwei Tabellen, weil Stefan ueber die einzelnen Zeichen lernt: Silben und
+// Woerter haben jeweils einen eigenen Wiederholungsrhythmus.
+// Leitner-Schema: box 0..6, Intervalle in Tagen. Bewusst einfach gehalten --
+// die Qualitaetsbewertung kommt vom Modell (reviewed_ok / reviewed_weak),
+// nicht von einer Selbsteinschaetzung per Knopfdruck.
+const SR_INTERVALS_DAYS = [0, 1, 3, 7, 16, 35, 90];
+const DUE_WORDS = 8;
+const DUE_CHARS = 6;
+
+function dueDate(box) {
+  const days = SR_INTERVALS_DAYS[Math.max(0, Math.min(SR_INTERVALS_DAYS.length - 1, box))];
+  // Frisch Gelerntes (box 0) soll noch in derselben Sitzung wiederkommen.
+  const ms = days > 0 ? days * 86400000 : 10 * 60000;
+  return new Date(Date.now() + ms).toISOString();
+}
+
+async function loadDueItems() {
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const now = new Date().toISOString();
+  const [w, c] = await Promise.all([
+    db.from('chinese_teacher_words').select('hanzi, pinyin, meaning_de')
+      .eq('user_id', uid).lte('due_at', now).order('due_at').limit(DUE_WORDS),
+    db.from('chinese_teacher_chars').select('hanzi, pinyin, meaning_de')
+      .eq('user_id', uid).lte('due_at', now).order('due_at').limit(DUE_CHARS)
+  ]);
+  return [...((w.data) || []), ...((c.data) || [])];
+}
+
+// Neue Vokabeln anlegen (vorhandene NICHT ueberschreiben -- sonst wuerde jede
+// Begegnung den Lernfortschritt auf Box 0 zuruecksetzen).
+async function storeNewVocab(uid, chars, words) {
+  if (chars && chars.length) {
+    const rows = chars.filter(c => c && c.hanzi).map(c => ({
+      user_id: uid, hanzi: String(c.hanzi).slice(0, 8), pinyin: c.pinyin || null,
+      meaning_de: c.meaning_de || null, note: c.note || null,
+      box: 0, due_at: dueDate(0)
+    }));
+    if (rows.length) await db.from('chinese_teacher_chars')
+      .upsert(rows, { onConflict: 'user_id,hanzi', ignoreDuplicates: true });
+  }
+  if (words && words.length) {
+    const rows = words.filter(w => w && w.hanzi).map(w => ({
+      user_id: uid, hanzi: String(w.hanzi).slice(0, 32), pinyin: w.pinyin || null,
+      meaning_de: w.meaning_de || null, chars: Array.isArray(w.chars) ? w.chars : null,
+      box: 0, due_at: dueDate(0)
+    }));
+    if (rows.length) await db.from('chinese_teacher_words')
+      .upsert(rows, { onConflict: 'user_id,hanzi', ignoreDuplicates: true });
+  }
+}
+
+// Wiederholung verbuchen: richtig -> eine Box hoch und laenger warten,
+// gehakt -> eine Box zurueck und bald wieder dran.
+async function applyReview(uid, hanziList, ok) {
+  if (!hanziList || !hanziList.length) return;
+  for (const table of ['chinese_teacher_words', 'chinese_teacher_chars']) {
+    const { data } = await db.from(table)
+      .select('hanzi, box, seen_count, weak_count')
+      .eq('user_id', uid).in('hanzi', hanziList);
+    for (const row of (data || [])) {
+      const box = ok ? Math.min(SR_INTERVALS_DAYS.length - 1, row.box + 1) : Math.max(0, row.box - 1);
+      await db.from(table).update({
+        box,
+        due_at: dueDate(box),
+        seen_count: (row.seen_count || 0) + 1,
+        weak_count: (row.weak_count || 0) + (ok ? 0 : 1),
+        updated_at: new Date().toISOString()
+      }).eq('user_id', uid).eq('hanzi', row.hanzi);
+    }
+  }
+}
+
+// Best effort: Vokabelpflege darf ein laufendes Gespraech nie aufhalten.
+async function updateVocabulary(data) {
+  try {
+    const uid = await currentUserId();
+    if (!uid) return;
+    await storeNewVocab(uid, data.new_chars, data.new_words);
+    await applyReview(uid, data.reviewed_ok, true);
+    await applyReview(uid, data.reviewed_weak, false);
+    if (document.getElementById('vocabBox').open) renderVocab();
+  } catch (e) {
+    console.warn('Vokabeln nicht aktualisiert:', e.message);
+  }
+}
+
+async function renderVocab() {
+  const uid = await currentUserId();
+  if (!uid) return;
+  const now = Date.now();
+  const [c, w] = await Promise.all([
+    db.from('chinese_teacher_chars').select('hanzi, pinyin, meaning_de, box, due_at')
+      .eq('user_id', uid).order('due_at').limit(300),
+    db.from('chinese_teacher_words').select('hanzi, pinyin, meaning_de, box, due_at')
+      .eq('user_id', uid).order('due_at').limit(300)
+  ]);
+  const fill = (elId, rows) => {
+    const el = document.getElementById(elId);
+    if (!rows || !rows.length) { el.innerHTML = '<div class="vocab-empty">Noch nichts — sprecht einfach los.</div>'; return; }
+    el.innerHTML = rows.map(function (r) {
+      var due = new Date(r.due_at).getTime() <= now;
+      return '<div class="vocab-item' + (due ? ' due' : '') + '">' +
+        '<span class="vocab-hz">' + escapeHtml(r.hanzi) + '</span>' +
+        '<span class="vocab-py">' + escapeHtml(r.pinyin || '') + '</span>' +
+        '<span class="vocab-de">' + escapeHtml(r.meaning_de || '') + '</span>' +
+        '<span class="vocab-box">Stufe ' + r.box + (due ? ' · fällig' : '') + '</span></div>';
+    }).join('');
+  };
+  fill('charList', c.data);
+  fill('wordList', w.data);
+  const dueCount = [...(c.data || []), ...(w.data || [])].filter(r => new Date(r.due_at).getTime() <= now).length;
+  document.getElementById('vocabCount').textContent =
+    '— ' + (c.data || []).length + ' Zeichen, ' + (w.data || []).length + ' Wörter, ' + dueCount + ' fällig.';
+}
+window.renderVocab = renderVocab;
+
 // ---------- Zustand ----------
 let running = false;      // Gespraech laeuft
 let micPaused = false;    // Nutzer hat das Mikro pausiert
@@ -488,6 +639,8 @@ async function finishUtterance() {
 async function teacherTurn(audioB64, mimeType) {
   busy = true;
   setStatus('🀄 Lehrerin überlegt…');
+  let dueItems = [];
+  try { dueItems = await loadDueItems(); } catch { dueItems = []; }
 
   let data;
   try {
@@ -497,6 +650,7 @@ async function teacherTurn(audioB64, mimeType) {
         audio_b64: audioB64 || '',
         mime_type: mimeType || 'audio/webm',
         learner_instructions: learnerInstructions,
+        due_items: dueItems,
         conversation_history: conversationHistory.slice(-HISTORY_SEND)
       })
     }).then(r => r.json());
@@ -524,6 +678,7 @@ async function teacherTurn(audioB64, mimeType) {
   saveTurn('teacher', data.reply_hanzi, {
     pinyin: data.reply_pinyin, explanation: data.explanation, correctionNote: data.correction_note
   });
+  updateVocabulary(data);   // laeuft nebenher, haelt das Gespraech nicht auf
 
   try {
     await speak(data.reply_hanzi, data.explanation);
