@@ -60,6 +60,10 @@
   .prefs-body textarea { width: 100%; min-height: 150px; border: 1px solid #dcdce4; border-radius: 9px; padding: 10px 11px; font: inherit; font-size: 0.85rem; line-height: 1.5; resize: vertical; color: #333; }
   .prefs-body textarea:focus { outline: none; border-color: #2e7d32; }
   .prefs-row { display: flex; align-items: center; gap: 12px; margin-top: 9px; }
+  .prefs-dictate { background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 9px 16px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+  .prefs-dictate.recording { background: #c62828; }
+  .prefs-dictate:disabled { background: #9e9eb5; cursor: not-allowed; }
+  .prefs-heard { font-size: 0.78rem; color: #24486e; background: #e8f1fb; border-radius: 7px; padding: 7px 9px; margin-top: 9px; line-height: 1.45; }
   .prefs-save { background: #2e7d32; color: white; border: none; border-radius: 8px; padding: 9px 18px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
   .prefs-save:disabled { background: #a5d6a7; cursor: not-allowed; }
   .prefs-state { font-size: 0.78rem; color: #777; }
@@ -153,12 +157,17 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div class="prefs-help">
         Gilt dauerhaft für jede Antwort und wird gespeichert — auch auf anderen Geräten und nach dem Schließen
         des Tabs. Änderungen greifen ab der nächsten Gesprächsrunde, das laufende Gespräch musst du nicht neu starten.
+        Mit <b>Dazusagen</b> sprichst du einfach drauflos — die KI formuliert daraus eine Regel und trägt sie an
+        der passenden Stelle ein, statt dass du den Text selbst ordnen musst. Direktes Tippen geht weiterhin.
       </div>
       <textarea id="prefsText" placeholder="z. B.: Zerlege zusammengesetzte Wörter immer in ihre einzelnen Zeichen und erkläre jede Silbe."></textarea>
       <div class="prefs-row">
+        <button class="prefs-dictate" id="prefsDictate" onclick="toggleDictation()">🎤 Dazusagen</button>
         <button class="prefs-save" id="prefsSave" onclick="saveInstructions()">Speichern</button>
+        <a href="#" id="prefsDownload" onclick="downloadInstructions(event)" style="font-size:0.78rem;color:#2e7d32">.md laden</a>
         <span class="prefs-state" id="prefsState"></span>
       </div>
+      <div class="prefs-heard" id="prefsHeard" style="display:none"></div>
     </div>
   </details>
 
@@ -260,6 +269,101 @@ function setPrefsState(msg) {
   const el = document.getElementById('prefsState');
   if (el) el.textContent = msg || '';
 }
+
+// Diktat: aufnehmen, an den Worker schicken, der daraus eine Regel formuliert
+// und sie ins bestehende Dokument einpflegt. Bewusst Start/Stop per Knopf und
+// keine Sprechpausen-Erkennung wie im Gespraech -- beim Diktieren denkt man
+// zwischendurch, da waere ein automatischer Abbruch nur laestig.
+let dictateRecorder = null;
+let dictateChunks = [];
+let dictateStream = null;
+
+async function toggleDictation() {
+  const btn = document.getElementById('prefsDictate');
+  if (dictateRecorder && dictateRecorder.state === 'recording') {
+    btn.disabled = true;
+    btn.textContent = '⏳ wird eingearbeitet…';
+    await finishDictation();
+    btn.disabled = false;
+    btn.textContent = '🎤 Dazusagen';
+    btn.classList.remove('recording');
+    return;
+  }
+  try {
+    dictateStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true }
+    });
+  } catch (e) {
+    setPrefsState('Kein Mikrofon: ' + e.message);
+    return;
+  }
+  const mimeType = pickMimeType();
+  dictateRecorder = mimeType ? new MediaRecorder(dictateStream, { mimeType }) : new MediaRecorder(dictateStream);
+  dictateChunks = [];
+  dictateRecorder.ondataavailable = (e) => { if (e.data && e.data.size) dictateChunks.push(e.data); };
+  dictateRecorder.start();
+  btn.classList.add('recording');
+  btn.textContent = '⏹ Fertig';
+  setPrefsState('Sprich — dann auf „Fertig“ tippen.');
+}
+window.toggleDictation = toggleDictation;
+
+function stopDictateRecorder() {
+  return new Promise((resolve) => {
+    if (!dictateRecorder || dictateRecorder.state === 'inactive') return resolve(null);
+    dictateRecorder.onstop = () => resolve(
+      dictateChunks.length ? new Blob(dictateChunks, { type: dictateRecorder.mimeType || 'audio/webm' }) : null
+    );
+    try { dictateRecorder.stop(); } catch { resolve(null); }
+  });
+}
+
+async function finishDictation() {
+  const blob = await stopDictateRecorder();
+  if (dictateStream) { dictateStream.getTracks().forEach(t => t.stop()); dictateStream = null; }
+  dictateRecorder = null;
+  if (!blob || blob.size < 1000) { setPrefsState('Nichts aufgenommen.'); return; }
+
+  setPrefsState('Wird eingearbeitet…');
+  let data;
+  try {
+    data = await fetch(WORKER_URL + '/chinese-teacher-instructions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        audio_b64: await blobToBase64(blob),
+        mime_type: (blob.type || 'audio/webm').split(';')[0],
+        current_instructions: document.getElementById('prefsText').value
+      })
+    }).then(r => r.json());
+  } catch (e) {
+    setPrefsState('Fehler: ' + e.message);
+    return;
+  }
+  if (!data.success) { setPrefsState('Fehler: ' + data.error); return; }
+
+  document.getElementById('prefsText').value = data.instructions_md;
+  const heard = document.getElementById('prefsHeard');
+  heard.style.display = 'block';
+  heard.innerHTML = '🎧 Verstanden: „' + escapeHtml(data.heard || '') + '“<br>✏️ ' + escapeHtml(data.change || '');
+  // Direkt sichern -- sonst waere das Diktat nach einem Seitenwechsel weg.
+  await saveInstructions();
+}
+
+// Der Inhalt IST Markdown -- hier kann Stefan ihn als Datei herausziehen,
+// z.B. um ihn im Projektordner abzulegen. Gepflegt wird er aber weiter in
+// Supabase: der Browser kann nicht ins Repo schreiben, und die Kachel laeuft
+// auch auf dem Handy.
+function downloadInstructions(ev) {
+  ev.preventDefault();
+  const text = document.getElementById("prefsText").value;
+  const url = URL.createObjectURL(new Blob([text], { type: "text/markdown;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "chinesisch-lehrerin-anweisungen.md";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+window.downloadInstructions = downloadInstructions;
 
 async function saveInstructions() {
   const btn = document.getElementById('prefsSave');
