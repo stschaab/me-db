@@ -250,19 +250,46 @@ window.setHanziVisible = setHanziVisible;
 // geraetuebergreifend gelten -- localStorage waere nur dieser Browser. Der
 // Worker bleibt zustandslos: der Text geht bei jeder Runde mit, genau wie der
 // Gespraechsverlauf.
+// Massgeblich ist die Markdown-Datei im (privaten) medb-worker-Repo --
+// Stefan will seine Lernwuensche als Datei haben, die er auch von Hand
+// bearbeiten kann. Der Browser kann sie nicht direkt lesen (privates Repo,
+// und ein Repo-Token gehoert nicht in den Browser), deshalb ueber den Worker.
+// Supabase bleibt der Spiegel und der Rueckfall, wenn der Repo-Weg klemmt.
 async function loadInstructions() {
   const { data: { session } } = await db.auth.getSession();
   if (!session) return;
+
+  let fromFile = null;
+  try {
+    const r = await fetch(WORKER_URL + '/chinese-teacher-instructions-load', { method: 'POST' })
+      .then(x => x.json());
+    if (r.success && r.instructions_md) fromFile = r.instructions_md;
+  } catch { /* Netz weg: weiter mit Supabase */ }
+
   const { data, error } = await db
     .from('chinese_teacher_prefs')
     .select('instructions')
     .eq('user_id', session.user.id)
     .maybeSingle();
-  if (error) { setPrefsState('Konnte nicht geladen werden: ' + error.message); return; }
-  learnerInstructions = (data && data.instructions) || '';
+  const fromDb = (data && data.instructions) || '';
+
+  learnerInstructions = fromFile !== null ? fromFile : fromDb;
   const box = document.getElementById('prefsText');
   if (box) box.value = learnerInstructions;
-  setPrefsState(learnerInstructions ? 'Gespeichert.' : 'Noch nichts hinterlegt.');
+
+  if (fromFile !== null) {
+    setPrefsState('Aus der Datei im Repo geladen.');
+    // Spiegel nachziehen, falls jemand die Datei von Hand geaendert hat.
+    if (fromFile !== fromDb) {
+      db.from('chinese_teacher_prefs')
+        .upsert({ user_id: session.user.id, instructions: fromFile, updated_at: new Date().toISOString() },
+                { onConflict: 'user_id' });
+    }
+  } else if (error) {
+    setPrefsState('Konnte nicht geladen werden: ' + error.message);
+  } else {
+    setPrefsState(fromDb ? 'Aus der Datenbank geladen (Repo-Datei nicht erreichbar).' : 'Noch nichts hinterlegt.');
+  }
 }
 
 function setPrefsState(msg) {
@@ -344,8 +371,16 @@ async function finishDictation() {
   document.getElementById('prefsText').value = data.instructions_md;
   const heard = document.getElementById('prefsHeard');
   heard.style.display = 'block';
-  heard.innerHTML = '🎧 Verstanden: „' + escapeHtml(data.heard || '') + '“<br>✏️ ' + escapeHtml(data.change || '');
-  // Direkt sichern -- sonst waere das Diktat nach einem Seitenwechsel weg.
+  var zeile = '🎧 Verstanden: „' + escapeHtml(data.heard || '') + '“<br>✏️ ' + escapeHtml(data.change || '');
+  if (data.committed) zeile += '<br>📄 In die Datei im Repo geschrieben.';
+  else if (data.file_error) zeile += '<br>⚠️ Datei im Repo nicht geschrieben: ' + escapeHtml(data.file_error);
+  heard.innerHTML = zeile;
+
+  // Rohen Zuruf im Posteingang ablegen -- die gepflegte Fassung ist
+  // interpretiert, hier bleibt nachvollziehbar, was tatsaechlich gesagt wurde.
+  await appendRawInbox(data.heard || '');
+  // Spiegel sichern -- auch wenn die Datei geschrieben wurde, damit die
+  // Kachel ohne Repo-Zugriff weiterarbeiten kann.
   await saveInstructions();
 }
 
@@ -364,6 +399,23 @@ function downloadInstructions(ev) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 window.downloadInstructions = downloadInstructions;
+
+async function appendRawInbox(text) {
+  if (!text) return;
+  try {
+    const uid = await currentUserId();
+    if (!uid) return;
+    const { data } = await db.from('chinese_teacher_prefs')
+      .select('raw_inbox').eq('user_id', uid).maybeSingle();
+    const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    const next = ((data && data.raw_inbox) || '') + '[' + stamp + '] ' + text + '\n';
+    await db.from('chinese_teacher_prefs')
+      .upsert({ user_id: uid, raw_inbox: next.slice(-20000), updated_at: new Date().toISOString() },
+              { onConflict: 'user_id' });
+  } catch (e) {
+    console.warn('Posteingang nicht geschrieben:', e.message);
+  }
+}
 
 async function saveInstructions() {
   const btn = document.getElementById('prefsSave');
