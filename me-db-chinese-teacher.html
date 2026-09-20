@@ -393,10 +393,14 @@ async function startSession() {
     // unterscheidbar, anders als Deutsch vs. akzentbehaftetes Mandarin.
     const helpConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(token, region);
     const autoDetect = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages(HELP_LANGUAGES);
-    // Der Modus muss an der AutoDetect-Config haengen, nicht an der
-    // SpeechConfig: AutoDetectSourceLanguageConfig setzt sich selbst auf
-    // "AtStart" und ueberschreibt beim FromConfig() jede Einstellung dort.
-    autoDetect.mode = SpeechSDK.LanguageIdMode.Continuous;
+    // Bewusst KEIN Continuous-Modus: laut Azure-Doku verlangt Continuous LID
+    // eine SpeechConfig "from endpoint" (nicht aus Region/Token), und der
+    // Modus loest ohnehin ein Problem, das hier keins ist -- der
+    // Hilfe-Erkenner wird pro Hilfe-Anfrage frisch gestartet und deckt genau
+    // eine Aeusserung in einer Sprache ab. At-Start-LID (Default) passt dazu
+    // exakt: einmal bestimmen, fertig. Continuous koennte innerhalb eines
+    // Satzes ohnehin nicht umschalten, das kann Azures LID grundsaetzlich
+    // nicht (s. MeDB.md).
     helpRecognizer = SpeechSDK.SpeechRecognizer.FromConfig(helpConfig, autoDetect, mic);
 
     synthesizer = new SpeechSDK.SpeechSynthesizer(zhConfig, SpeechSDK.AudioConfig.fromDefaultSpeakerOutput());
