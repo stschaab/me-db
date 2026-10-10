@@ -139,6 +139,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
     <a href="me-db-pv.html">PV Plant</a>
     <a href="me-db-sprinkler.html">🌱 Sprinkler</a>
+    <a href="me-db-eisbaden.html">🧊 Eisbaden</a>
     <a href="me-db-tagebuch.html">Tagebuch</a>
     <a href="me-db-tutor.html">🦸 KI-Tutor</a>
     <a href="me-db-chinese-teacher.html">🀄 Chinese Teacher</a>
@@ -268,6 +269,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div id="sprinklerStat">…</div>
     </a>
 
+    <a class="tile" href="me-db-eisbaden.html">
+      <div class="icon">🧊</div>
+      <div class="title">Eisbaden</div>
+      <div class="desc">Tagesmitteltemperatur Erlangen, Bottich lohnt ab &lt; 10 °C</div>
+      <div id="eisStat">…</div>
+    </a>
+
     <a class="tile" href="me-db-trendviewer.html">
       <div class="icon">📈</div>
       <div class="title">Trend Viewer</div>
@@ -305,7 +313,7 @@ let sessionToken = ANON_KEY;
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   sessionToken = data.session.access_token;
-  loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); loadBodyscanStat(); loadOutfitStat(); loadTagebuchStat();
+  loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); loadBodyscanStat(); loadOutfitStat(); loadTagebuchStat(); loadEisStat();
 });
 
 async function logout() {
@@ -654,6 +662,29 @@ async function loadVorsorgeStat() {
       : `<div class="vor-stat">Still empty</div>`;
   } catch (e) {
     document.getElementById('vorsorgeStat').innerHTML = '';
+  }
+}
+async function loadEisStat() {
+  const el = document.getElementById('eisStat');
+  try {
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=49.59&longitude=11.00&daily=temperature_2m_mean&past_days=6&forecast_days=16&timezone=Europe%2FBerlin');
+    if (!r.ok) throw new Error(r.status);
+    const { daily } = await r.json();
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+    const i = daily.time.indexOf(today);
+    const t = daily.temperature_2m_mean[i];
+    const last7 = daily.temperature_2m_mean.slice(Math.max(0, i - 6), i + 1).filter(v => v != null);
+    const avg7 = last7.reduce((a, b) => a + b, 0) / last7.length;
+    const cold = t < 10;
+    const fi = daily.time.findIndex((d, k) => d > today && daily.temperature_2m_mean[k] < 10);
+    const sub = cold ? '✓ unter 10 °C'
+      : fi >= 0 ? '< 10 °C ab ' + new Date(daily.time[fi] + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })
+      : 'in 16 Tagen nicht < 10 °C';
+    el.innerHTML = `
+      <div class="stat"><span class="n" style="color:${cold ? '#1565c0' : '#c62828'}">${t.toFixed(1).replace('.', ',')}</span><span class="u">°C Ø heute</span></div>
+      <div class="hrv-sub">7-Tage-Ø ${avg7.toFixed(1).replace('.', ',')} °C · ${sub}</div>`;
+  } catch (e) {
+    el.innerHTML = '';
   }
 }
 </script>

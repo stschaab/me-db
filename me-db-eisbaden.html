@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Eisbaden</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  header span { opacity: 0.5; font-size: 0.85rem; margin-left: 12px; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 1100px; margin: 32px auto; padding: 0 24px; }
+  .card { background: white; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 14px; }
+  h2 { font-size: 1.15rem; margin-bottom: 4px; }
+  .sub { font-size: 0.78rem; color: #888; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .kpi .lbl { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: #999; font-weight: 700; }
+  .kpi .val { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+  .kpi .val.cold { color: #1565c0; }
+  .kpi .val.warm { color: #c62828; }
+  .kpi .hint { font-size: 0.7rem; color: #aaa; margin-top: 2px; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .controls button { border: 1px solid #ccc; background: white; border-radius: 16px; padding: 4px 12px; font-size: 0.78rem; cursor: pointer; color: #555; }
+  .controls button.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+  #chart { width: 100%; height: 460px; }
+  .err { color: #c62828; font-size: 0.85rem; }
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+/* === Hamburger navigation (always active) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+.global-voice-btn { width: 38px; height: 38px; border-radius: 50%; background: #c62828; color: white; border: none; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; text-decoration: none; flex-shrink: 0; }
+.global-voice-btn:hover { background: #a91e1e; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 0.95rem; flex-wrap: wrap; }
+  .container { padding: 0 14px; margin: 18px auto; }
+  .tiles { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  .grid { grid-template-columns: repeat(2, 1fr) !important; }
+  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+  input, select, textarea, button { font-size: 16px !important; }
+  .addbar { flex-direction: column; align-items: stretch; }
+  .addbar input, .addbar select, .addbar button { width: 100%; }
+}
+</style>
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a></h1>
+    <span id="lastUpdate">&nbsp;</span>
+  </div>
+  <div class="header-right">
+    <a class="global-voice-btn" href="me-db-voice.html" title="Voice">🎤</a>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  </div>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Activities</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Reports</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Values</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-bodyscan.html">Body Scan</a>
+    <a href="me-db-outfit.html">Modeberater</a>
+    <a href="me-db-abos.html">Subscriptions</a>
+    <a href="me-db-supplements.html">Supplements</a>
+    <a href="me-db-nutrient-vergleich.html">Nährstoff-Vergleich</a>
+
+    <a href="me-db-pv.html">PV Plant</a>
+    <a href="me-db-sprinkler.html">🌱 Sprinkler</a>
+    <a href="me-db-eisbaden.html">🧊 Eisbaden</a>
+    <a href="me-db-tagebuch.html">Tagebuch</a>
+    <a href="me-db-tutor.html">🦸 KI-Tutor</a>
+    <a href="me-db-chinese-teacher.html">🀄 Chinese Teacher</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
+  <div class="card">
+    <h2>🧊 Eisbaden · Erlangen</h2>
+    <div class="sub">Tagesmitteltemperatur (2 m) als Näherung für die Bottich-Temperatur · Schwelle &lt; 10 °C · Daten: Open-Meteo</div>
+  </div>
+
+  <div class="kpis">
+    <div class="card kpi"><div class="lbl">Heute Ø</div><div class="val" id="kToday">…</div><div class="hint" id="kTodayHint"></div></div>
+    <div class="card kpi"><div class="lbl">Ø letzte 7 Tage</div><div class="val" id="k7">…</div><div class="hint">≈ träge Bottich-Temperatur</div></div>
+    <div class="card kpi"><div class="lbl">Erster Tag &lt; 10 °C (Prognose)</div><div class="val" id="kFirst">…</div><div class="hint" id="kFirstHint"></div></div>
+    <div class="card kpi"><div class="lbl">Vorjahr: 7-Tage-Ø &lt; 10 °C ab</div><div class="val" id="kLastYear">…</div><div class="hint">dauerhaft bis Jahresende</div></div>
+  </div>
+
+  <div class="card">
+    <div class="controls" id="range">
+      <button data-d="30">30 T</button>
+      <button data-d="90" class="active">90 T</button>
+      <button data-d="365">1 Jahr</button>
+    </div>
+    <div id="chart"></div>
+    <div id="err" class="err"></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+// Standort fest: Erlangen (später konfigurierbar)
+const LOC = { name: 'Erlangen', lat: 49.59, lon: 11.00 };
+const THRESHOLD = 10;
+const TZ = 'Europe%2FBerlin';
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  load();
+});
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+const iso = d => d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+const addDays = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
+const fmtT = v => v == null ? '–' : v.toFixed(1).replace('.', ',') + ' °C';
+const fmtD = s => new Date(s + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+
+let series = null;
+let rangeDays = 90;
+
+async function fetchJson(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(url.split('?')[0] + ': HTTP ' + r.status);
+  return r.json();
+}
+
+function rolling7(vals) {
+  return vals.map((_, i) => {
+    const w = vals.slice(Math.max(0, i - 6), i + 1).filter(v => v != null);
+    return w.length >= 4 ? w.reduce((a, b) => a + b, 0) / w.length : null;
+  });
+}
+
+async function load() {
+  try {
+    const today = iso(new Date());
+    // Archiv (ERA5) für 2 Jahre Historie, Forecast-API für die letzten 92 Tage + 16 Tage Prognose
+    const archStart = addDays(today, -730);
+    const archEnd = addDays(today, -6);
+    const [arch, fc] = await Promise.all([
+      fetchJson(`https://archive-api.open-meteo.com/v1/archive?latitude=${LOC.lat}&longitude=${LOC.lon}&start_date=${archStart}&end_date=${archEnd}&daily=temperature_2m_mean&timezone=${TZ}`),
+      fetchJson(`https://api.open-meteo.com/v1/forecast?latitude=${LOC.lat}&longitude=${LOC.lon}&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&past_days=92&forecast_days=16&timezone=${TZ}`)
+    ]);
+
+    // Forecast-API überschreibt Archiv (aktueller), Archiv füllt die Zeit davor
+    const map = new Map();
+    arch.daily.time.forEach((t, i) => map.set(t, arch.daily.temperature_2m_mean[i]));
+    fc.daily.time.forEach((t, i) => { const v = fc.daily.temperature_2m_mean[i]; if (v != null) map.set(t, v); });
+    const dates = [...map.keys()].sort();
+    const vals = dates.map(d => map.get(d));
+
+    series = { today, dates, vals, roll: rolling7(vals),
+      fcDates: fc.daily.time, fcMin: fc.daily.temperature_2m_min, fcMax: fc.daily.temperature_2m_max };
+    renderKpis();
+    render();
+  } catch (e) {
+    document.getElementById('err').textContent = 'Fehler beim Laden: ' + e.message;
+  }
+}
+
+function renderKpis() {
+  const { today, dates, vals, roll } = series;
+  const i = dates.indexOf(today);
+  const tv = vals[i];
+  const el = document.getElementById('kToday');
+  el.textContent = fmtT(tv);
+  el.className = 'val ' + (tv != null && tv < THRESHOLD ? 'cold' : 'warm');
+  document.getElementById('kTodayHint').textContent = tv != null && tv < THRESHOLD ? 'unter Schwelle ✓' : 'über Schwelle';
+  document.getElementById('k7').textContent = fmtT(roll[i]);
+
+  const first = dates.findIndex((d, k) => d >= today && vals[k] != null && vals[k] < THRESHOLD);
+  document.getElementById('kFirst').textContent = first >= 0 ? fmtD(dates[first]) : 'nicht in 16 T';
+  document.getElementById('kFirstHint').textContent = first >= 0 ? fmtT(vals[first]) : 'keine Prognose < 10 °C';
+
+  // Vorjahr: Beginn der letzten Phase Aug–Dez, ab der der 7-Tage-Ø bis Jahresende unter der Schwelle blieb
+  const ly = String(Number(today.slice(0, 4)) - 1);
+  let lyStart = null;
+  for (let k = 0; k < dates.length; k++) {
+    const d = dates[k];
+    if (d < ly + '-08-01' || d > ly + '-12-31') continue;
+    if (roll[k] != null && roll[k] < THRESHOLD) { if (!lyStart) lyStart = d; }
+    else lyStart = null;
+  }
+  document.getElementById('kLastYear').textContent = lyStart
+    ? new Date(lyStart + 'T12:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })
+    : '–';
+}
+
+function render() {
+  const { today, dates, vals, roll, fcDates, fcMin, fcMax } = series;
+  const start = addDays(today, -rangeDays);
+  const end = addDays(today, 16);
+  const idx = dates.map((d, k) => k).filter(k => dates[k] >= start && dates[k] <= end);
+  const D = idx.map(k => dates[k]), V = idx.map(k => vals[k]), R = idx.map(k => roll[k]);
+
+  // Vorjahr um +1 Jahr verschoben zum Vergleich
+  const lyD = [], lyV = [];
+  dates.forEach((d, k) => {
+    const shifted = String(Number(d.slice(0, 4)) + 1) + d.slice(4);
+    if (shifted >= start && shifted <= end) { lyD.push(shifted); lyV.push(vals[k]); }
+  });
+
+  const fcI = fcDates.map((d, k) => k).filter(k => fcDates[k] > today);
+  const traces = [
+    { x: fcI.map(k => fcDates[k]), y: fcI.map(k => fcMax[k]), mode: 'lines', line: { width: 0 }, hoverinfo: 'skip', showlegend: false },
+    { x: fcI.map(k => fcDates[k]), y: fcI.map(k => fcMin[k]), mode: 'lines', line: { width: 0 }, fill: 'tonexty', fillcolor: 'rgba(126,200,227,0.25)', name: 'Prognose Min–Max', hoverinfo: 'skip' },
+    { x: lyD, y: lyV, mode: 'lines', name: 'Vorjahr', line: { color: '#bbb', width: 1, dash: 'dot' }, hovertemplate: '%{y:.1f} °C<extra>Vorjahr</extra>' },
+    { x: D, y: V, mode: 'lines+markers', name: 'Tagesmittel', line: { color: '#1a1a2e', width: 2 },
+      marker: { size: 4, color: V.map(v => v != null && v < THRESHOLD ? '#1565c0' : '#c62828') },
+      hovertemplate: '%{x|%a %d.%m.}<br><b>%{y:.1f} °C</b><extra></extra>' },
+    { x: D, y: R, mode: 'lines', name: '7-Tage-Ø', line: { color: '#1565c0', width: 2.5 }, hovertemplate: '%{y:.1f} °C<extra>7-Tage-Ø</extra>' }
+  ];
+  const ys = [...V, ...R, ...lyV, ...fcI.map(k => fcMax[k]), ...fcI.map(k => fcMin[k])].filter(v => v != null);
+  const layout = {
+    margin: { l: 44, r: 12, t: 16, b: 40 },
+    hovermode: 'x unified',
+    legend: { orientation: 'h', y: -0.15 },
+    yaxis: { title: '°C', zeroline: true, zerolinecolor: '#ddd', gridcolor: '#eee',
+      range: [Math.min(...ys, 0) - 2, Math.max(...ys, THRESHOLD) + 2] },
+    xaxis: { gridcolor: '#eee', range: [start, end] },
+    shapes: [
+      { type: 'rect', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: -30, y1: THRESHOLD, fillcolor: 'rgba(21,101,192,0.06)', line: { width: 0 }, layer: 'below' },
+      { type: 'line', xref: 'paper', x0: 0, x1: 1, y0: THRESHOLD, y1: THRESHOLD, line: { color: '#1565c0', width: 1, dash: 'dash' } },
+      { type: 'line', x0: today, x1: today, yref: 'paper', y0: 0, y1: 1, line: { color: '#999', width: 1, dash: 'dot' } }
+    ],
+    annotations: [
+      { x: today, yref: 'paper', y: 1, text: 'heute', showarrow: false, yanchor: 'bottom', font: { size: 10, color: '#999' } },
+      { xref: 'paper', x: 0, y: THRESHOLD, text: '10 °C', showarrow: false, xanchor: 'left', yanchor: 'bottom', font: { size: 10, color: '#1565c0' } }
+    ],
+    plot_bgcolor: 'white', paper_bgcolor: 'white'
+  };
+  Plotly.react('chart', traces, layout, { responsive: true, displayModeBar: false });
+}
+
+document.getElementById('range').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('#range button').forEach(x => x.classList.toggle('active', x === b));
+  rangeDays = Number(b.dataset.d);
+  if (series) render();
+});
+</script>
+</body>
+</html>
