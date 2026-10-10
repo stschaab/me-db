@@ -227,24 +227,67 @@ function renderStatus(data) {
   const updated = data.latest_observed_at
     ? new Date(data.latest_observed_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
     : '–';
+  // Seit 2026-10-10 entscheidet der Worker auf Tennenlohe-Werten INKLUSIVE Vorhersage für den
+  // restlichen heutigen Tag (vorher: Station Nürnberg Flughafen, nur Vergangenheit — deshalb
+  // lief der Sprinkler morgens und der Tagesregen kam danach). Die Kachel muss das zeigen,
+  // sonst ist die Entscheidung im Verlauf nicht nachvollziehbar.
+  const SOURCE_LABEL = {
+    'open-meteo': 'Open-Meteo · Tennenlohe',
+    'brightsky': 'DWD/Bright Sky · Erlangen',
+    'dwd_precip_hourly': 'DWD-Station Nürnberg (Rückfall, ohne Vorhersage)',
+    'keine': '⚠️ keine Wetterdaten erreichbar',
+  };
+  // data_source fehlt nur, wenn der Worker noch den Stand vor 2026-10-10 hat (Deploy-Fenster
+  // oder Rollback) — dann beschreibt der alte Titel die Lage korrekt, statt "–" zu zeigen.
+  const quelle = SOURCE_LABEL[wp.data_source] || wp.data_source || 'DWD-Station Nürnberg';
+  const pending = wp.rain_today_raw_mm != null && wp.rain_today_fallen_mm != null
+    ? Math.max(0, +(wp.rain_today_raw_mm - wp.rain_today_fallen_mm).toFixed(1))
+    : null;
+  let heuteDetail = '';
+  if (wp.rain_today_fallen_mm != null) {
+    heuteDetail = `${wp.rain_today_fallen_mm}mm gefallen`;
+    if (pending > 0) {
+      heuteDetail += ` + ${pending}mm erwartet`;
+      if (wp.rain_today_prob != null) heuteDetail += ` (${wp.rain_today_prob}%)`;
+    }
+  } else if (wp.data_source == null) {
+    heuteDetail = 'Stationsmessung';
+  } else if (wp.has_forecast) {
+    heuteDetail = 'gefallen + erwartet';
+  } else {
+    heuteDetail = 'nur gemessen, keine Vorhersage';
+  }
+  const warn = wp.data_ok === false
+    ? `<div class="updated" style="color:#c62828">⚠️ Keine Wetterdaten erreichbar — es wird mit normaler Dauer gegossen. ${(wp.source_errors || []).join(' · ')}</div>`
+    : '';
+  const abschlag = wp.rain_today_discounted_mm > 0
+    ? ` · ${wp.rain_today_discounted_mm}mm wegen unsicherer Vorhersage nur halb gezählt`
+    : '';
   document.getElementById('statusCard').innerHTML = `
-    <div class="card-title">Regen &amp; Wetter-Lage · Nürnberg Flughafen</div>
+    <div class="card-title">Regen &amp; Wetter-Lage · ${quelle}</div>
     <div class="status-row">
       <div>
-        <div class="n">${data.rain_today_mm}<span class="u">mm</span></div>
-        <div class="lbl">Niederschlag heute</div>
+        <div class="n">${wp.rain_today_mm ?? data.rain_today_mm ?? '–'}<span class="u">mm</span></div>
+        <div class="lbl">Regen heute · ${heuteDetail}</div>
       </div>
       <div>
         <div class="n">${wp.rain_sum_mm ?? '–'}<span class="u">mm</span></div>
-        <div class="lbl">Regen · letzte ${wp.rules?.rain_lookback_days ?? '?'} Tage</div>
+        <div class="lbl">Regen · letzte ${wp.rules?.rain_lookback_days ?? '?'} Tage (heute eingerechnet)</div>
       </div>
       <div>
-        <div class="n">${wp.max_temp_c ?? '–'}<span class="u">°C</span></div>
-        <div class="lbl">Max-Temp im Zeitraum</div>
+        <div class="n">${wp.max_temp_today_c ?? wp.max_temp_c ?? '–'}<span class="u">°C</span></div>
+        <div class="lbl">Max-Temp heute</div>
       </div>
+      ${wp.et0_today_mm != null ? `
+      <div>
+        <div class="n">${wp.et0_today_mm}<span class="u">mm</span></div>
+        <div class="lbl">Verdunstung heute</div>
+      </div>` : ''}
       <div class="badge ${decClass}">${decLabel}${wp.factor != null ? ` (${Math.round(wp.factor * 100)}% Dauer)` : ''}</div>
     </div>
-    <div class="updated">Letzte DWD-Meldung: ${updated} · Wetter-Check läuft stündlich, Zeitplan-Check alle 5 Min.</div>`;
+    ${data.weather_note ? `<div class="updated">Entscheidung: ${data.weather_note}${abschlag}</div>` : ''}
+    <div class="updated">Letzte DWD-Stationsmeldung: ${updated} (${data.rain_today_mm ?? '–'}mm heute am Flughafen) · Zeitplan-Check alle 5 Min.</div>
+    ${warn}`;
 }
 
 async function loadValvesAndSchedules() {
