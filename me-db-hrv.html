@@ -46,6 +46,11 @@
 
   .hint { font-size: 0.8rem; color: #aaa; margin-top: 14px; line-height: 1.5; }
 
+  .sport-badge { display: inline-block; font-size: 0.72rem; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+  .sport-badge.same { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+  .sport-badge.prev { background: #fff8e1; color: #8d6e00; border: 1px solid #ffe6a7; }
+  .sport-none { color: #ccc; }
+
   .section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin: 28px 0 12px; }
   .chart-wrap { background: white; border-radius: 14px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); height: 280px; }
 
@@ -145,8 +150,17 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <div class="hint">Only works in Chrome/Edge (desktop &amp; Android) via Web Bluetooth – not in Safari/iOS. The H10 must be in range and not connected to another app (e.g. close Polar Beat). Put on the chest strap, moisten it, and sit/lie still for 60 seconds for a clean result.</div>
   </div>
 
-  <div class="section-title">RMSSD (HRV) - Trend</div>
+  <div class="section-title">Trend: RMSSD + Herzfrequenz</div>
   <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+  <div class="hint" style="margin-top:10px">
+    <strong>Rote Punkte</strong> = an diesem Tag gab es eine Strava-Aktivität, <strong>gelbe</strong> = am Vortag.
+    Nach einer Einheit ist RMSSD typischerweise gesenkt und die Herzfrequenz erhöht – markierte Punkte
+    gehören deshalb nicht ungeprüft mit Ruhemessungen in denselben Trend.
+    <br><strong>Wichtig:</strong> Strava liefert nur das <em>Datum</em>, keine Uhrzeit. Ob eine Messung
+    <em>vor</em> oder <em>nach</em> der Einheit lag, ist daher nicht ableitbar – der Punkt sagt nur
+    „an diesem Tag war Sport". Eine Morgenmessung vor dem Training und eine direkt danach tragen
+    dieselbe Markierung, obwohl sie Gegenteiliges bedeuten.
+  </div>
 
   <div class="section-title">History</div>
   <div id="history"><div class="loading">Loading…</div></div>
@@ -311,47 +325,130 @@ function showResult(m, count) {
     <div class="rcard"><div class="v">${Math.round(m.meanHR)}</div><div class="l">Ø HR bpm</div></div>
     <div class="rcard"><div class="v">${m.rmssd!=null ? m.rmssd.toFixed(1) : '–'}</div><div class="l">RMSSD (HRV) ms</div></div>
     <div class="rcard"><div class="v">${m.sdnn.toFixed(1)}</div><div class="l">SDNN ms</div></div>
-    <div class="rcard"><div class="v">${m.pnn50!=null ? m.pnn50.toFixed(0)+'%' : '–'}</div><div class="l">pNN50</div></div>
     <div class="rcard"><div class="v">${count}</div><div class="l">RR values</div></div>
   `;
   document.getElementById('result').classList.add('show');
 }
 
+/* ---------- Sport-Kontext (Strava) ----------
+   activities.date ist eine DATE-Spalte ohne Uhrzeit ("2026-10-04"). Eine echte
+   24-Stunden-Fenster-Prüfung ist damit nicht möglich – deshalb bewusst nur
+   Tagesauflösung: selber Tag / Vortag.                                        */
+let activityByDate = {};
+
+function dateKey(d) {
+  const x = new Date(d);
+  return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0');
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadActivities(hrvRows) {
+  activityByDate = {};
+  if (!hrvRows.length) return;
+  const earliest = Math.min(...hrvRows.map(r => new Date(r.measured_at).getTime()));
+  const from = dateKey(new Date(earliest - 36*3600*1000));   // ein Tag Puffer für den Vortag
+  const { data, error } = await db.from('activities')
+    .select('date,type,duration_sec,avg_heartrate')
+    .gte('date', from);
+  if (error || !data) return;                                 // ohne Strava-Daten bleibt die Spalte leer
+  for (const a of data) {
+    const key = String(a.date).slice(0, 10);
+    (activityByDate[key] = activityByDate[key] || []).push(a);
+  }
+}
+
+function sportContext(measuredAt) {
+  const d = new Date(measuredAt);
+  const same = activityByDate[dateKey(d)] || [];
+  if (same.length) return { level: 'same', acts: same };
+  const prev = activityByDate[dateKey(new Date(d.getTime() - 24*3600*1000))] || [];
+  if (prev.length) return { level: 'prev', acts: prev };
+  return { level: 'none', acts: [] };
+}
+
+function sportDetail(ctx) {
+  if (!ctx.acts.length) return '';
+  const a = ctx.acts[0];
+  const bits = [a.type || 'Sport'];
+  if (a.duration_sec) bits.push(Math.round(a.duration_sec/60) + ' min');
+  if (a.avg_heartrate) bits.push('HF ⌀ ' + Math.round(a.avg_heartrate));
+  return bits.join(', ') + (ctx.acts.length > 1 ? ' (+' + (ctx.acts.length-1) + ' weitere)' : '');
+}
+
 /* ---------- History + chart ---------- */
 async function loadHistory() {
   const { data, error } = await db.from('hrv_measurements')
-    .select('id,measured_at,mean_hr,rmssd,sdnn,pnn50,rr_count')
+    .select('id,measured_at,mean_hr,rmssd,sdnn,rr_count')
     .order('measured_at', { ascending: false })
     .limit(100);
   if (error) { document.getElementById('history').innerHTML = '<div class="empty">Error: ' + error.message + '</div>'; return; }
 
-  renderChart((data||[]).slice().reverse());
-  renderHistory(data||[]);
+  const rows = data || [];
+  await loadActivities(rows);
+  renderChart(rows.slice().reverse());
+  renderHistory(rows);
 }
 
 function renderChart(rows) {
-  const labels = rows.map(r => new Date(r.measured_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}));
-  const values = rows.map(r => r.rmssd);
+  const labels = rows.map(r => new Date(r.measured_at).toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}));
+  const rmssd  = rows.map(r => r.rmssd);
+  const hr     = rows.map(r => r.mean_hr);
+  const ctxs   = rows.map(r => sportContext(r.measured_at));
+
+  const POINT = { same: '#c62828', prev: '#f0b429', none: '#1a1a2e' };
   const ctx = document.getElementById('trendChart').getContext('2d');
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
     type: 'line',
-    data: { labels, datasets: [{ label: 'RMSSD (HRV) (ms)', data: values, borderColor: '#1a1a2e', backgroundColor: 'rgba(126,200,227,0.2)', tension: 0.25, fill: true, pointRadius: 3 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false } } }
+    data: { labels, datasets: [
+      { label: 'RMSSD (ms)', data: rmssd, yAxisID: 'y',
+        borderColor: '#1a1a2e', backgroundColor: 'rgba(126,200,227,0.2)', tension: 0.25, fill: true,
+        pointBackgroundColor: ctxs.map(c => POINT[c.level]),
+        pointBorderColor:     ctxs.map(c => POINT[c.level]),
+        pointRadius:          ctxs.map(c => c.level === 'none' ? 3 : 6) },
+      { label: 'Herzfrequenz (bpm)', data: hr, yAxisID: 'y1',
+        borderColor: '#c62828', backgroundColor: 'transparent', borderDash: [5,4],
+        tension: 0.25, fill: false, pointRadius: 2, pointBackgroundColor: '#c62828' }
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { afterBody: (items) => {
+          const c = ctxs[items[0].dataIndex];
+          if (c.level === 'same') return 'Sport an diesem Tag (vor/nach nicht unterscheidbar): ' + sportDetail(c);
+          if (c.level === 'prev') return 'Sport am Vortag: ' + sportDetail(c);
+          return 'kein Sport am selben Tag oder Vortag';
+        } } }
+      },
+      scales: {
+        y:  { position: 'left',  beginAtZero: false, title: { display: true, text: 'RMSSD (ms)' } },
+        y1: { position: 'right', beginAtZero: false, title: { display: true, text: 'HF (bpm)' },
+              grid: { drawOnChartArea: false } }
+      }
+    }
   });
 }
 
 function renderHistory(rows) {
   if (!rows.length) { document.getElementById('history').innerHTML = '<div class="empty">No measurements yet.</div>'; return; }
-  let html = `<table><thead><tr><th>Date</th><th>Avg HR</th><th>RMSSD (HRV)</th><th>SDNN</th><th>pNN50</th><th>RR</th><th></th></tr></thead><tbody>`;
+  let html = `<table><thead><tr><th>Date</th><th>Avg HR</th><th>RMSSD (HRV)</th><th>SDNN</th><th>Sport</th><th>RR</th><th></th></tr></thead><tbody>`;
   for (const r of rows) {
-    const date = new Date(r.measured_at).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    const date = new Date(r.measured_at).toLocaleString('de-DE', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    const sc = sportContext(r.measured_at);
+    let sportCell = '<span class="sport-none">–</span>';
+    if (sc.level === 'same')      sportCell = `<span class="sport-badge same" title="${esc(sportDetail(sc))}">🏃 selber Tag</span>`;
+    else if (sc.level === 'prev') sportCell = `<span class="sport-badge prev" title="${esc(sportDetail(sc))}">🏃 Vortag</span>`;
     html += `<tr>
       <td>${date}</td>
       <td>${r.mean_hr ?? '–'}</td>
       <td>${r.rmssd ?? '–'}</td>
       <td>${r.sdnn ?? '–'}</td>
-      <td>${r.pnn50 ?? '–'}</td>
+      <td>${sportCell}</td>
       <td>${r.rr_count ?? '–'}</td>
       <td><button class="del-btn" onclick="deleteRow(${r.id})">🗑</button></td>
     </tr>`;
