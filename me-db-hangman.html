@@ -735,8 +735,12 @@ function loadMapsApi(key) {
     window.__medbMapsReady = () => resolve();
     window.gm_authFailure = () => reject(new Error('AUTH'));
     const s = document.createElement('script');
+    // v=weekly, nicht alpha: der Alpha-Kanal blendet oben ein Warnbanner
+    // ("Nur zu Entwicklungszwecken") ueber die halbe Karte. Geprueft, dass
+    // Map3DElement, Marker3DElement, flyCameraTo und flyCameraAround im
+    // weekly-Bundle enthalten sind und der Flug damit laeuft.
     s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key)
-          + '&v=alpha&libraries=maps3d,marker&callback=__medbMapsReady';
+          + '&v=weekly&libraries=maps3d,marker&loading=async&callback=__medbMapsReady';
     s.onerror = () => reject(new Error('NETWORK'));
     document.head.append(s);
   }).catch(e => { mapsPromise = null; throw e; });  // Fehlschlag nicht einbrennen
@@ -878,7 +882,10 @@ async function startShow(entry) {
   // Karte nur einmal pro Sitzung bauen - jede Instanz ist ein abgerechneter
   // Kartenaufruf, und das Wiederverwenden spart zusaetzlich Ladezeit.
   if (!map3d) {
-    map3d = new Map3DElement({ mode: MapMode.HYBRID, defaultLabelsDisabled: false });
+    // SATELLITE statt HYBRID: HYBRID blendet Werbe-POIs ein ("Bar a macarons",
+    // "Salesforce") quer ueber das Wahrzeichen. Welches Bauwerk man sieht,
+    // sagt die Bildunterschrift ohnehin.
+    map3d = new Map3DElement({ mode: MapMode.SATELLITE });
     map3d.className = 'map3d';
     showEl('showStage').append(map3d);
   }
@@ -926,13 +933,15 @@ async function startShow(entry) {
     caption(name, `${entry.word} · ${i + 1} von ${list.length}`);
     steps(list.length + 1, i + 1);
 
+    // range 750/650 statt enger: bei 420 m schnitt der Eiffelturm oben ab
+    // (330 m hoch). Flacherer Winkel laesst hohe Bauten ganz ins Bild.
     await animate(() => map3d.flyCameraTo({
-      endCamera: camAt(lat, lon, 520, 68), durationMillis: T.toSight
+      endCamera: camAt(lat, lon, 800, 55), durationMillis: T.toSight
     }), T.toSight, token);
     if (token !== showToken) return;
 
     await animate(() => map3d.flyCameraAround({
-      camera: camAt(lat, lon, 420, 68), durationMillis: T.around, rounds: 1
+      camera: camAt(lat, lon, 700, 55), durationMillis: T.around, rounds: 1
     }), T.around, token);
   }
   if (token !== showToken) return;
