@@ -143,6 +143,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-tagebuch.html">Tagebuch</a>
     <a href="me-db-tutor.html">🦸 KI-Tutor</a>
     <a href="me-db-chinese-teacher.html">🀄 Chinese Teacher</a>
+    <a href="me-db-hangman.html">🎯 Hangman</a>
     <a href="me-db-vorsorge.html">Emergency Folder</a>
     <a href="me-db-voice.html">🎤 Voice</a>
     <a href="me-db-architecture.html">Architecture</a>
@@ -226,6 +227,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div class="title">Chinese Teacher</div>
       <div class="desc">Mandarin-Übungsgespräch per Azure Speech — A1-Wortschatz, langsam, mit Pinyin</div>
       <span class="badge-soon">Prototyp</span>
+    </a>
+
+    <a class="tile" href="me-db-hangman.html">
+      <div class="icon">🎯</div>
+      <div class="title">Hangman</div>
+      <div class="desc">Hauptstädte raten — Bundesländer, Europa &amp; Welt als Galgenmännchen</div>
+      <div id="hangmanStat">…</div>
     </a>
 
     <a class="tile" href="me-db-einkaufsliste.html">
@@ -313,7 +321,7 @@ let sessionToken = ANON_KEY;
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   sessionToken = data.session.access_token;
-  loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); loadBodyscanStat(); loadOutfitStat(); loadTagebuchStat(); loadEisStat();
+  loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); loadBodyscanStat(); loadOutfitStat(); loadTagebuchStat(); loadEisStat(); loadHangmanStat();
 });
 
 async function logout() {
@@ -683,6 +691,21 @@ async function loadEisStat() {
     el.innerHTML = `
       <div class="stat"><span class="n" style="color:${cold ? '#1565c0' : '#c62828'}">${t.toFixed(1).replace('.', ',')}</span><span class="u">°C Ø heute</span></div>
       <div class="hrv-sub">7-Tage-Ø ${avg7.toFixed(1).replace('.', ',')} °C · ${sub}</div>`;
+  } catch (e) {
+    el.innerHTML = '';
+  }
+}
+
+// Hangman hält seinen Spielstand rein lokal (localStorage), keine Tabelle dahinter.
+function loadHangmanStat() {
+  const el = document.getElementById('hangmanStat');
+  try {
+    const s = JSON.parse(localStorage.getItem('medb-hangman-stats'));
+    if (!s || !s.played) { el.innerHTML = '<div class="trend-label">Noch nicht gespielt</div>'; return; }
+    const rate = Math.round(s.won / s.played * 100);
+    el.innerHTML = `
+      <div class="stat"><span class="n">${s.streak}</span><span class="u">Serie</span></div>
+      <div class="trend-label">Beste ${s.best} · ${s.won}/${s.played} gewonnen (${rate} %)</div>`;
   } catch (e) {
     el.innerHTML = '';
   }
