@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Hauptstadt-Hangman</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  header span.crumb { opacity: 0.5; font-size: 0.85rem; margin-left: 12px; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+  .container { max-width: 880px; margin: 28px auto; padding: 0 24px; }
+  .card { background: white; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 14px; }
+  h2 { font-size: 1.15rem; margin-bottom: 4px; }
+  .sub { font-size: 0.78rem; color: #888; line-height: 1.4; }
+
+  /* Kategorie-Auswahl */
+  .cats { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cats button { border: 1px solid #ccc; background: white; border-radius: 16px; padding: 5px 14px; font-size: 0.78rem; cursor: pointer; color: #555; }
+  .cats button.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+
+  /* Spielfeld */
+  .play { display: grid; grid-template-columns: 220px 1fr; gap: 20px; align-items: start; }
+  .gallows { width: 100%; max-width: 220px; }
+  .gallows line, .gallows circle { stroke: #1a1a2e; stroke-width: 5; stroke-linecap: round; fill: none; }
+  .gallows .part { opacity: 0; transition: opacity 0.18s; }
+  .gallows .part.on { opacity: 1; }
+  .gallows .man { stroke: #c62828; }
+
+  .hintline { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: #999; font-weight: 700; }
+  .hintval { font-size: 1.05rem; font-weight: 700; margin-top: 2px; }
+
+  .word { display: flex; flex-wrap: wrap; gap: 7px; margin: 18px 0 6px; }
+  .word .ch { width: 30px; height: 42px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; border-bottom: 3px solid #1a1a2e; }
+  .word .ch.fixed { border-bottom-color: #ccc; color: #999; }
+  .word .ch.miss { color: #c62828; }
+  .word .wbreak { flex-basis: 100%; height: 0; }
+
+  .lives { font-size: 0.78rem; color: #888; }
+  .lives b { color: #1a1a2e; }
+  .lives.low b { color: #c62828; }
+
+  /* Tastatur */
+  .keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(42px, 1fr)); gap: 6px; margin-top: 4px; }
+  .keys button { font-size: 1rem; font-weight: 700; padding: 11px 0; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer; color: #333; }
+  .keys button:hover:not(:disabled) { background: #eef3f8; border-color: #7ec8e3; }
+  .keys button:disabled { cursor: default; }
+  .keys button.hit { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; }
+  .keys button.miss { background: #ffebee; color: #c62828; border-color: #ffcdd2; }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .btn { border: none; border-radius: 8px; padding: 9px 16px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+  .btn.primary { background: #1a1a2e; color: white; }
+  .btn.ghost { background: #eee; color: #555; }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+
+  /* Ergebnis */
+  .result { margin-top: 14px; padding: 12px 14px; border-radius: 9px; display: none; }
+  .result.show { display: block; }
+  .result.win { background: #e8f5e9; }
+  .result.lose { background: #ffebee; }
+  .result .r-head { font-size: 0.95rem; font-weight: 700; }
+  .result.win .r-head { color: #2e7d32; }
+  .result.lose .r-head { color: #c62828; }
+  .result .r-body { font-size: 0.8rem; color: #555; margin-top: 3px; }
+
+  /* Statistik */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+  .kpi .lbl { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: #999; font-weight: 700; }
+  .kpi .val { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+  .kpi .hint { font-size: 0.7rem; color: #aaa; margin-top: 2px; }
+
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+/* === Hamburger navigation (always active) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+.global-voice-btn { width: 38px; height: 38px; border-radius: 50%; background: #c62828; color: white; border: none; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; text-decoration: none; flex-shrink: 0; }
+.global-voice-btn:hover { background: #a91e1e; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 0.95rem; flex-wrap: wrap; }
+  .container { padding: 0 14px; margin: 18px auto; }
+  .play { grid-template-columns: 1fr; }
+  .gallows { max-width: 160px; margin: 0 auto; display: block; }
+  .word .ch { width: 24px; height: 36px; font-size: 1.2rem; }
+  .keys { grid-template-columns: repeat(7, 1fr); }
+  input, select, textarea, button { font-size: 16px !important; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span class="crumb">&rsaquo; Spiele &rsaquo; Hauptstadt-Hangman</span></h1>
+  </div>
+  <div class="header-right">
+    <a class="global-voice-btn" href="me-db-voice.html" title="Voice">🎤</a>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  </div>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Activities</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Reports</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Values</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-bodyscan.html">Body Scan</a>
+    <a href="me-db-outfit.html">Modeberater</a>
+    <a href="me-db-abos.html">Subscriptions</a>
+    <a href="me-db-supplements.html">Supplements</a>
+    <a href="me-db-nutrient-vergleich.html">Nährstoff-Vergleich</a>
+
+    <a href="me-db-pv.html">PV Plant</a>
+    <a href="me-db-sprinkler.html">🌱 Sprinkler</a>
+    <a href="me-db-eisbaden.html">🧊 Eisbaden</a>
+    <a href="me-db-tagebuch.html">Tagebuch</a>
+    <a href="me-db-tutor.html">🦸 KI-Tutor</a>
+    <a href="me-db-chinese-teacher.html">🀄 Chinese Teacher</a>
+    <a href="me-db-hangman.html">🎯 Hangman</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <div class="card">
+    <h2>🎯 Hauptstadt-Hangman</h2>
+    <div class="sub">Gesucht ist die <b>Hauptstadt</b> zum angezeigten Land bzw. Bundesland. 11 Fehlversuche, dann hängt das Männchen. Buchstaben per Klick oder Tastatur.</div>
+    <div class="cats" id="cats" style="margin-top:12px">
+      <button data-cat="de">🇩🇪 Bundesländer</button>
+      <button data-cat="eu" class="active">🇪🇺 Europa</button>
+      <button data-cat="welt">🌍 Welt</button>
+      <button data-cat="alle">Alles gemischt</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="play">
+      <svg class="gallows" viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
+        <line class="part" data-p="0" x1="20"  y1="200" x2="180" y2="200"/>
+        <line class="part" data-p="1" x1="55"  y1="200" x2="55"  y2="20"/>
+        <line class="part" data-p="2" x1="55"  y1="20"  x2="132" y2="20"/>
+        <line class="part" data-p="3" x1="55"  y1="52"  x2="87"  y2="20"/>
+        <line class="part" data-p="4" x1="132" y1="20"  x2="132" y2="46"/>
+        <circle class="part man" data-p="5" cx="132" cy="63" r="17"/>
+        <line class="part man" data-p="6" x1="132" y1="80"  x2="132" y2="136"/>
+        <line class="part man" data-p="7" x1="132" y1="96"  x2="108" y2="119"/>
+        <line class="part man" data-p="8" x1="132" y1="96"  x2="156" y2="119"/>
+        <line class="part man" data-p="9" x1="132" y1="136" x2="111" y2="172"/>
+        <line class="part man" data-p="10" x1="132" y1="136" x2="153" y2="172"/>
+      </svg>
+
+      <div>
+        <div class="hintline" id="hintLabel">Land</div>
+        <div class="hintval" id="hintValue">…</div>
+
+        <div class="word" id="word"></div>
+
+        <div class="lives" id="lives">&nbsp;</div>
+
+        <div class="result" id="result">
+          <div class="r-head" id="resultHead"></div>
+          <div class="r-body" id="resultBody"></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="btnNext">Nächstes Wort</button>
+          <button class="btn ghost" id="btnReveal">💡 Buchstabe aufdecken</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="keys" id="keys" style="margin-top:18px"></div>
+  </div>
+
+  <div class="card">
+    <div class="hintline" style="margin-bottom:10px">Deine Bilanz <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#bbb">(lokal in diesem Browser)</span></div>
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">Serie</div><div class="val" id="kStreak">0</div><div class="hint">in Folge geschafft</div></div>
+      <div class="kpi"><div class="lbl">Beste Serie</div><div class="val" id="kBest">0</div><div class="hint">Rekord</div></div>
+      <div class="kpi"><div class="lbl">Gewonnen</div><div class="val" id="kWon">0</div><div class="hint" id="kWonHint">von 0 Spielen</div></div>
+      <div class="kpi"><div class="lbl">Trefferquote</div><div class="val" id="kRate">–</div><div class="hint">Anteil gewonnener Spiele</div></div>
+    </div>
+    <div style="margin-top:14px"><button class="btn ghost" id="btnResetStats">Statistik zurücksetzen</button></div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  init();
+});
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+// ---------------------------------------------------------------- Datenbasis
+// Stadtstaaten (Berlin/Hamburg/Bremen) fehlen bewusst — dort wäre der Hinweis
+// bereits die Lösung. Gleiches gilt für Luxemburg, Monaco, San Marino etc.
+const DATA = {
+  de: { label: 'Bundesland', items: [
+    ['Baden-Württemberg', 'Stuttgart'],
+    ['Bayern', 'München'],
+    ['Brandenburg', 'Potsdam'],
+    ['Hessen', 'Wiesbaden'],
+    ['Mecklenburg-Vorpommern', 'Schwerin'],
+    ['Niedersachsen', 'Hannover'],
+    ['Nordrhein-Westfalen', 'Düsseldorf'],
+    ['Rheinland-Pfalz', 'Mainz'],
+    ['Saarland', 'Saarbrücken'],
+    ['Sachsen', 'Dresden'],
+    ['Sachsen-Anhalt', 'Magdeburg'],
+    ['Schleswig-Holstein', 'Kiel'],
+    ['Thüringen', 'Erfurt']
+  ]},
+  eu: { label: 'Land', items: [
+    ['Albanien', 'Tirana'],
+    ['Belgien', 'Brüssel'],
+    ['Bosnien und Herzegowina', 'Sarajevo'],
+    ['Bulgarien', 'Sofia'],
+    ['Dänemark', 'Kopenhagen'],
+    ['Deutschland', 'Berlin'],
+    ['Estland', 'Tallinn'],
+    ['Finnland', 'Helsinki'],
+    ['Frankreich', 'Paris'],
+    ['Griechenland', 'Athen'],
+    ['Irland', 'Dublin'],
+    ['Island', 'Reykjavik'],
+    ['Italien', 'Rom'],
+    ['Kosovo', 'Pristina'],
+    ['Kroatien', 'Zagreb'],
+    ['Lettland', 'Riga'],
+    ['Liechtenstein', 'Vaduz'],
+    ['Litauen', 'Vilnius'],
+    ['Malta', 'Valletta'],
+    ['Moldau', 'Chisinau'],
+    ['Montenegro', 'Podgorica'],
+    ['Niederlande', 'Amsterdam'],
+    ['Nordmazedonien', 'Skopje'],
+    ['Norwegen', 'Oslo'],
+    ['Österreich', 'Wien'],
+    ['Polen', 'Warschau'],
+    ['Portugal', 'Lissabon'],
+    ['Rumänien', 'Bukarest'],
+    ['Russland', 'Moskau'],
+    ['Schweden', 'Stockholm'],
+    ['Schweiz', 'Bern'],
+    ['Serbien', 'Belgrad'],
+    ['Slowakei', 'Bratislava'],
+    ['Slowenien', 'Ljubljana'],
+    ['Spanien', 'Madrid'],
+    ['Tschechien', 'Prag'],
+    ['Türkei', 'Ankara'],
+    ['Ukraine', 'Kiew'],
+    ['Ungarn', 'Budapest'],
+    ['Vereinigtes Königreich', 'London'],
+    ['Weißrussland', 'Minsk'],
+    ['Zypern', 'Nikosia']
+  ]},
+  welt: { label: 'Land', items: [
+    ['Ägypten', 'Kairo'],
+    ['Algerien', 'Algier'],
+    ['Argentinien', 'Buenos Aires'],
+    ['Äthiopien', 'Addis Abeba'],
+    ['Australien', 'Canberra'],
+    ['Bangladesch', 'Dhaka'],
+    ['Brasilien', 'Brasilia'],
+    ['Chile', 'Santiago'],
+    ['China', 'Peking'],
+    ['Ecuador', 'Quito'],
+    ['Ghana', 'Accra'],
+    ['Indien', 'Neu-Delhi'],
+    ['Indonesien', 'Jakarta'],
+    ['Irak', 'Bagdad'],
+    ['Iran', 'Teheran'],
+    ['Israel', 'Jerusalem'],
+    ['Japan', 'Tokio'],
+    ['Jordanien', 'Amman'],
+    ['Kanada', 'Ottawa'],
+    ['Kasachstan', 'Astana'],
+    ['Kenia', 'Nairobi'],
+    ['Kolumbien', 'Bogota'],
+    ['Kuba', 'Havanna'],
+    ['Malaysia', 'Kuala Lumpur'],
+    ['Marokko', 'Rabat'],
+    ['Mongolei', 'Ulaanbaatar'],
+    ['Myanmar', 'Naypyidaw'],
+    ['Neuseeland', 'Wellington'],
+    ['Nigeria', 'Abuja'],
+    ['Nordkorea', 'Pjöngjang'],
+    ['Pakistan', 'Islamabad'],
+    ['Peru', 'Lima'],
+    ['Philippinen', 'Manila'],
+    ['Saudi-Arabien', 'Riad'],
+    ['Südafrika', 'Pretoria'],
+    ['Südkorea', 'Seoul'],
+    ['Syrien', 'Damaskus'],
+    ['Tansania', 'Dodoma'],
+    ['Thailand', 'Bangkok'],
+    ['Tunesien', 'Tunis'],
+    ['Usbekistan', 'Taschkent'],
+    ['Venezuela', 'Caracas'],
+    ['Vereinigte Arabische Emirate', 'Abu Dhabi'],
+    ['Vereinigte Staaten', 'Washington'],
+    ['Vietnam', 'Hanoi']
+  ]}
+};
+
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ'.split('');
+const MAX_WRONG = 11;
+const STATS_KEY = 'medb-hangman-stats';
+
+// ------------------------------------------------------------------- Zustand
+let cat = 'eu';
+let bag = [];            // noch nicht gezogene Einträge der aktuellen Kategorie
+let current = null;      // { hintLabel, hint, word }
+let guessed = new Set();
+let wrong = 0;
+let over = false;
+let stats = loadStats();
+
+function loadStats() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STATS_KEY));
+    if (s && typeof s.played === 'number') return s;
+  } catch (e) { /* kaputter/leerer Eintrag → Default */ }
+  return { played: 0, won: 0, streak: 0, best: 0 };
+}
+function saveStats() {
+  try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch (e) { /* Private Mode */ }
+}
+
+// ------------------------------------------------------------------- Auswahl
+function poolFor(c) {
+  if (c === 'alle') {
+    return Object.keys(DATA).flatMap(k => DATA[k].items.map(it => ({ label: DATA[k].label, hint: it[0], word: it[1] })));
+  }
+  return DATA[c].items.map(it => ({ label: DATA[c].label, hint: it[0], word: it[1] }));
+}
+
+function refillBag() {
+  bag = poolFor(cat).slice();
+  for (let i = bag.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [bag[i], bag[j]] = [bag[j], bag[i]];
+  }
+}
+
+// ------------------------------------------------------------------- Rendern
+const isLetter = ch => ALPHABET.includes(ch);
+
+function renderWord() {
+  const el = document.getElementById('word');
+  el.innerHTML = '';
+  const chars = current.word.toUpperCase().split('');
+  chars.forEach(ch => {
+    if (ch === ' ') {
+      // Wortgrenze: Umbruch erlauben, damit zweiteilige Namen mobil passen
+      el.appendChild(Object.assign(document.createElement('div'), { className: 'wbreak' }));
+      return;
+    }
+    const d = document.createElement('div');
+    if (!isLetter(ch)) {           // Bindestrich o. Ä. — von Anfang an sichtbar
+      d.className = 'ch fixed';
+      d.textContent = ch;
+    } else if (guessed.has(ch)) {
+      d.className = 'ch';
+      d.textContent = ch;
+    } else if (over) {
+      d.className = 'ch miss';     // bei Niederlage die Lösung zeigen
+      d.textContent = ch;
+    } else {
+      d.className = 'ch';
+      d.innerHTML = '&nbsp;';
+    }
+    el.appendChild(d);
+  });
+}
+
+function renderGallows() {
+  document.querySelectorAll('.gallows .part').forEach(p => {
+    p.classList.toggle('on', Number(p.dataset.p) < wrong);
+  });
+}
+
+function renderKeys() {
+  const el = document.getElementById('keys');
+  el.innerHTML = '';
+  ALPHABET.forEach(ch => {
+    const b = document.createElement('button');
+    b.textContent = ch;
+    if (guessed.has(ch)) {
+      b.disabled = true;
+      b.className = current.word.toUpperCase().includes(ch) ? 'hit' : 'miss';
+    }
+    if (over) b.disabled = true;
+    b.onclick = () => guess(ch);
+    el.appendChild(b);
+  });
+}
+
+function renderLives() {
+  const left = MAX_WRONG - wrong;
+  const el = document.getElementById('lives');
+  el.className = 'lives' + (left <= 3 ? ' low' : '');
+  el.innerHTML = over ? '&nbsp;' : `Noch <b>${left}</b> ${left === 1 ? 'Fehlversuch' : 'Fehlversuche'}`;
+}
+
+function renderStats() {
+  document.getElementById('kStreak').textContent = stats.streak;
+  document.getElementById('kBest').textContent = stats.best;
+  document.getElementById('kWon').textContent = stats.won;
+  document.getElementById('kWonHint').textContent = `von ${stats.played} ${stats.played === 1 ? 'Spiel' : 'Spielen'}`;
+  document.getElementById('kRate').textContent = stats.played
+    ? Math.round(stats.won / stats.played * 100) + ' %' : '–';
+}
+
+function render() {
+  document.getElementById('hintLabel').textContent = current.label;
+  document.getElementById('hintValue').textContent = current.hint;
+  renderWord(); renderGallows(); renderKeys(); renderLives();
+}
+
+// -------------------------------------------------------------------- Ablauf
+function newGame() {
+  if (!bag.length) refillBag();
+  current = bag.pop();
+  guessed = new Set();
+  wrong = 0;
+  over = false;
+  document.getElementById('result').className = 'result';
+  document.getElementById('btnReveal').disabled = false;
+  render();
+}
+
+function remainingLetters() {
+  return [...new Set(current.word.toUpperCase().split('').filter(isLetter))].filter(ch => !guessed.has(ch));
+}
+
+function guess(ch) {
+  if (over || guessed.has(ch)) return;
+  guessed.add(ch);
+  if (!current.word.toUpperCase().includes(ch)) wrong++;
+  check();
+}
+
+function reveal() {
+  if (over) return;
+  const rest = remainingLetters();
+  if (!rest.length) return;
+  guessed.add(rest[Math.floor(Math.random() * rest.length)]);
+  wrong++;                                   // Tipp kostet einen Versuch
+  document.getElementById('btnReveal').disabled = true;
+  check();
+}
+
+function check() {
+  const won = remainingLetters().length === 0;
+  const lost = wrong >= MAX_WRONG;
+  if (won || lost) finish(won); else render();
+}
+
+function finish(won) {
+  over = true;
+  stats.played++;
+  if (won) {
+    stats.won++;
+    stats.streak++;
+    if (stats.streak > stats.best) stats.best = stats.streak;
+  } else {
+    stats.streak = 0;
+  }
+  saveStats();
+  render();
+  renderStats();
+
+  const r = document.getElementById('result');
+  r.className = 'result show ' + (won ? 'win' : 'lose');
+  document.getElementById('resultHead').textContent = won ? '🎉 Geschafft!' : '💀 Aufgehängt.';
+  document.getElementById('resultBody').textContent = won
+    ? `${current.hint} → ${current.word} · mit ${wrong} ${wrong === 1 ? 'Fehlversuch' : 'Fehlversuchen'}`
+    : `Richtig wäre gewesen: ${current.hint} → ${current.word}`;
+}
+
+// ------------------------------------------------------------------ Bindings
+function init() {
+  document.getElementById('cats').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    cat = b.dataset.cat;
+    document.querySelectorAll('#cats button').forEach(x => x.classList.toggle('active', x === b));
+    refillBag();
+    newGame();
+  });
+
+  document.getElementById('btnNext').onclick = newGame;
+  document.getElementById('btnReveal').onclick = reveal;
+
+  document.getElementById('btnResetStats').onclick = () => {
+    if (!confirm('Statistik wirklich zurücksetzen?')) return;
+    stats = { played: 0, won: 0, streak: 0, best: 0 };
+    saveStats();
+    renderStats();
+  };
+
+  document.addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'Enter' && over) { newGame(); return; }
+    const ch = e.key.toUpperCase();
+    if (isLetter(ch)) { guess(ch); e.preventDefault(); }
+  });
+
+  refillBag();
+  newGame();
+  renderStats();
+}
+</script>
+</body>
+</html>
