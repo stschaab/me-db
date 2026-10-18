@@ -21,9 +21,11 @@
   .sub { font-size: 0.78rem; color: #888; }
   .ex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
   .ex { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-  .ex .clip { position: relative; background: radial-gradient(ellipse at 50% 85%, #2a2f3d 0%, #0d0f15 70%); aspect-ratio: 4 / 3; cursor: pointer; }
-  .ex .clip svg { display: block; width: 100%; height: 100%; }
-  .ex .caption { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; color: white; font-size: 0.82rem; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,0.8); pointer-events: none; }
+  .ex .clip { position: relative; background: #06070a; aspect-ratio: 5 / 4; cursor: pointer; overflow: hidden; }
+  .ex .clip canvas { display: block; width: 100%; height: 100%; }
+  .ex .tag { position: absolute; top: 8px; right: 10px; color: #ff6b6b; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; background: rgba(211,47,47,0.15); border: 1px solid rgba(255,107,107,0.35); padding: 2px 8px; border-radius: 20px; pointer-events: none; }
+  .ex .fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 0.8rem; padding: 20px; text-align: center; }
+  .ex .caption { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; color: white; font-size: 0.95rem; font-weight: 700; letter-spacing: 0.01em; text-shadow: 0 1px 4px rgba(0,0,0,0.8); pointer-events: none; }
   .ex .rep { position: absolute; top: 8px; left: 10px; color: rgba(255,255,255,0.55); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; pointer-events: none; }
   .ex .paused { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: white; font-size: 2.2rem; background: rgba(0,0,0,0.35); pointer-events: none; }
   .ex .clip.is-paused .paused { display: flex; }
@@ -129,36 +131,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="ex-grid">
     <div class="ex">
       <div class="clip" id="birdDogClip" title="Pause / Play">
-        <svg viewBox="0 0 240 180" aria-label="Animation Bird Dog">
-          <defs>
-            <linearGradient id="limbNear" gradientUnits="userSpaceOnUse" x1="0" y1="85" x2="0" y2="155">
-              <stop offset="0" stop-color="#f4f7fb"/><stop offset="1" stop-color="#aab4c3"/>
-            </linearGradient>
-            <radialGradient id="spot" cx="0.5" cy="0.5" r="0.5">
-              <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
-            </radialGradient>
-          </defs>
-          <ellipse cx="125" cy="152" rx="80" ry="6" fill="#000" opacity="0.45"/>
-          <!-- Muskel-Inset: Rückenansicht, rot markiert = Rückenstrecker, Gesäß, hintere Schulter -->
-          <g transform="translate(204 38)">
-            <circle r="30" fill="url(#spot)"/>
-            <g id="bdMuscles" fill="#d32f2f">
-              <path d="M-3 -16 L-6 -16 L-7 10 L-3 12 Z"/>
-              <path d="M3 -16 L6 -16 L7 10 L3 12 Z"/>
-              <path d="M-14 -17 Q-9 -20 -4 -17 L-6 -10 Q-11 -10 -14 -13 Z"/>
-              <path d="M14 -17 Q9 -20 4 -17 L6 -10 Q11 -10 14 -13 Z"/>
-              <path d="M-1 13 Q-9 12 -11 18 Q-8 24 -1 22 Z"/>
-              <path d="M1 13 Q9 12 11 18 Q8 24 1 22 Z"/>
-            </g>
-            <g fill="none" stroke="#8d96a5" stroke-width="1" stroke-linejoin="round">
-              <circle cx="0" cy="-25" r="4.5"/>
-              <path d="M-4 -20 L-15 -18 L-17 -6 M4 -20 L15 -18 L17 -6 M-15 -18 L-11 6 L-12 24 L12 24 L11 6 L15 -18"/>
-            </g>
-          </g>
-          <g id="bdFar" stroke="#5d6676" stroke-linecap="round" stroke-linejoin="round" fill="none"></g>
-          <g id="bdTorso" stroke-linecap="round" stroke-linejoin="round"></g>
-          <g id="bdNear" stroke="url(#limbNear)" stroke-linecap="round" stroke-linejoin="round" fill="none"></g>
-        </svg>
+        <span class="tag">Rücken · Gesäß</span>
         <div class="rep" id="bdRep"></div>
         <div class="caption" id="bdCaption"></div>
         <div class="paused">▶</div>
@@ -188,106 +161,245 @@ db.auth.getSession().then(({ data }) => {
 });
 
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+</script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-// Bird Dog als Mini-Video: Seitenansicht, Gelenkwinkel per Vorwärtskinematik.
-// Ein Zyklus = zwei Wiederholungen; in der zweiten arbeiten die hinteren Gliedmaßen (Seitenwechsel).
-(function birdDog() {
-  const NS = 'http://www.w3.org/2000/svg';
-  const clip = document.getElementById('birdDogClip');
-  const far = document.getElementById('bdFar'), near = document.getElementById('bdNear'), torso = document.getElementById('bdTorso');
-  const muscles = document.getElementById('bdMuscles');
-  const caption = document.getElementById('bdCaption'), repEl = document.getElementById('bdRep');
+// Bird Dog als 3D-Mini-Video: Gliederpuppe aus gedrehten Profilen, Gelenke als Gruppen,
+// Arbeitsmuskulatur als additiv leuchtende Overlays auf derselben Geometrie.
+// Blickrichtung der Figur +X, oben +Y, links +Z (Kamera schaut von hinten links).
 
-  const HIP = { x: 94, y: 106 }, SHO = { x: 164, y: 102 };
-  const THIGH = 44, SHIN = 42, UARM = 25, FARM = 23;
-  const REP_MS = 4400;
-  // Phasen einer Wiederholung (Anteile): strecken, halten, zurück, Pause
-  const PH = [[0.30, 'Arm & Bein strecken'], [0.30, '2 Sekunden halten'], [0.25, 'Langsam zurück'], [0.15, 'Bauch fest']];
+const PHASES = [[0.30, 'Arm & Bein strecken'], [0.30, '2 Sekunden halten'], [0.25, 'Langsam zurück'], [0.15, 'Bauch fest']];
+const REP_MS = 4600;
 
-  const rad = d => d * Math.PI / 180;
-  const pt = (o, deg, len) => ({ x: o.x + Math.cos(rad(deg)) * len, y: o.y + Math.sin(rad(deg)) * len });
-  const lerp = (a, b, t) => a + (b - a) * t;
-  const ease = t => (1 - Math.cos(Math.PI * t)) / 2;
+const ease = t => (1 - Math.cos(Math.PI * t)) / 2;
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const gauss = (x, w) => Math.exp(-(x / w) * (x / w));
 
-  function line(g, a, b, w) {
-    const l = document.createElementNS(NS, 'line');
-    l.setAttribute('x1', a.x); l.setAttribute('y1', a.y); l.setAttribute('x2', b.x); l.setAttribute('y2', b.y);
-    l.setAttribute('stroke-width', w);
-    g.appendChild(l);
+// Gedrehtes Profil; pts = [radius, y] von oben nach unten, wird geglättet.
+function lathe(pts, segs = 40) {
+  const curve = new THREE.SplineCurve(pts.map(([r, y]) => new THREE.Vector2(r, y)));
+  const g = new THREE.LatheGeometry(curve.getPoints(48), segs);
+  g.computeVertexNormals();
+  return g;
+}
+
+// Extremitätensegment, hängt vom Gelenk nach unten (-Y), mit Muskelbauch im oberen Drittel.
+function limbGeo(len, r1, r2, belly = 1.1) {
+  return lathe([[0, r1 * 0.95], [r1 * 0.75, r1 * 0.65], [r1, 0], [r1 * belly, -len * 0.3],
+    [(r1 + r2) / 2, -len * 0.65], [r2, -len], [r2 * 0.7, -len - r2 * 0.65], [0, -len - r2 * 0.95]], 28);
+}
+
+// Rumpf von Becken (x=-0.12) bis Hals, danach horizontal gelegt und abgeflacht.
+function torsoGeo() {
+  const L = 0.78;
+  const prof = [[0.0, 0], [0.1, 0.025], [0.145, 0.08], [0.148, 0.18], [0.14, 0.3], [0.155, 0.42],
+    [0.175, 0.52], [0.182, 0.6], [0.165, 0.67], [0.11, 0.72], [0.06, 0.76], [0.0, L]];
+  const g = lathe(prof.map(([r, t]) => [r, t]), 56);
+  g.rotateZ(-Math.PI / 2);                 // Länge entlang +X
+  g.scale(1, 0.78, 1.28);                  // Rücken flacher, Schultern breiter
+  g.translate(-0.12, 0, 0);
+  g.computeVertexNormals();
+  return g;
+}
+
+// RGBA-Vertexfarben für ein Muskel-Overlay; alphaFn(x, y, z) → 0..1
+function overlay(geo, alphaFn, mat) {
+  const g = geo.clone();
+  const p = g.attributes.position, n = p.count, col = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const fib = 0.8 + 0.2 * Math.sin(Math.abs(z) * 260 + x * 12);           // Faserstruktur längs
+    const a = Math.min(1, alphaFn(x, y, z)) * fib;
+    col.set([0.86, 0.1, 0.12, a], i * 4);
   }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 4));
+  const m = new THREE.Mesh(g, mat.clone());
+  m.scale.setScalar(1.004);
+  return m;
+}
 
-  // e = 0 (Vierfüßlerstand) … 1 (Arm und Bein gestreckt)
-  function leg(g, e, w) {
-    const knee = pt(HIP, lerp(90, 184, e), THIGH);
-    const foot = pt(knee, lerp(180, 186, e), SHIN);
-    line(g, HIP, knee, w); line(g, knee, foot, w * 0.8);
-  }
-  function arm(g, e, w) {
-    const elbow = pt(SHO, lerp(90, -8, e), UARM);
-    const hand = pt(elbow, lerp(90, -10, e), FARM);
-    line(g, SHO, elbow, w * 0.85); line(g, elbow, hand, w * 0.7);
-  }
-  function drawTorso() {
-    torso.innerHTML = '';
-    const back = document.createElementNS(NS, 'path');
-    back.setAttribute('d', `M${HIP.x - 6} ${HIP.y + 2} Q${HIP.x + 30} ${HIP.y - 14} ${SHO.x + 4} ${SHO.y - 4} L${SHO.x + 2} ${SHO.y + 10} Q${HIP.x + 34} ${HIP.y + 16} ${HIP.x - 2} ${HIP.y + 12} Z`);
-    back.setAttribute('fill', 'url(#limbNear)');
-    torso.appendChild(back);
-    const neck = { x: SHO.x + 10, y: SHO.y - 2 };
-    line(torso, { x: SHO.x + 2, y: SHO.y }, neck, 7);
-    torso.lastChild.setAttribute('stroke', '#c9d1dc');
-    const head = document.createElementNS(NS, 'circle');
-    head.setAttribute('cx', neck.x + 7); head.setAttribute('cy', neck.y + 2); head.setAttribute('r', 8);
-    head.setAttribute('fill', '#d7dde6');
-    torso.appendChild(head);
-    const hair = document.createElementNS(NS, 'path');
-    hair.setAttribute('d', `M${neck.x - 1} ${neck.y - 1} Q${neck.x + 6} ${neck.y - 9} ${neck.x + 14} ${neck.y - 1} Q${neck.x + 7} ${neck.y - 4} ${neck.x - 1} ${neck.y - 1} Z`);
-    hair.setAttribute('fill', '#3b404a');
-    torso.appendChild(hair);
-  }
+function glowMat() {
+  return new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true,
+    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, opacity: 0 });
+}
 
-  function frame(ms) {
+function buildFigure(skin, joint) {
+  const root = new THREE.Group();
+  const pelvis = new THREE.Group(); pelvis.position.set(0, 0.5, 0); root.add(pelvis);
+
+  const tGeo = torsoGeo();
+  const torso = new THREE.Mesh(tGeo, skin); torso.castShadow = true; pelvis.add(torso);
+
+  // Rückenstrecker + oberer Rücken (beidseitig) und Gesäß je Seite
+  const spine = overlay(tGeo, (x, y, z) => {
+    if (y < 0) return 0;
+    const erector = gauss(Math.abs(z) - 0.05, 0.028) * smooth(-0.05, 0.05, x) * (1 - smooth(0.42, 0.56, x));
+    const lats = gauss(Math.abs(z) - 0.15, 0.05) * smooth(0.24, 0.36, x) * (1 - smooth(0.5, 0.6, x)) * smooth(0.02, 0.08, y);
+    return (erector * 1.1 + lats * 0.6) * smooth(0.0, 0.06, y);
+  }, glowMat());
+  pelvis.add(spine);
+  const glute = side => overlay(tGeo, (x, y, z) => {
+    if (z * side < 0) return 0;
+    return gauss(Math.abs(z) - 0.09, 0.05) * gauss(x + 0.04, 0.07) * smooth(-0.04, 0.04, y) * 1.3;
+  }, glowMat());
+  const gluteL = glute(1), gluteR = glute(-1); pelvis.add(gluteL, gluteR);
+
+  // Kopf + Hals
+  const neck = new THREE.Mesh(limbGeo(0.09, 0.055, 0.05, 1), skin);
+  neck.position.set(0.62, 0.04, 0); neck.rotation.z = Math.PI / 2 + 0.2; pelvis.add(neck);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.095, 40, 28), skin);
+  head.scale.set(1.1, 1, 0.9); head.position.set(0.79, 0.01, 0); head.castShadow = true; pelvis.add(head);
+
+  const limbs = {};
+  for (const side of [1, -1]) {
+    // Bein: Hüfte → Oberschenkel (rot.z) → Knie → Unterschenkel → Fuß
+    const hip = new THREE.Group(); hip.position.set(0, -0.03, 0.095 * side); pelvis.add(hip);
+    const thigh = new THREE.Mesh(limbGeo(0.42, 0.085, 0.055, 1.12), skin); thigh.castShadow = true; hip.add(thigh);
+    const knee = new THREE.Group(); knee.position.y = -0.42; hip.add(knee);
+    knee.add(new THREE.Mesh(new THREE.SphereGeometry(0.056, 24, 16), joint));
+    const shin = new THREE.Mesh(limbGeo(0.4, 0.06, 0.038, 1.15), skin); shin.castShadow = true; knee.add(shin);
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(0.05, 24, 16), skin);
+    foot.scale.set(0.62, 1.75, 0.95); foot.position.set(0.0, -0.45, 0); shin.add(foot);
+
+    // Arm: Schulter → Oberarm → Ellbogen → Unterarm → Hand
+    const sho = new THREE.Group(); sho.position.set(0.5, 0.06, 0.19 * side); pelvis.add(sho);
+    const delt = new THREE.Mesh(new THREE.SphereGeometry(0.075, 28, 20), skin); delt.scale.set(1.15, 1, 1); sho.add(delt);
+    const deltGlow = overlay(delt.geometry, (x, y) => smooth(0.0, 0.06, -x) * smooth(-0.04, 0.03, y) * 1.2, glowMat());
+    deltGlow.scale.copy(delt.scale).multiplyScalar(1.01); sho.add(deltGlow);
+    const upper = new THREE.Mesh(limbGeo(0.28, 0.058, 0.044, 1.12), skin); upper.castShadow = true; sho.add(upper);
+    const elbow = new THREE.Group(); elbow.position.y = -0.28; sho.add(elbow);
+    elbow.add(new THREE.Mesh(new THREE.SphereGeometry(0.042, 20, 14), joint));
+    const fore = new THREE.Mesh(limbGeo(0.24, 0.046, 0.032, 1.12), skin); fore.castShadow = true; elbow.add(fore);
+    const wrist = new THREE.Group(); wrist.position.y = -0.245; elbow.add(wrist);
+    const hand = new THREE.Mesh(limbGeo(0.075, 0.032, 0.026, 1.08), skin);   // Fäustling, liegt flach nach vorn
+    hand.rotation.z = Math.PI / 2; hand.scale.set(0.6, 1, 1.45); hand.position.set(-0.005, -0.012, 0);
+    hand.castShadow = true; wrist.add(hand);
+
+    limbs[side] = { hip, knee, sho, elbow, wrist, deltGlow };
+  }
+  return { root, pelvis, spine, glutes: { 1: gluteL, '-1': gluteR }, limbs };
+}
+
+function birdDogClip(clip) {
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'low-power' }); }
+  catch (e) { clip.insertAdjacentHTML('beforeend', '<div class="fallback">3D-Ansicht braucht WebGL</div>'); return; }
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.9;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  clip.prepend(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x06070a);
+  scene.fog = new THREE.Fog(0x06070a, 3.2, 7.5);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.25;
+
+  const skin = new THREE.MeshPhysicalMaterial({ color: 0xc4ccd8, roughness: 0.42, metalness: 0.0,
+    clearcoat: 0.5, clearcoatRoughness: 0.3, sheen: 0.5, sheenColor: new THREE.Color(0x8fb4ff), sheenRoughness: 0.5 });
+  const joint = skin;
+
+  const fig = buildFigure(skin, joint);
+  fig.root.position.x = -0.12;
+  scene.add(fig.root);
+
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 14),
+    new THREE.MeshStandardMaterial({ color: 0x0b0d12, roughness: 0.3, metalness: 0.5 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+  const key = new THREE.SpotLight(0xffffff, 9, 9, 0.5, 0.7, 1.4);
+  key.position.set(-0.4, 3.4, 1.2); key.target.position.set(0.05, 0.3, 0);
+  key.castShadow = true; key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0004; key.shadow.radius = 6;
+  scene.add(key, key.target);
+  const rim = new THREE.DirectionalLight(0x9ec3ff, 1.6); rim.position.set(1.5, 1.4, -2.6); scene.add(rim);
+  const fill = new THREE.DirectionalLight(0xffe6d6, 0.25); fill.position.set(-2, 0.8, 2.5); scene.add(fill);
+
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 30);
+  const target = new THREE.Vector3(0.0, 0.3, 0);
+
+  function resize() {
+    const w = clip.clientWidth, h = clip.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(clip);
+  resize();
+
+  const caption = clip.querySelector('.caption'), repEl = clip.querySelector('.rep');
+
+  function pose(ms) {
     const cycle = (ms % (2 * REP_MS)) / REP_MS;
-    const side = cycle < 1 ? 0 : 1;
-    let t = cycle - side, e = 0, label = PH[3][1];
-    for (const [len, text] of PH) {
+    const sideB = cycle >= 1;
+    let t = cycle - (sideB ? 1 : 0), e = 0, label = PHASES[3][1];
+    for (let i = 0; i < PHASES.length; i++) {
+      const [len, text] = PHASES[i];
       if (t <= len) {
         label = text;
-        if (text === PH[0][1]) e = ease(t / len);
-        else if (text === PH[1][1]) e = 1;
-        else if (text === PH[2][1]) e = 1 - ease(t / len);
-        else e = 0;
+        e = i === 0 ? ease(t / len) : i === 1 ? 1 : i === 2 ? 1 - ease(t / len) : 0;
         break;
       }
       t -= len;
     }
-    far.innerHTML = ''; near.innerHTML = '';
-    // side 0: vorderes Bein + vorderer Arm arbeiten (in der Seitenansicht stehen sie für die diagonale Kombination)
-    far.setAttribute('transform', 'translate(-5 0)');
-    leg(far, side ? e : 0, 9); arm(far, side ? e : 0, 9);
-    leg(near, side ? 0 : e, 11); arm(near, side ? 0 : e, 11);
-    muscles.setAttribute('opacity', (0.35 + 0.65 * e).toFixed(2));
+    // Seite A: linker Arm + rechtes Bein, Seite B: rechter Arm + linkes Bein
+    const armSide = sideB ? -1 : 1, legSide = -armSide;
+    for (const s of [1, -1]) {
+      const L = fig.limbs[s];
+      const a = s === armSide ? e : 0, l = s === legSide ? e : 0;
+      L.sho.rotation.z = a * 1.66;              // Arm nach vorn, minimal über die Waagerechte
+      L.elbow.rotation.z = a * 0.04;
+      L.wrist.rotation.z = -a * Math.PI / 2;    // Finger zeigen gestreckt nach vorn
+      L.hip.rotation.z = -l * 1.62;             // Bein nach hinten
+      L.knee.rotation.z = -Math.PI / 2 * (1 - l);
+      L.deltGlow.material.opacity = 0.25 + 0.75 * a;
+      fig.glutes[s].material.opacity = 0.2 + 0.8 * l;
+    }
+    // Rumpf bleibt stabil, kleine Gewichtsverlagerung
+    fig.pelvis.rotation.x = 0.035 * e * armSide;
+    fig.pelvis.position.y = 0.5 + 0.008 * e;
+    fig.spine.material.opacity = 0.35 + 0.65 * e;
+
+    // Kamera pendelt langsam um die Figur
+    const ang = 1.95 + Math.sin(ms / 5200) * 0.2;
+    camera.position.set(Math.cos(ang) * 2.9 + target.x, 1.45 + Math.sin(ms / 7300) * 0.06, Math.sin(ang) * 2.9);
+    camera.lookAt(target);
+
     caption.textContent = label;
-    repEl.textContent = side ? 'Seite B' : 'Seite A';
+    repEl.textContent = sideB ? 'Seite B · rechter Arm' : 'Seite A · linker Arm';
   }
 
-  drawTorso();
   let paused = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let start = null, pausedAt = REP_MS * 0.45;
-  frame(pausedAt);
+  let visible = true, start = null, at = REP_MS * 0.45;
   clip.classList.toggle('is-paused', paused);
-  function tick(now) {
-    if (start === null) start = now - pausedAt;
-    if (!paused) { pausedAt = now - start; frame(pausedAt); }
-    requestAnimationFrame(tick);
-  }
+  new IntersectionObserver(([en]) => { visible = en.isIntersecting; }).observe(clip);
   clip.addEventListener('click', () => {
-    paused = !paused;
-    if (!paused) start = null;
+    paused = !paused; start = null;
     clip.classList.toggle('is-paused', paused);
   });
-  requestAnimationFrame(tick);
-})();
+  pose(at); renderer.render(scene, camera);
+  clip.renderAt = ms => { pose(ms); renderer.render(scene, camera); };   // für Screenshots/Tests
+  renderer.setAnimationLoop(now => {
+    if (paused || !visible) return;
+    if (start === null) start = now - at;
+    at = now - start;
+    pose(at);
+    renderer.render(scene, camera);
+  });
+}
+
+birdDogClip(document.getElementById('birdDogClip'));
 </script>
 </body>
 </html>
