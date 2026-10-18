@@ -76,6 +76,34 @@
   .kpi .val { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
   .kpi .hint { font-size: 0.7rem; color: #aaa; margin-top: 2px; }
 
+  /* ---- Show: Weltkarte + 3D-Drohnenflug ---- */
+  .show-btn { display: none; }
+  .show-btn.on { display: inline-block; }
+  .show-ov { position: fixed; inset: 0; background: #000; z-index: 500; display: none; }
+  .show-ov.open { display: block; }
+  .show-stage { position: absolute; inset: 0; }
+  .map3d { width: 100%; height: 100%; display: block; }
+  .show-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 48px 22px 24px; color: white;
+    background: linear-gradient(transparent, rgba(0,0,0,0.8)); pointer-events: none; }
+  .show-cap .t { font-size: 1.5rem; font-weight: 700; text-shadow: 0 2px 8px rgba(0,0,0,0.6); }
+  .show-cap .s { font-size: 0.85rem; opacity: 0.8; margin-top: 3px; text-shadow: 0 2px 8px rgba(0,0,0,0.6); }
+  .show-steps { position: absolute; top: 16px; left: 16px; display: flex; gap: 5px; z-index: 3; }
+  .show-step { width: 26px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.35); transition: background 0.3s; }
+  .show-step.on { background: white; }
+  .show-x { position: absolute; top: 12px; right: 12px; z-index: 3; width: 38px; height: 38px; border-radius: 50%;
+    border: none; background: rgba(0,0,0,0.55); color: white; font-size: 1.2rem; cursor: pointer; line-height: 1; }
+  .show-x:hover { background: rgba(0,0,0,0.8); }
+  .show-setup { position: absolute; inset: 0; z-index: 4; display: none; place-items: center; padding: 22px;
+    background: #1a1a2e; color: #e8e8f0; overflow-y: auto; }
+  .setup-box { max-width: 460px; }
+  .setup-box h3 { font-size: 1.1rem; margin-bottom: 10px; }
+  .setup-box p { font-size: 0.85rem; line-height: 1.5; color: #b8b8cc; margin-bottom: 10px; }
+  .setup-box ol { font-size: 0.85rem; line-height: 1.7; color: #b8b8cc; margin: 0 0 14px 18px; }
+  .setup-box code { background: #2d2d4e; padding: 1px 5px; border-radius: 4px; font-size: 0.8rem; }
+  .setup-box input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #3d3d5e;
+    background: #15152a; color: white; font-size: 0.9rem; margin-bottom: 10px; }
+  .setup-box .btn.primary { background: #7ec8e3; color: #1a1a2e; }
+  .setup-box .fineprint { font-size: 0.72rem; color: #8888a0; margin-top: 12px; margin-bottom: 0; }
 /* navdrop */
 nav { display: flex; align-items: center; flex-wrap: wrap; }
 .navdrop { position: relative; margin-left: 16px; }
@@ -202,6 +230,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
         <div class="result" id="result">
           <div class="r-head" id="resultHead"></div>
           <div class="r-body" id="resultBody"></div>
+          <button class="btn primary show-btn" id="btnShow" style="margin-top:10px">🌍 Show: Flug zur Stadt</button>
         </div>
 
         <div class="actions">
@@ -225,6 +254,17 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <div style="margin-top:14px"><button class="btn ghost" id="btnResetStats">Statistik zurücksetzen</button></div>
   </div>
 
+</div>
+
+<div class="show-ov" id="showOv">
+  <div class="show-stage" id="showStage"></div>
+  <div class="show-steps" id="showSteps"></div>
+  <button class="show-x" id="showX" aria-label="Schließen">&times;</button>
+  <div class="show-cap">
+    <div class="t" id="showTitle"></div>
+    <div class="s" id="showSub"></div>
+  </div>
+  <div class="show-setup" id="showSetup"></div>
 </div>
 
 <script>
@@ -473,6 +513,7 @@ function newGame() {
   wrong = 0;
   over = false;
   document.getElementById('result').className = 'result';
+  document.getElementById('btnShow').classList.remove('on');
   document.getElementById('btnReveal').disabled = false;
   render();
 }
@@ -524,6 +565,340 @@ function finish(won) {
   document.getElementById('resultBody').textContent = won
     ? `${current.hint} → ${current.word} · mit ${wrong} ${wrong === 1 ? 'Fehlversuch' : 'Fehlversuchen'}`
     : `Richtig wäre gewesen: ${current.hint} → ${current.word}`;
+
+  // Show nur anbieten, wenn für diese Stadt auch Sehenswürdigkeiten hinterlegt sind
+  const btnShow = document.getElementById('btnShow');
+  const sight = SIGHTS[current.word];
+  btnShow.classList.toggle('on', !!(sight && sight.s && sight.s.length));
+  if (sight) btnShow.textContent = `🌍 Show: Flug nach ${current.word}`;
+}
+
+// Flugziele je Hauptstadt, aus Wikidata erzeugt: Umkreis 12 km um die Stadtmitte,
+// Rangfolge nach Zahl der Wikipedia-Sprachversionen, Typfilter ueber die
+// P279*-Huelle (Bauwerke/Denkmaeler/Plaetze ja, Orte/Fluesse/Ereignisse nein),
+// Mindestabstand 250 m. Format: Stadt -> { lat, lon, s: [[Name, lat, lon], ...] }
+const SIGHTS = {
+  "Stuttgart": { lat: 48.7775, lon: 9.18, s: [["Porsche-Museum",48.83446,9.15195], ["Residenzschloss Ludwigsburg",48.9,9.19583], ["Mercedes-Benz Museum",48.78855,9.23376]] },
+  "München": { lat: 48.1375, lon: 11.575, s: [["Deutsches Museum",48.13,11.58333], ["Frauenkirche, München",48.13858,11.57362], ["Glyptothek",48.14656,11.56582]] },
+  "Schwerin": { lat: 53.62889, lon: 11.415, s: [["Schweriner Schloss",53.62417,11.41889], ["Schweriner Dom",53.62944,11.41444], ["Schelfkirche",53.6325,11.41778]] },
+  "Wiesbaden": { lat: 50.0825, lon: 8.24, s: [["Nerobergbahn",50.09466,8.22549], ["Neues Rathaus",50.0819,8.24194]] },
+  "Hannover": { lat: 52.37444, lon: 9.73861, s: [["Neues Rathaus",52.36725,9.73736], ["Marktkirche",52.37179,9.73533], ["Sprengel Museum Hannover",52.36281,9.74015]] },
+  "Düsseldorf": { lat: 51.22556, lon: 6.77667, s: [["Rheinturm",51.21778,6.76167], ["Sternwarte Düsseldorf",51.2074,6.7648], ["Quirinus-Münster",51.1991,6.69321]] },
+  "Mainz": { lat: 49.99944, lon: 8.27361, s: [["Mainzer Dom",49.99889,8.27389]] },
+  "Potsdam": { lat: 52.40093, lon: 13.05914, s: [["Schloss Sanssouci",52.40326,13.03863], ["Cecilienhof",52.41917,13.07083], ["Einsteinturm",52.37889,13.06361]] },
+  "Magdeburg": { lat: 52.13159, lon: 11.63996, s: [["Kanalbrücke Magdeburg",52.23045,11.69628], ["Magdeburger Dom",52.12472,11.63444], ["St. Sebastian (Magdeburg)",52.12647,11.63188]] },
+  "Kiel": { lat: 54.32333, lon: 10.13944, s: [["Marine-Ehrenmal Laboe",54.4122,10.2306], ["Kieler Schloss",54.3242,10.1434], ["Leuchtturm Bülk",54.45526,10.1973]] },
+  "Dresden": { lat: 51.04933, lon: 13.73814, s: [["Frauenkirche",51.05194,13.74167], ["Zwinger",51.05306,13.73389], ["Waldschlößchenbrücke",51.064,13.777]] },
+  "Tirana": { lat: 41.32833, lon: 19.81806, s: [["Mutter Albanien",41.30849,19.84017], ["Pyramide von Tirana",41.32302,19.82157], ["Uhrturm von Tirana",41.32772,19.81965]] },
+  "Brüssel": { lat: 50.84667, lon: 4.35167, s: [["Grand-Place",50.84671,4.35254], ["Atomium",50.895,4.34139], ["Stoclet Palast",50.83514,4.41625]] },
+  "Sarajevo": { lat: 43.85639, lon: 18.41306, s: [["Avaz Twist Tower",43.86056,18.4025], ["Gazi-Husrev-Beg-Moschee",43.85917,18.42903], ["Kathedrale Herz Jesu",43.85929,18.42539]] },
+  "Sofia": { lat: 42.69789, lon: 23.32173, s: [["Alexander-Newski-Kathedrale",42.69584,23.33297], ["Kirche von Bojana",42.64467,23.26617], ["Kathedrale Sweta Nedelja",42.69678,23.32155]] },
+  "Erfurt": { lat: 50.97806, lon: 11.02889, s: [["Erfurter Dom",50.97587,11.02341], ["Alte Synagoge",50.9786,11.0293]] },
+  "Saarbrücken": { lat: 49.23333, lon: 7, s: [["Ludwigskirche",49.23278,6.98639], ["Schloss Saarbrücken",49.2301,6.9925], ["Saarländisches Staatstheater",49.23083,6.99611]] },
+  "Kopenhagen": { lat: 55.67611, lon: 12.56889, s: [["Schloss Amalienborg",55.68403,12.59333], ["Tivoli",55.67361,12.56833], ["Christiansborg",55.67583,12.57889]] },
+  "Tallinn": { lat: 59.43722, lon: 24.745, s: [["Alexander-Newski-Kathedrale",59.43583,24.73944], ["Olaikirche",59.44139,24.74778], ["Schloss Katharinental",59.43852,24.791]] },
+  "Berlin": { lat: 52.51667, lon: 13.38333, s: [["Berliner Mauer",52.50444,13.44111], ["Brandenburger Tor",52.51627,13.37772], ["Reichstagsgebäude",52.51861,13.37611]] },
+  "Helsinki": { lat: 60.17083, lon: 24.9375, s: [["Suomenlinna",60.14361,24.98444], ["Dom von Helsinki",60.17039,24.95212], ["Ateneum",60.17008,24.94398]] },
+  "Dublin": { lat: 53.34972, lon: -6.26028, s: [["The Spire",53.34972,-6.26028], ["Leinster House",53.34055,-6.25402], ["Christ Church Cathedral",53.34306,-6.27139]] },
+  "Athen": { lat: 37.98417, lon: 23.72806, s: [["Parthenon",37.97153,23.7266], ["Archäologisches Nationalmuseum",37.98917,23.73222], ["Tempel des Hephaistos",37.97562,23.72139]] },
+  "Reykjavik": { lat: 64.1475, lon: -21.935, s: [["Hallgrímskirkja",64.14194,-21.92694], ["Bessastaðir",64.10583,-21.99556], ["Imagine Peace Tower",64.16324,-21.85947]] },
+  "Pristina": { lat: 42.66667, lon: 21.16667, s: [["Kloster Gračanica",42.59833,21.19333], ["Mutter-Teresa-Kathedrale",42.65639,21.15933], ["Große Moschee von Priština",42.667,21.167]] },
+  "Zagreb": { lat: 45.81306, lon: 15.97722, s: [["Kathedrale zu Zagreb",45.81444,15.97972], ["Kroatisches Nationaltheater in Zagreb",45.8095,15.97], ["St.-Markus-Kirche",45.81611,15.97389]] },
+  "Rom": { lat: 41.89306, lon: 12.48278, s: [["Kolosseum",41.89028,12.49222], ["Petersdom",41.90222,12.45342], ["Pantheon",41.89861,12.47694]] },
+  "Vaduz": { lat: 47.14056, lon: 9.52222, s: [["Kathedrale St. Florin",47.1362,9.5227], ["Dom St. Nikolaus",47.2381,9.59817]] },
+  "Vilnius": { lat: 54.68722, lon: 25.28, s: [["Kathedrale St. Stanislaus",54.68589,25.28788], ["Präsidentenpalast",54.68316,25.28587], ["St. Anna",54.68306,25.29333]] },
+  "Riga": { lat: 56.9475, lon: 24.10694, s: [["Dom zu Riga",56.94917,24.10444], ["Freiheitsdenkmal",56.95156,24.11322], ["Petrikirche",56.9475,24.10944]] },
+  "Paris": { lat: 48.85667, lon: 2.35222, s: [["Eiffelturm",48.8583,2.29448], ["Louvre",48.86111,2.33583], ["Notre-Dame de Paris",48.853,2.3498]] },
+  "Chisinau": { lat: 47.02278, lon: 28.83528, s: [["Kathedrale der Geburt des Herrn",47.02606,28.83453], ["Kathedrale der göttlichen Vorsehung",47.02912,28.82909], ["Water Tower of Chișinău",47.01931,28.82222]] },
+  "Amsterdam": { lat: 52.36667, lon: 4.88333, s: [["Concertgebouw",52.35631,4.87908], ["Anne-Frank-Haus",52.37534,4.88426], ["Paleis op de Dam",52.37317,4.89136]] },
+  "Valletta": { lat: 35.89778, lon: 14.5125, s: [["Hypogäum von Ħal-Saflieni",35.86956,14.50688], ["St. John’s Co-Cathedral",35.89778,14.51278], ["Mnajdra",35.82667,14.43639]] },
+  "Podgorica": { lat: 42.44139, lon: 19.26278, s: [["Auferstehungskathedrale Podgorica",42.4457,19.24824], ["Millennium-Brücke",42.44491,19.25901]] },
+  "Oslo": { lat: 59.91333, lon: 10.73889, s: [["Opernhaus Oslo",59.90694,10.75361], ["Königliches Schloss Oslo",59.91722,10.7275], ["Osloer Dom",59.91232,10.74696]] },
+  "Skopje": { lat: 41.99611, lon: 21.43167, s: [["Steinbrücke in Skopje",41.99699,21.43307], ["Festung Kale",42,21.43444], ["Millenniumskreuz Skopje",41.96503,21.39441]] },
+  "Warschau": { lat: 52.23, lon: 21.01111, s: [["Kulturpalast",52.23167,21.00639], ["Königliches Schloss Warschau",52.24778,21.01417], ["Wilanów-Palast",52.16528,21.09028]] },
+  "Lissabon": { lat: 38.70804, lon: -9.13902, s: [["Torre de Belém",38.69139,-9.21583], ["Ponte Vasco da Gama",38.76219,-9.04331], ["Ponte 25 de Abril",38.69418,-9.17815]] },
+  "Bukarest": { lat: 44.41336, lon: 26.09778, s: [["Parlamentspalast",44.4275,26.0875], ["Nationalkathedrale",44.42591,26.08226], ["Rumänisches Athenäum",44.4413,26.0973]] },
+  "Wien": { lat: 48.20833, lon: 16.3725, s: [["Schloss Schönbrunn",48.18479,16.31227], ["Schloss Belvedere",48.1934,16.38052], ["Stephansdom",48.20843,16.37326]] },
+  "Bern": { lat: 46.94798, lon: 7.44743, s: [["Bundeshaus",46.94667,7.44417], ["Zytglogge",46.94806,7.44778], ["Berner Münster",46.94722,7.45139]] },
+  "Belgrad": { lat: 44.81778, lon: 20.45694, s: [["Dom des Heiligen Sava",44.79808,20.46855], ["Haus der Blumen",44.78667,20.45167], ["Bajrakli-Moschee (Belgrad)",44.8222,20.4575]] },
+  "Bratislava": { lat: 48.1517, lon: 17.10931, s: [["Bratislavaer Burg",48.14222,17.1], ["Brücke des Slowakischen Nationalaufstandes",48.13833,17.10444], ["Martinsdom",48.14194,17.10472]] },
+  "Stockholm": { lat: 59.32944, lon: 18.06861, s: [["Stockholmer Schloss",59.32667,18.07167], ["Vasa-Museum",59.32807,18.09139], ["Rathaus Stockholm",59.3275,18.05472]] },
+  "Ljubljana": { lat: 46.05139, lon: 14.50611, s: [["Dom St. Nikolaus (Ljubljana)",46.05071,14.50824]] },
+  "Madrid": { lat: 40.41694, lon: -3.70333, s: [["Museo Reina Sofía",40.40857,-3.694], ["Königspalast Madrid",40.41795,-3.71431], ["Almudena-Kathedrale",40.41556,-3.71444]] },
+  "Ankara": { lat: 39.93576, lon: 32.83869, s: [["Anıtkabir",39.925,32.83694], ["Museum für anatolische Zivilisationen",39.93833,32.86194], ["Atakule-Fernsehturm",39.88611,32.85611]] },
+  "Kiew": { lat: 50.45, lon: 30.52361, s: [["Sophienkathedrale",50.45278,30.51444], ["Marienpalast",50.44833,30.5375], ["St. Michaelskloster",50.45556,30.52278]] },
+  "Budapest": { lat: 47.49833, lon: 19.04083, s: [["Parlamentsgebäude",47.50694,19.04556], ["Budaer Burg",47.49611,19.03972], ["Széchenyi-Kettenbrücke",47.49891,19.04353]] },
+  "Moskau": { lat: 55.75056, lon: 37.6175, s: [["Basilius-Kathedrale",55.7525,37.62306], ["Christ-Erlöser-Kathedrale",55.74444,37.60556], ["Tretjakow-Galerie",55.74139,37.62086]] },
+  "Minsk": { lat: 53.90225, lon: 27.56184, s: [["Kirche des heiligen Simon und der heiligen Helena (Minsk)",53.89652,27.54748], ["Mariä-Namen-Kathedrale",53.90313,27.55461], ["Museum des Großen Vaterländischen Krieges in Minsk",53.91631,27.53789]] },
+  "Prag": { lat: 50.0875, lon: 14.42139, s: [["Prager Burg",50.09,14.4], ["Karlsbrücke",50.08639,14.41194], ["Tanzendes Haus",50.07556,14.41417]] },
+  "Nikosia": { lat: 35.1725, lon: 33.365, s: [["Selimiye-Moschee",35.17639,33.36444], ["Cyprus Museum",35.17167,33.35528]] },
+  "Algier": { lat: 36.77639, lon: 3.05861, s: [["Basilika Unserer Lieben Frau von Afrika",36.80111,3.0425], ["Centre de recherche en astronomie, astrophysique et géophysique",36.7979,3.0322], ["Große Synagoge von Algier",36.78407,3.05917]] },
+  "Kairo": { lat: 30.04444, lon: 31.23583, s: [["Nekropole von Gizeh",29.98333,31.13333], ["Heliopolis",30.12953,31.28889], ["Ägyptisches Museum",30.04778,31.23333]] },
+  "Addis Abeba": { lat: 9.03583, lon: 38.7525, s: [["St.-Georgs-Kathedrale",9.03669,38.75142], ["Kathedrale der Heiligsten Dreifaltigkeit",9.0308,38.76656]] },
+  "Canberra": { lat: -35.29306, lon: 149.12694, s: [["Parliament House",-35.30806,149.12444], ["Black Mountain Tower",-35.27556,149.09778], ["ANZAC Parade",-35.28639,149.14389]] },
+  "London": { lat: 51.50722, lon: -0.1275, s: [["Buckingham Palace",51.501,-0.142], ["Westminsterabtei",51.4994,-0.12737], ["Tower of London",51.5082,-0.0762]] },
+  "Brasilia": { lat: -15.79389, lon: -47.88278, s: [["Palácio do Planalto",-15.799,-47.86083], ["Kathedrale von Brasília",-15.79833,-47.87556], ["Palácio da Alvorada",-15.79277,-47.82218]] },
+  "Dhaka": { lat: 23.72889, lon: 90.39444, s: [["Jatiya Sangsad Bhaban",23.76222,90.37861], ["Shaheed Minar",23.72217,90.39499], ["Ahsan Manzil",23.70861,90.40611]] },
+  "Santiago": { lat: -33.4375, lon: -70.65, s: [["Palast La Moneda",-33.44302,-70.65387], ["Gran Torre Santiago",-33.41694,-70.60667]] },
+  "Buenos Aires": { lat: -34.59972, lon: -58.38194, s: [["Teatro Colón",-34.60108,-58.38308], ["Casa Rosada",-34.60806,-58.37028], ["Palacio Barolo",-34.60956,-58.38586]] },
+  "Quito": { lat: -0.22, lon: -78.5125, s: [["Carondelet Palace",-0.21972,-78.5125]] },
+  "Peking": { lat: 39.90403, lon: 116.40753, s: [["Verbotene Stadt",39.91583,116.39083], ["Himmelstempel",39.8822,116.4066], ["Tor des Himmlischen Friedens",39.90735,116.39122]] },
+  "Accra": { lat: 5.55602, lon: -0.1969, s: [["Kwame-Nkrumah-Mausoleum",5.54444,-0.20278], ["Golden Jubilee House",5.57975,-0.18847], ["Black Star Gate",5.54901,-0.19286]] },
+  "Bagdad": { lat: 33.31528, lon: 44.36611, s: [["Al-Kazimiyya-Moschee",33.37997,44.33796], ["Schwerter von Kadesia",33.30517,44.38646], ["Fernsehturm Bagdad",33.30333,44.35417]] },
+  "Neu-Delhi": { lat: 28.61389, lon: 77.20889, s: [["Qutb Minar",28.52435,77.18525], ["Humayun-Mausoleum",28.59326,77.2506], ["Lotustempel",28.55333,77.2586]] },
+  "Teheran": { lat: 35.68889, lon: 51.38972, s: [["Golestanpalast",35.67972,51.42028], ["Bordsch-e Milad",35.74461,51.37533], ["Freiheitsturm",35.69972,51.33806]] },
+  "Jerusalem": { lat: 31.77668, lon: 35.23416, s: [["Felsendom",31.77806,35.23528], ["Geburtskirche",31.70431,35.20758]] },
+  "Jakarta": { lat: -6.17528, lon: 106.82694, s: [["Monumen Nasional",-6.17539,106.82714], ["Istana Merdeka",-6.17017,106.8241], ["Wisma 46",-6.20361,106.82]] },
+  "Amman": { lat: 31.95, lon: 35.93333, s: [["ʿAin Ghazal",31.988,35.976], ["Zitadelle von Amman",31.9547,35.9343], ["Römisches Theater von Amman",31.95167,35.93936]] },
+  "Tokio": { lat: 35.68944, lon: 139.69167, s: [["Mode Gakuen Cocoon Tower",35.69167,139.69694], ["Tokyo Skytree",35.71006,139.81072], ["Tokio-Turm",35.65861,139.74556]] },
+  "Astana": { lat: 51.13333, lon: 71.43333, s: [["Bajterek-Turm",51.12833,71.43056], ["Ak Orda Palast",51.12583,71.44639], ["Khan Shatyr",51.13222,71.40389]] },
+  "Nairobi": { lat: -1.28639, lon: 36.81722, s: [["Kenyatta International Conference Centre",-1.28861,36.82306], ["Kathedralbasilika Heilige Familie",-1.28694,36.82056]] },
+  "Havanna": { lat: 23.13667, lon: -82.35889, s: [["Kathedrale von Havanna",23.14138,-82.35192], ["Kapitol",23.13528,-82.35944]] },
+  "Bogota": { lat: 4.60971, lon: -74.08175, s: [["Kathedrale der Unbefleckten Empfängnis (Bogotá)",4.59795,-74.07524], ["Torre Colpatria",4.61083,-74.07028], ["Casa de Nariño",4.59556,-74.0775]] },
+  "Kuala Lumpur": { lat: 3.14778, lon: 101.69528, s: [["Petronas Towers",3.15778,101.71167], ["Menara Kuala Lumpur",3.15283,101.70375], ["Batu-Höhlen",3.2374,101.68391]] },
+  "Rabat": { lat: 34.02111, lon: -6.84139, s: [["Hassan-Turm",34.0241,-6.82272], ["Chellah",34.00667,-6.82028], ["Russian Orthodox Church in Rabat",34.01186,-6.85201]] },
+  "Ulaanbaatar": { lat: 47.92136, lon: 106.90551, s: [["Dsasgiin gadsryn ordon",47.92083,106.91722], ["Saints Peter and Paul Cathedral (Ulaanbaatar)",47.91206,106.97596], ["Natural History Museum",47.9235,106.90578]] },
+  "Naypyidaw": { lat: 19.7475, lon: 96.115, s: [["Uppatasanti Pagoda",19.77115,96.18299], ["Presidential Palace, Naypyidaw",19.7675,96.11861]] },
+  "Abuja": { lat: 9.05556, lon: 7.49139, s: [["Deeper Christian Life Ministry",9.03973,7.49801], ["Millennium Tower",9.05584,7.49281], ["Nigerian Presidential Complex",9.05711,7.52478]] },
+  "Pjöngjang": { lat: 39.01667, lon: 125.7475, s: [["Ryugyŏng Hot'el",39.03667,125.73083], ["Monument der Chuch'e-Ideologie",39.01759,125.76361], ["Triumphbogen",39.04465,125.7531]] },
+  "Islamabad": { lat: 33.69889, lon: 73.03694, s: [["Pakistan Monument",33.69333,73.06833], ["Aiwan-e-Sadr",33.7322,73.0983], ["Prime Minister's Secretariat",33.7257,73.1002]] },
+  "Lima": { lat: -12.06, lon: -77.0375, s: [["Museo Arqueológico Rafael Larco Herrera",-12.0725,-77.07086], ["Kathedrale von Lima",-12.04647,-77.03004]] },
+  "Wellington": { lat: -41.28889, lon: 174.77722, s: [["Beehive",-41.27833,174.77667], ["TEV Wahine",-41.34722,174.83889], ["Futuna Chapel",-41.2818,174.7387]] },
+  "Riad": { lat: 24.63833, lon: 46.715, s: [["Kingdom Centre",24.71139,46.67444], ["Al Faisaliyah Center",24.69028,46.68528], ["Yamama-Palast",24.6647,46.64]] },
+  "Pretoria": { lat: -25.74639, lon: 28.18806, s: [["Voortrekkerdenkmal",-25.77639,28.17583], ["Union Buildings",-25.74047,28.21202], ["Freedom Park",-25.767,28.1888]] },
+  "Seoul": { lat: 37.56, lon: 126.99, s: [["Changdeokgung",37.57944,126.99167], ["Gyeongbokgung",37.57988,126.9768], ["Jongmyo",37.57472,126.99361]] },
+  "Manila": { lat: 14.59583, lon: 120.97722, s: [["San Agustín",14.58886,120.97535], ["Malacañang-Palast",14.59386,120.99452], ["Kathedrale von Manila",14.59147,120.97356]] },
+  "Dodoma": { lat: -6.1835, lon: 35.746, s: [] },
+  "Ottawa": { lat: 45.42472, lon: -75.695, s: [["Kanadas Nationalmuseum für Geschichte und Gesellschaft",45.42972,-75.70889], ["Parliament Hill",45.42472,-75.69944], ["Kanadisches Naturkundemuseum",45.41278,-75.68889]] },
+  "Bangkok": { lat: 13.75, lon: 100.51667, s: [["Großer Palast",13.75014,100.49203], ["Baiyoke Tower 2",13.7541,100.54096], ["Maha Nakhon",13.72361,100.52833]] },
+  "Tunis": { lat: 36.80083, lon: 10.18, s: [["Kathedrale Hl. Vinzenz von Paul",36.8,10.17889], ["Hammouda Pacha Mosque",36.79833,10.17083]] },
+  "Caracas": { lat: 10.50611, lon: -66.91444, s: [["Miraflores-Palast",10.50809,-66.91936], ["Centro Financiero Confinanzas",10.50528,-66.89889], ["Museum der schönen Künste von Caracas",10.50064,-66.89697]] },
+  "Abu Dhabi": { lat: 24.45111, lon: 54.39694, s: [["Capital Gate",24.41864,54.43469], ["Burj Mohammed Bin Rashid",24.48806,54.35639], ["Etihad Towers",24.45932,54.3213]] },
+  "Washington": { lat: 38.895, lon: -77.03667, s: [["Weißes Haus",38.89778,-77.03667], ["Kapitol der Vereinigten Staaten",38.88972,-77.00917], ["Washington Monument",38.88947,-77.03524]] },
+  "Hanoi": { lat: 21.0245, lon: 105.84117, s: [["Ho-Chi-Minh-Mausoleum",21.03667,105.83472], ["Keangnam Hanoi Landmark Tower",21.01732,105.78405], ["Präsidentenpalast (Hanoi)",21.03944,105.83444]] },
+  "Taschkent": { lat: 41.31111, lon: 69.27972, s: [["Fernsehturm Taschkent",41.34557,69.2846], ["Koʻkaldosh-Madrasa (Taschkent)",41.32333,69.23611], ["Amir Timur Museum",41.31361,69.27889]] },
+  "Damaskus": { lat: 33.51306, lon: 36.29194, s: [["Takiyya al-Sulaymaniyya",33.51231,36.29134], ["Azim-Palast",33.51028,36.30694], ["Schrein Zainab bint Alis",33.44444,36.34083]] }
+};
+
+// =========================================================== Show / 3D-Flug
+// Google Photorealistic 3D Maps: Globus -> Pin faellt auf die Hauptstadt ->
+// Kamera fliegt die bekanntesten Sehenswuerdigkeiten ab und umkreist sie.
+// Sehenswuerdigkeiten und Koordinaten stammen aus Wikidata (Rangfolge nach
+// Zahl der Wikipedia-Sprachversionen), sind hier fest hinterlegt - kein
+// Places-Aufruf, keine Laufzeitkosten ausser dem Kartenladen selbst.
+
+// Leer lassen heisst: Key kommt aus dem localStorage dieses Browsers (wird
+// beim ersten Show abgefragt). Wer ihn lieber fest im - OEFFENTLICHEN! - Repo
+// haben will, traegt ihn hier ein und beschraenkt ihn in der Google Cloud
+// Console per HTTP-Referrer auf stschaab.github.io/*.
+const MAPS_API_KEY = '';
+const MAPS_KEY_LS = 'medb-maps-key';
+const getMapsKey = () => MAPS_API_KEY || (() => { try { return localStorage.getItem(MAPS_KEY_LS) || ''; } catch (e) { return ''; } })();
+
+// Ablauf in Millisekunden - hier schrauben, wenn die Show zu lang/kurz wirkt
+const T = { pin: 1400, toCity: 6000, toSight: 3500, around: 7000, outro: 4000 };
+
+let map3d = null, pin = null, mapsPromise = null, showToken = 0;
+
+function loadMapsApi(key) {
+  if (mapsPromise) return mapsPromise;
+  mapsPromise = new Promise((resolve, reject) => {
+    window.__medbMapsReady = () => resolve();
+    window.gm_authFailure = () => reject(new Error('AUTH'));
+    const s = document.createElement('script');
+    s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key)
+          + '&v=alpha&libraries=maps3d,marker&callback=__medbMapsReady';
+    s.onerror = () => reject(new Error('NETWORK'));
+    document.head.append(s);
+  }).catch(e => { mapsPromise = null; throw e; });  // Fehlschlag nicht einbrennen
+  return mapsPromise;
+}
+
+// Wartet auf das Ende einer Kamerafahrt. gmp-animationend ist die eigentliche
+// Quelle; der Timer ist nur die Reissleine, falls das Event ausbleibt.
+function animate(run, ms, token) {
+  return new Promise(resolve => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      map3d.removeEventListener('gmp-animationend', finish);
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(finish, ms + 2500);
+    map3d.addEventListener('gmp-animationend', finish);
+    run();
+    if (token !== showToken) finish();   // zwischenzeitlich abgebrochen
+  });
+}
+
+const camAt = (lat, lon, range, tilt, heading = 0) =>
+  ({ center: { lat, lng: lon, altitude: 0 }, range, tilt, heading });
+
+// ------------------------------------------------------------------ Overlay
+function showEl(id) { return document.getElementById(id); }
+
+function openOverlay() { showEl('showOv').classList.add('open'); document.body.style.overflow = 'hidden'; }
+function closeOverlay() {
+  showToken++;                                   // laufende Show abmelden
+  if (map3d) { try { map3d.stopCameraAnimation(); } catch (e) {} }
+  showEl('showOv').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function caption(title, sub) {
+  showEl('showTitle').textContent = title;
+  showEl('showSub').textContent = sub || '';
+}
+
+function steps(n, active) {
+  const el = showEl('showSteps');
+  el.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div');
+    d.className = 'show-step' + (i <= active ? ' on' : '');
+    el.appendChild(d);
+  }
+}
+
+function showMessage(html) {
+  showEl('showSetup').innerHTML = html;
+  showEl('showSetup').style.display = 'grid';
+}
+
+const SETUP_HTML = `
+  <div class="setup-box">
+    <h3>Einmalig: Google-Maps-Schl&uuml;ssel</h3>
+    <p>Der 3D-Flug nutzt Googles <b>Photorealistic 3D Maps</b>. Daf&uuml;r braucht der Browser
+    einen eigenen Maps-API-Schl&uuml;ssel &mdash; der Gemini-Schl&uuml;ssel aus den anderen
+    MeDB-Funktionen passt hier nicht.</p>
+    <ol>
+      <li>Google Cloud Console &rarr; Projekt <i>Health DB</i> &rarr; <b>APIs &amp; Dienste</b></li>
+      <li><b>Maps JavaScript API</b> aktivieren (Abrechnung muss am Projekt h&auml;ngen,
+          auch f&uuml;r das Gratiskontingent)</li>
+      <li>Anmeldedaten &rarr; <b>API-Schl&uuml;ssel erstellen</b></li>
+      <li>Schl&uuml;ssel einschr&auml;nken: <b>HTTP-Referrer</b> &rarr;
+          <code>stschaab.github.io/*</code></li>
+    </ol>
+    <input id="showKeyInput" type="text" placeholder="AIza…" autocomplete="off" spellcheck="false">
+    <button class="btn primary" id="showKeySave">Speichern &amp; starten</button>
+    <p class="fineprint">Bleibt nur in diesem Browser (localStorage), landet nicht im Repo.
+    Kontingent: 5.000 Kartenaufrufe pro Monat gratis.</p>
+  </div>`;
+
+function askForKey(entry) {
+  showMessage(SETUP_HTML);
+  showEl('showKeySave').onclick = () => {
+    const v = showEl('showKeyInput').value.trim();
+    if (!v) return;
+    try { localStorage.setItem(MAPS_KEY_LS, v); } catch (e) {}
+    startShow(entry);
+  };
+  showEl('showKeyInput').onkeydown = e => { if (e.key === 'Enter') showEl('showKeySave').click(); };
+}
+
+// --------------------------------------------------------------- Hauptablauf
+async function startShow(entry) {
+  const sight = SIGHTS[entry.word];
+  openOverlay();
+  caption(entry.word, entry.hint);
+  steps(1, 0);
+
+  const key = getMapsKey();
+  if (!key) { askForKey(entry); return; }
+
+  showMessage('<div class="setup-box"><h3>Karte wird geladen&hellip;</h3></div>');
+
+  let MapsLib;
+  try {
+    await loadMapsApi(key);
+    MapsLib = await google.maps.importLibrary('maps3d');
+  } catch (e) {
+    showMessage(`<div class="setup-box">
+      <h3>Karte l&auml;dt nicht</h3>
+      <p>${e.message === 'AUTH'
+        ? 'Google hat den Schl&uuml;ssel abgelehnt. H&auml;ufigste Ursachen: <b>Maps JavaScript API</b> im Projekt nicht aktiviert, keine Abrechnung hinterlegt, oder die Referrer-Beschr&auml;nkung passt nicht zur aufgerufenen Adresse.'
+        : 'Das Maps-Skript konnte nicht geladen werden (Netzwerk oder Blocker).'}</p>
+      <button class="btn ghost" id="showKeyReset">Anderen Schl&uuml;ssel eintragen</button>
+    </div>`);
+    const r = showEl('showKeyReset');
+    if (r) r.onclick = () => { try { localStorage.removeItem(MAPS_KEY_LS); } catch (e2) {} askForKey(entry); };
+    return;
+  }
+
+  showEl('showSetup').style.display = 'none';
+
+  const token = ++showToken;
+  const { Map3DElement, Marker3DElement, MapMode } = MapsLib;
+
+  // Karte nur einmal pro Sitzung bauen - jede Instanz ist ein abgerechneter
+  // Kartenaufruf, und das Wiederverwenden spart zusaetzlich Ladezeit.
+  if (!map3d) {
+    map3d = new Map3DElement({ mode: MapMode.HYBRID, defaultLabelsDisabled: false });
+    map3d.className = 'map3d';
+    showEl('showStage').append(map3d);
+  }
+  if (pin) { pin.remove(); pin = null; }
+
+  // --- Phase 1: Globus
+  map3d.center = { lat: sight.lat, lng: sight.lon, altitude: 0 };
+  map3d.range = 19000000;
+  map3d.tilt = 0;
+  map3d.heading = 0;
+  caption(entry.word, entry.hint);
+
+  // --- Phase 2: Pin faellt aus dem Orbit auf die Hauptstadt
+  pin = new Marker3DElement({
+    position: { lat: sight.lat, lng: sight.lon, altitude: 900000 },
+    altitudeMode: 'ABSOLUTE',
+    extruded: true,
+    label: entry.word
+  });
+  map3d.append(pin);
+  await new Promise(res => {
+    const t0 = performance.now();
+    const tick = now => {
+      const p = Math.min(1, (now - t0) / T.pin);
+      const eased = 1 - Math.pow(1 - p, 3);            // faellt schnell, bremst ab
+      pin.position = { lat: sight.lat, lng: sight.lon, altitude: 900000 * (1 - eased) };
+      if (p < 1 && token === showToken) requestAnimationFrame(tick); else res();
+    };
+    requestAnimationFrame(tick);
+  });
+  if (token !== showToken) return;
+
+  // --- Phase 3: Anflug auf die Stadt
+  await animate(() => map3d.flyCameraTo({
+    endCamera: camAt(sight.lat, sight.lon, 2600, 55), durationMillis: T.toCity
+  }), T.toCity, token);
+  if (token !== showToken) return;
+
+  // --- Phase 4: Drohnenflug ueber die Sehenswuerdigkeiten
+  const list = sight.s || [];
+  steps(list.length + 1, 0);
+  for (let i = 0; i < list.length; i++) {
+    if (token !== showToken) return;
+    const [name, lat, lon] = list[i];
+    caption(name, `${entry.word} · ${i + 1} von ${list.length}`);
+    steps(list.length + 1, i + 1);
+
+    await animate(() => map3d.flyCameraTo({
+      endCamera: camAt(lat, lon, 520, 68), durationMillis: T.toSight
+    }), T.toSight, token);
+    if (token !== showToken) return;
+
+    await animate(() => map3d.flyCameraAround({
+      camera: camAt(lat, lon, 420, 68), durationMillis: T.around, rounds: 1
+    }), T.around, token);
+  }
+  if (token !== showToken) return;
+
+  // --- Phase 5: Abspann
+  caption(entry.word, entry.hint);
+  await animate(() => map3d.flyCameraTo({
+    endCamera: camAt(sight.lat, sight.lon, 9000, 45), durationMillis: T.outro
+  }), T.outro, token);
 }
 
 // ------------------------------------------------------------------ Bindings
@@ -546,8 +921,16 @@ function init() {
     renderStats();
   };
 
+  document.getElementById('btnShow').onclick = () => startShow(current);
+  document.getElementById('showX').onclick = closeOverlay;
+
   document.addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    // Bei offener Show frisst das Overlay die Tastatur — sonst rät man blind weiter
+    if (document.getElementById('showOv').classList.contains('open')) {
+      if (e.key === 'Escape') closeOverlay();
+      return;
+    }
     if (e.key === 'Enter' && over) { newGame(); return; }
     const ch = e.key.toUpperCase();
     if (isLetter(ch)) { guess(ch); e.preventDefault(); }
