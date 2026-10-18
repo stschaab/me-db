@@ -687,13 +687,42 @@ const SIGHTS = {
 // Zahl der Wikipedia-Sprachversionen), sind hier fest hinterlegt - kein
 // Places-Aufruf, keine Laufzeitkosten ausser dem Kartenladen selbst.
 
-// Leer lassen heisst: Key kommt aus dem localStorage dieses Browsers (wird
-// beim ersten Show abgefragt). Wer ihn lieber fest im - OEFFENTLICHEN! - Repo
-// haben will, traegt ihn hier ein und beschraenkt ihn in der Google Cloud
-// Console per HTTP-Referrer auf stschaab.github.io/*.
+// Leer lassen heisst: der Key kommt aus der Tabelle app_settings und wird beim
+// ersten Show einmal abgefragt. Bewusst DB statt nur localStorage, damit man
+// einen Google-Cloud-Schluessel nicht auf jedem Geraet neu abtippen muss -
+// besonders nicht am Handy. Wer ihn lieber fest im - OEFFENTLICHEN! - Repo
+// haben will, traegt ihn hier ein; dann ist die HTTP-Referrer-Beschraenkung
+// auf stschaab.github.io/* der einzige Schutz.
 const MAPS_API_KEY = '';
 const MAPS_KEY_LS = 'medb-maps-key';
-const getMapsKey = () => MAPS_API_KEY || (() => { try { return localStorage.getItem(MAPS_KEY_LS) || ''; } catch (e) { return ''; } })();
+
+const lsGet = k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+
+async function getMapsKey() {
+  if (MAPS_API_KEY) return MAPS_API_KEY;
+  try {
+    const { data } = await db.from('app_settings').select('value').eq('key', 'maps_api_key').maybeSingle();
+    if (data && data.value) { lsSet(MAPS_KEY_LS, data.value); return data.value; }
+  } catch (e) { /* offline o.ae. -> lokaler Stand */ }
+  return lsGet(MAPS_KEY_LS);
+}
+
+// Rueckgabe: hat es fuer ALLE Geraete geklappt? Nicht-Admins duerfen
+// app_settings per RLS nicht schreiben - bei denen bleibt es lokal.
+async function saveMapsKey(v) {
+  lsSet(MAPS_KEY_LS, v);
+  try {
+    const { error } = await db.from('app_settings')
+      .upsert({ key: 'maps_api_key', value: v, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    return !error;
+  } catch (e) { return false; }
+}
+
+async function forgetMapsKey() {
+  try { localStorage.removeItem(MAPS_KEY_LS); } catch (e) {}
+  try { await db.from('app_settings').delete().eq('key', 'maps_api_key'); } catch (e) {}
+}
 
 // Ablauf in Millisekunden - hier schrauben, wenn die Show zu lang/kurz wirkt
 const T = { pin: 1400, toCity: 6000, toSight: 3500, around: 7000, outro: 4000 };
@@ -770,32 +799,46 @@ function showMessage(html) {
 const SETUP_HTML = `
   <div class="setup-box">
     <h3>Einmalig: Google-Maps-Schl&uuml;ssel</h3>
-    <p>Der 3D-Flug nutzt Googles <b>Photorealistic 3D Maps</b>. Daf&uuml;r braucht der Browser
-    einen eigenen Maps-API-Schl&uuml;ssel &mdash; der Gemini-Schl&uuml;ssel aus den anderen
-    MeDB-Funktionen passt hier nicht.</p>
+    <p>Der 3D-Flug nutzt Googles <b>Photorealistic 3D Maps</b>. Daf&uuml;r braucht es einen
+    eigenen Maps-Schl&uuml;ssel &mdash; der Gemini-Schl&uuml;ssel aus den anderen MeDB-Funktionen
+    passt hier nicht. Zwei Links, dazwischen nichts suchen:</p>
     <ol>
-      <li>Google Cloud Console &rarr; Projekt <i>Health DB</i> &rarr; <b>APIs &amp; Dienste</b></li>
-      <li><b>Maps JavaScript API</b> aktivieren (Abrechnung muss am Projekt h&auml;ngen,
-          auch f&uuml;r das Gratiskontingent)</li>
-      <li>Anmeldedaten &rarr; <b>API-Schl&uuml;ssel erstellen</b></li>
-      <li>Schl&uuml;ssel einschr&auml;nken: <b>HTTP-Referrer</b> &rarr;
+      <li><a href="https://console.cloud.google.com/apis/library/maps-backend.googleapis.com"
+             target="_blank" rel="noopener">Maps JavaScript API aktivieren</a>
+          &mdash; Projekt <i>Health DB</i> w&auml;hlen, dann <b>Aktivieren</b></li>
+      <li><a href="https://console.cloud.google.com/apis/credentials"
+             target="_blank" rel="noopener">Anmeldedaten &rarr; Schl&uuml;ssel erstellen</a>
+          &mdash; <b>Anmeldedaten erstellen</b> &rarr; <b>API-Schl&uuml;ssel</b>, dann kopieren</li>
+      <li>Danach dort einschr&auml;nken: <b>HTTP-Referrer</b> &rarr;
           <code>stschaab.github.io/*</code></li>
     </ol>
-    <input id="showKeyInput" type="text" placeholder="AIza…" autocomplete="off" spellcheck="false">
+    <p class="fineprint">Am Handy: die Console braucht die Desktop-Ansicht, sonst fehlen Men&uuml;punkte.
+    Abrechnung muss am Projekt h&auml;ngen (beim Gemini-Key schon erledigt, gilt projektweit).</p>
+    <input id="showKeyInput" type="text" inputmode="text" placeholder="AIza…"
+           autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
     <button class="btn primary" id="showKeySave">Speichern &amp; starten</button>
-    <p class="fineprint">Bleibt nur in diesem Browser (localStorage), landet nicht im Repo.
-    Kontingent: 5.000 Kartenaufrufe pro Monat gratis.</p>
+    <p class="fineprint" id="showKeyNote">Wird in MeDB hinterlegt &mdash; <b>einmal eintragen, alle
+    Ger&auml;te haben ihn</b>. Landet nicht im Repo. Kontingent: 5.000 Kartenaufrufe pro Monat gratis.</p>
   </div>`;
 
 function askForKey(entry) {
   showMessage(SETUP_HTML);
-  showEl('showKeySave').onclick = () => {
+  const save = async () => {
     const v = showEl('showKeyInput').value.trim();
     if (!v) return;
-    try { localStorage.setItem(MAPS_KEY_LS, v); } catch (e) {}
+    const btn = showEl('showKeySave');
+    btn.disabled = true;
+    btn.textContent = 'Speichern…';
+    const shared = await saveMapsKey(v);
+    // Kein Abbruch, wenn die DB nicht wollte: lokal reicht zum Fliegen, der
+    // Hinweis sagt nur, dass das naechste Geraet wieder fragen wird.
+    if (!shared) showEl('showKeyNote').innerHTML =
+      'Konnte nur in <b>diesem</b> Browser gespeichert werden (zum Schreiben in MeDB fehlen die Rechte).';
     startShow(entry);
   };
-  showEl('showKeyInput').onkeydown = e => { if (e.key === 'Enter') showEl('showKeySave').click(); };
+  showEl('showKeySave').onclick = save;
+  showEl('showKeyInput').onkeydown = e => { if (e.key === 'Enter') save(); };
+  showEl('showKeyInput').focus();
 }
 
 // --------------------------------------------------------------- Hauptablauf
@@ -805,10 +848,10 @@ async function startShow(entry) {
   caption(entry.word, entry.hint);
   steps(1, 0);
 
-  const key = getMapsKey();
-  if (!key) { askForKey(entry); return; }
-
   showMessage('<div class="setup-box"><h3>Karte wird geladen&hellip;</h3></div>');
+
+  const key = await getMapsKey();
+  if (!key) { askForKey(entry); return; }
 
   let MapsLib;
   try {
@@ -823,7 +866,7 @@ async function startShow(entry) {
       <button class="btn ghost" id="showKeyReset">Anderen Schl&uuml;ssel eintragen</button>
     </div>`);
     const r = showEl('showKeyReset');
-    if (r) r.onclick = () => { try { localStorage.removeItem(MAPS_KEY_LS); } catch (e2) {} askForKey(entry); };
+    if (r) r.onclick = async () => { await forgetMapsKey(); askForKey(entry); };
     return;
   }
 
