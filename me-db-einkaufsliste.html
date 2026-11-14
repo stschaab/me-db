@@ -177,6 +177,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <select id="newProdShop"><option value="">Default shop…</option></select>
       <button onclick="addProductFromPanel()">+ Product</button>
     </div>
+    <div class="filters" style="margin-bottom:10px">
+      <button class="chip" id="prodFilterAll" onclick="setProdFilter('all')">All</button>
+      <button class="chip" id="prodFilterOpen" onclick="setProdFilter('notInCart')">Not in cart</button>
+    </div>
     <div id="prodList"></div>
   </div>
 
@@ -473,9 +477,23 @@ async function deleteShop(id) {
   showToast('Shop deleted');
 }
 
+let prodFilter = 'all';
+try { prodFilter = localStorage.getItem('medb_prod_filter') || 'all'; } catch (e) {}
+function setProdFilter(f) {
+  prodFilter = f;
+  try { localStorage.setItem('medb_prod_filter', f); } catch (e) {}
+  renderProdPanel();
+}
 function renderProdPanel() {
+  const notInCartCount = products.filter(p => !items.some(i => i.product_id === p.id)).length;
+  document.getElementById('prodFilterAll').classList.toggle('active', prodFilter === 'all');
+  document.getElementById('prodFilterOpen').classList.toggle('active', prodFilter === 'notInCart');
+  document.getElementById('prodFilterAll').textContent = `All (${products.length})`;
+  document.getElementById('prodFilterOpen').textContent = `Not in cart (${notInCartCount})`;
   if (!products.length) { document.getElementById('prodList').innerHTML = '<div style="color:#aaa;font-size:0.85rem">No products yet</div>'; return; }
-  document.getElementById('prodList').innerHTML = products.map(p=>{
+  const visible = prodFilter === 'notInCart' ? products.filter(p => !items.some(i => i.product_id === p.id)) : products;
+  if (!visible.length) { document.getElementById('prodList').innerHTML = '<div style="color:#aaa;font-size:0.85rem">Everything is already in the cart 🎉</div>'; return; }
+  document.getElementById('prodList').innerHTML = visible.map(p=>{
     const opts = '<option value="">– Default shop –</option>' + shops.map(s=>`<option value="${s.id}" ${p.default_shop_id===s.id?'selected':''}>${esc(s.name)}</option>`).join('');
     const cartCount = items.filter(i=>i.product_id===p.id).length;
     return `<div class="mrow">
