@@ -7,34 +7,50 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a1a2e; display: flex; flex-direction: column; height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a1a2e; display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 header { background: #1a1a2e; color: white; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
 header h1 { font-size: 1.1rem; font-weight: 700; }
 header h1 span { color: #00b4d8; }
 .nav-links { display: flex; gap: 14px; }
 .nav-links a { color: #7ec8e3; font-size: 0.8rem; text-decoration: none; }
 .nav-links a:hover { text-decoration: underline; }
-.chat-header { background: white; padding: 12px 20px; border-bottom: 1px solid #e8eaed; flex-shrink: 0; display: flex; align-items: center; gap: 12px; }
-.chat-avatar { width: 36px; height: 36px; border-radius: 50%; background: #00b4d8; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
+
+.tabs { background: #16213e; display: flex; gap: 6px; padding: 8px 12px 0; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { display: flex; align-items: center; gap: 7px; padding: 8px 12px; border-radius: 10px 10px 0 0; background: #24305a; color: #c9d6f0; font-size: 0.82rem; cursor: pointer; white-space: nowrap; border: none; font-family: inherit; flex-shrink: 0; }
+.tab:hover { background: #2d3b6b; }
+.tab.active { background: white; color: #1a1a2e; font-weight: 700; }
+.tab .t-av { width: 20px; height: 20px; border-radius: 50%; background: #00b4d8; color: white; font-size: 0.68rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.tab .t-badge { background: #ff5a5f; color: white; border-radius: 10px; font-size: 0.66rem; font-weight: 700; padding: 1px 6px; }
+.tab.active .t-badge { display: none; }
+
+.chat-header { background: white; padding: 12px 16px 10px; border-bottom: 1px solid #e8eaed; flex-shrink: 0; }
+.ch-row { display: flex; align-items: center; gap: 12px; }
+.chat-avatar { width: 38px; height: 38px; border-radius: 50%; background: #00b4d8; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.95rem; flex-shrink: 0; }
 .chat-partner-name { font-weight: 700; font-size: 0.95rem; }
 .chat-partner-meta { font-size: 0.72rem; color: #888; }
-.location-share-btn { margin-left: auto; padding: 7px 14px; border: 1px solid #00b4d8; border-radius: 8px; background: white; color: #00b4d8; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.location-share-btn { margin-left: auto; padding: 7px 12px; border: 1px solid #00b4d8; border-radius: 8px; background: white; color: #00b4d8; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .location-share-btn:hover { background: #e8f8fc; }
+.interests { margin-top: 10px; background: #f0f8fb; border-radius: 10px; padding: 8px 11px; font-size: 0.82rem; line-height: 1.4; color: #2b3a4a; cursor: pointer; }
+.interests .i-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #0092b0; margin-bottom: 2px; }
+.interests .i-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
+.interests.open .i-text { display: block; max-height: 30vh; overflow-y: auto; }
+.interests .i-more { font-size: 0.7rem; color: #0092b0; margin-top: 3px; }
+
 .messages { flex: 1; overflow-y: auto; padding: 16px 16px 8px; display: flex; flex-direction: column; gap: 8px; }
-.msg { max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 0.9rem; line-height: 1.4; word-wrap: break-word; }
+.msg { max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 0.9rem; line-height: 1.4; word-wrap: break-word; white-space: pre-wrap; }
 .msg.mine { align-self: flex-end; background: #00b4d8; color: white; border-bottom-right-radius: 4px; }
 .msg.theirs { align-self: flex-start; background: white; color: #1a1a2e; border-bottom-left-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
 .msg .time { font-size: 0.65rem; opacity: 0.65; margin-top: 3px; }
 .msg.mine .time { text-align: right; }
 .msg-day-sep { text-align: center; font-size: 0.7rem; color: #aaa; padding: 8px 0; }
 .compose { background: white; border-top: 1px solid #e8eaed; padding: 12px 16px; display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
-.compose textarea { flex: 1; padding: 10px 14px; border: 1.5px solid #e0e0e0; border-radius: 20px; font-size: 0.95rem; font-family: inherit; resize: none; outline: none; max-height: 100px; line-height: 1.4; transition: border-color 0.15s; }
+.compose textarea { flex: 1; padding: 10px 14px; border: 1.5px solid #e0e0e0; border-radius: 20px; font-size: 16px; font-family: inherit; resize: none; outline: none; max-height: 100px; line-height: 1.4; transition: border-color 0.15s; }
 .compose textarea:focus { border-color: #00b4d8; }
 .send-btn { width: 42px; height: 42px; border-radius: 50%; background: #00b4d8; color: white; border: none; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
 .send-btn:hover { background: #0092b0; }
 .send-btn:disabled { background: #b0d8e8; cursor: not-allowed; }
-#loadingMsg { text-align: center; padding: 40px 20px; color: #888; font-size: 0.9rem; }
-#emptyMsg { text-align: center; padding: 40px 20px; color: #aaa; font-size: 0.88rem; line-height: 1.6; }
+.info { text-align: center; padding: 40px 20px; color: #888; font-size: 0.9rem; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -47,22 +63,29 @@ header h1 span { color: #00b4d8; }
   </div>
 </header>
 
-<div class="chat-header" id="chatHeader">
-  <div class="chat-avatar" id="chatAvatar">?</div>
-  <div>
-    <div class="chat-partner-name" id="chatPartnerName">…</div>
-    <div class="chat-partner-meta" id="chatPartnerMeta"></div>
+<div class="tabs" id="tabs"></div>
+
+<div class="chat-header">
+  <div class="ch-row">
+    <div class="chat-avatar" id="chatAvatar">?</div>
+    <div>
+      <div class="chat-partner-name" id="chatPartnerName">…</div>
+      <div class="chat-partner-meta" id="chatPartnerMeta"></div>
+    </div>
+    <button class="location-share-btn" onclick="shareLocation()">📍 Standort teilen</button>
   </div>
-  <button class="location-share-btn" onclick="shareLocation()">📍 Genaueren Standort teilen</button>
+  <div class="interests" id="interests" style="display:none" onclick="this.classList.toggle('open'); updateMore()">
+    <div class="i-label">Interessen</div>
+    <div class="i-text" id="interestsText"></div>
+    <div class="i-more" id="interestsMore"></div>
+  </div>
 </div>
 
-<div class="messages" id="messages">
-  <div id="loadingMsg">Lade Chat…</div>
-</div>
+<div class="messages" id="messages"><div class="info">Lade Chat…</div></div>
 
 <div class="compose">
   <textarea id="msgInput" placeholder="Schreib eine Nachricht…" rows="1"
-    oninput="autoResize(this)" onkeydown="onKey(event)"></textarea>
+    oninput="onInput(this)" onkeydown="onKey(event)"></textarea>
   <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>➤</button>
 </div>
 
@@ -70,48 +93,164 @@ header h1 span { color: #00b4d8; }
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY, { auth: { storageKey: 'n2y-auth' } });
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-let myId = null, convId = null, partnerId = null, channel = null;
+let myId = null;
+let convs = [];             // from n2y_my_conversations
+let activeConv = null;      // conversation id
+let lastDay = '';
+let openToken = 0;          // guards against late responses after switching tabs
+const drafts = {};
+const profiles = {};
 
-const params = new URLSearchParams(location.search);
-partnerId = params.get('with');
-convId = params.get('conv');
-
-function autoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
-  document.getElementById('sendBtn').disabled = el.value.trim() === '';
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
-function onKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-}
-
-function fmtTime(ts) {
-  const d = new Date(ts);
-  return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-}
-
+function fmtTime(ts) { return new Date(ts).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }
 function fmtDay(ts) {
-  const d = new Date(ts);
-  const today = new Date();
+  const d = new Date(ts), today = new Date();
   if (d.toDateString() === today.toDateString()) return 'Heute';
-  const yest = new Date(today); yest.setDate(yest.getDate()-1);
+  const yest = new Date(today); yest.setDate(yest.getDate() - 1);
   if (d.toDateString() === yest.toDateString()) return 'Gestern';
   return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
 }
 
-function appendMessage(msg, myUid) {
+function onInput(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+  document.getElementById('sendBtn').disabled = el.value.trim() === '';
+  if (activeConv) drafts[activeConv] = el.value;
+}
+function onKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+
+function renderTabs() {
+  const el = document.getElementById('tabs');
+  el.innerHTML = convs.map(c => {
+    const name = c.partner_nickname || 'Anonym';
+    const unread = Number(c.unread || 0);
+    return `<button class="tab${c.conversation_id === activeConv ? ' active' : ''}" onclick="openConversation('${c.conversation_id}')">
+      <span class="t-av">${escHtml(name[0].toUpperCase())}</span>${escHtml(name)}${unread ? `<span class="t-badge">${unread}</span>` : ''}
+    </button>`;
+  }).join('');
+  const active = el.querySelector('.tab.active');
+  if (active) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+async function loadConvs() {
+  const { data } = await db.rpc('n2y_my_conversations');
+  convs = data || [];
+  const a = convs.find(c => c.conversation_id === activeConv);
+  if (a) a.unread = 0;
+  renderTabs();
+}
+
+function updateMore() {
+  const box = document.getElementById('interests');
+  const t = document.getElementById('interestsText');
+  const clipped = t.scrollHeight > t.clientHeight + 2;
+  document.getElementById('interestsMore').textContent =
+    box.classList.contains('open') ? 'weniger' : (clipped ? 'mehr anzeigen' : '');
+}
+
+function showProfile(p) {
+  const name = p?.nickname || 'Anonym';
+  document.getElementById('chatPartnerName').textContent = name;
+  document.getElementById('chatAvatar').textContent = name[0].toUpperCase();
+  const g = p?.gender === 'm' ? 'Mann' : p?.gender === 'f' ? 'Frau' : p?.gender === 'd' ? 'Divers' : '';
+  const age = p?.age_years ? (g ? ', ' : '') + p.age_years + ' J.' : '';
+  document.getElementById('chatPartnerMeta').textContent = (g + age) || 'Anonymer Nutzer';
+  const box = document.getElementById('interests');
+  box.classList.remove('open');
+  if (p?.topics_text) {
+    document.getElementById('interestsText').textContent = p.topics_text;
+    box.style.display = 'block';
+    requestAnimationFrame(updateMore);
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+async function getProfile(partnerId) {
+  if (profiles[partnerId]) return profiles[partnerId];
+  const { data } = await db.rpc('n2y_profile', { p_id: partnerId });
+  return (profiles[partnerId] = (data && data[0]) || null);
+}
+
+function appendMessage(msg) {
   const container = document.getElementById('messages');
+  const day = fmtDay(msg.created_at);
+  if (day !== lastDay) {
+    const sep = document.createElement('div');
+    sep.className = 'msg-day-sep'; sep.textContent = day;
+    container.appendChild(sep);
+    lastDay = day;
+  }
   const div = document.createElement('div');
-  div.className = 'msg ' + (msg.sender_id === myUid ? 'mine' : 'theirs');
+  div.className = 'msg ' + (msg.sender_id === myId ? 'mine' : 'theirs');
   div.innerHTML = escHtml(msg.content) + '<div class="time">' + fmtTime(msg.created_at) + '</div>';
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }
 
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+async function openConversation(id) {
+  if (!id) return;
+  const token = ++openToken;
+  activeConv = id;
+  history.replaceState(null, '', 'chat.html?conv=' + id);
+
+  const conv = convs.find(c => c.conversation_id === id);
+  if (conv) conv.unread = 0;
+  renderTabs();
+
+  const input = document.getElementById('msgInput');
+  input.value = drafts[id] || '';
+  onInput(input);
+
+  const messagesEl = document.getElementById('messages');
+  messagesEl.innerHTML = '<div class="info">Lade Chat…</div>';
+  lastDay = '';
+
+  const partnerId = conv?.partner_id;
+  const [profile, { data: messages }] = await Promise.all([
+    partnerId ? getProfile(partnerId) : Promise.resolve(null),
+    db.from('n2y_messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true })
+  ]);
+  if (token !== openToken) return;
+
+  showProfile(profile || { nickname: conv?.partner_nickname });
+  messagesEl.innerHTML = '';
+  if (!messages || !messages.length) {
+    messagesEl.innerHTML = '<div class="info" id="emptyMsg">Noch keine Nachrichten. Fang einfach an!</div>';
+  } else {
+    messages.forEach(appendMessage);
+    db.rpc('n2y_mark_read', { p_conversation: id }).then(() => {});
+  }
+}
+
+async function resolveConversation(partnerId) {
+  const pairFilter = `and(user1_id.eq.${myId},user2_id.eq.${partnerId}),and(user1_id.eq.${partnerId},user2_id.eq.${myId})`;
+  const { data: existing } = await db.from('n2y_conversations').select('id').or(pairFilter).maybeSingle();
+  if (existing) return existing.id;
+  const { data: created, error } = await db.from('n2y_conversations')
+    .insert({ user1_id: myId, user2_id: partnerId }).select('id').single();
+  if (!error) return created.id;
+  if (error.code === '23505') {
+    const { data: again } = await db.from('n2y_conversations').select('id').or(pairFilter).maybeSingle();
+    return again?.id || null;
+  }
+  throw error;
+}
+
+function onNewMessage(msg) {
+  if (msg.conversation_id === activeConv) {
+    document.getElementById('emptyMsg')?.remove();
+    appendMessage(msg);
+    if (msg.sender_id !== myId) db.rpc('n2y_mark_read', { p_conversation: activeConv }).then(() => {});
+    const c = convs.find(c => c.conversation_id === activeConv);
+    if (c) { c.last_message = msg.content; c.last_at = msg.created_at; }
+  } else {
+    loadConvs();
+  }
 }
 
 async function init() {
@@ -119,113 +258,53 @@ async function init() {
   if (!session) { window.location.href = 'index.html'; return; }
   myId = session.user.id;
 
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if ((partnerId && !UUID_RE.test(partnerId)) || (convId && !UUID_RE.test(convId)) || partnerId === myId) {
-    document.getElementById('loadingMsg').textContent = 'Ungültiger Chat-Link.';
+  const params = new URLSearchParams(location.search);
+  const withId = params.get('with');
+  let convId = params.get('conv');
+  if ((withId && (!UUID_RE.test(withId) || withId === myId)) || (convId && !UUID_RE.test(convId))) {
+    document.getElementById('messages').innerHTML = '<div class="info">Ungültiger Chat-Link.</div>';
     return;
   }
 
-  if (!convId && partnerId) {
-    // Existing conversation?
-    const { data: existing } = await db.from('n2y_conversations')
-      .select('id')
-      .or(`and(user1_id.eq.${myId},user2_id.eq.${partnerId}),and(user1_id.eq.${partnerId},user2_id.eq.${myId})`)
-      .maybeSingle();
-
-    if (existing) {
-      convId = existing.id;
-    } else {
-      const { data: newConv, error } = await db.from('n2y_conversations')
-        .insert({ user1_id: myId, user2_id: partnerId })
-        .select('id').single();
-      if (error && error.code === '23505') {
-        const { data: again } = await db.from('n2y_conversations').select('id')
-          .or(`and(user1_id.eq.${myId},user2_id.eq.${partnerId}),and(user1_id.eq.${partnerId},user2_id.eq.${myId})`)
-          .maybeSingle();
-        convId = again?.id;
-      } else if (error) {
-        document.getElementById('loadingMsg').textContent = 'Fehler: ' + error.message; return;
-      } else {
-        convId = newConv.id;
-      }
-    }
+  try {
+    if (!convId && withId) convId = await resolveConversation(withId);
+  } catch (e) {
+    document.getElementById('messages').innerHTML = '<div class="info">Fehler: ' + escHtml(e.message) + '</div>';
+    return;
   }
 
-  if (!convId) { document.getElementById('loadingMsg').textContent = 'Kein Chat gefunden.'; return; }
-
-  // Gesprächspartner laden
-  if (!partnerId) {
-    const { data: conv } = await db.from('n2y_conversations').select('user1_id,user2_id').eq('id', convId).single();
-    if (conv) partnerId = conv.user1_id === myId ? conv.user2_id : conv.user1_id;
+  activeConv = convId;
+  await loadConvs();
+  if (!convId) convId = convs[0]?.conversation_id;
+  if (!convId) {
+    document.getElementById('messages').innerHTML =
+      '<div class="info">Noch keine Gespräche.<br><a href="map.html" style="color:#00b4d8">Auf der Karte jemanden anschreiben →</a></div>';
+    return;
   }
-  if (partnerId) {
-    const { data: rows } = await db.rpc('n2y_profile', { p_id: partnerId });
-    const partner = rows && rows[0];
-    if (partner) {
-      const name = partner.nickname || 'Anonym';
-      document.getElementById('chatPartnerName').textContent = name;
-      document.getElementById('chatAvatar').textContent = name[0].toUpperCase();
-      const gLabel = partner.gender === 'm' ? 'Mann' : partner.gender === 'f' ? 'Frau' : partner.gender === 'd' ? 'Divers' : '';
-      const ageLabel = partner.age_years ? ', ' + partner.age_years + ' J.' : '';
-      document.getElementById('chatPartnerMeta').textContent = (gLabel + ageLabel) || 'Anonymer Nutzer';
-    }
-  }
+  openConversation(convId);
 
-  // Nachrichten laden
-  const { data: messages } = await db.from('n2y_messages')
-    .select('*').eq('conversation_id', convId).order('created_at', { ascending: true });
-
-  document.getElementById('loadingMsg').remove();
-
-  if (!messages || messages.length === 0) {
-    const empty = document.createElement('div');
-    empty.id = 'emptyMsg';
-    empty.textContent = 'Noch keine Nachrichten. Fang einfach an!';
-    document.getElementById('messages').appendChild(empty);
-  } else {
-    let lastDay = '';
-    messages.forEach(msg => {
-      const day = fmtDay(msg.created_at);
-      if (day !== lastDay) {
-        const sep = document.createElement('div');
-        sep.className = 'msg-day-sep'; sep.textContent = day;
-        document.getElementById('messages').appendChild(sep);
-        lastDay = day;
-      }
-      appendMessage(msg, myId);
-    });
-    db.rpc('n2y_mark_read', { p_conversation: convId }).then(() => {});
-  }
-
-  channel = db.channel('conv:' + convId)
-    .on('postgres_changes', {
-      event: 'INSERT', schema: 'public', table: 'n2y_messages',
-      filter: 'conversation_id=eq.' + convId
-    }, (payload) => {
-      const empty = document.getElementById('emptyMsg');
-      if (empty) empty.remove();
-      appendMessage(payload.new, myId);
-      if (payload.new.sender_id !== myId) db.rpc('n2y_mark_read', { p_conversation: convId }).then(() => {});
-    })
+  db.channel('n2y-chat')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'n2y_messages' }, (p) => onNewMessage(p.new))
     .subscribe();
 }
 
 async function sendMessage() {
   const input = document.getElementById('msgInput');
   const content = input.value.trim();
-  if (!content || !convId) return;
-
+  if (!content || !activeConv) return;
+  const conv = activeConv;
   document.getElementById('sendBtn').disabled = true;
   input.value = '';
   input.style.height = 'auto';
+  drafts[conv] = '';
 
-  const { error } = await db.from('n2y_messages').insert({
-    conversation_id: convId,
-    sender_id: myId,
-    content
-  });
-  if (error) { alert('Fehler: ' + error.message); input.value = content; }
-  document.getElementById('sendBtn').disabled = false;
+  const { error } = await db.from('n2y_messages').insert({ conversation_id: conv, sender_id: myId, content });
+  if (error) {
+    alert('Fehler: ' + error.message);
+    drafts[conv] = content;
+    if (conv === activeConv) input.value = content;
+  }
+  document.getElementById('sendBtn').disabled = input.value.trim() === '';
   input.focus();
 }
 
@@ -233,10 +312,10 @@ function shareLocation() {
   navigator.geolocation.getCurrentPosition((pos) => {
     const lat = pos.coords.latitude.toFixed(5);
     const lng = pos.coords.longitude.toFixed(5);
-    const url = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}`;
-    document.getElementById('msgInput').value = '📍 Mein genauer Standort: ' + url;
-    autoResize(document.getElementById('msgInput'));
-  }, () => alert('GPS-Zugriff verweigert.'));
+    const input = document.getElementById('msgInput');
+    input.value = '📍 Mein genauer Standort: ' + `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}`;
+    onInput(input);
+  }, () => alert('GPS-Zugriff verweigert.'), { enableHighAccuracy: true });
 }
 
 init();
