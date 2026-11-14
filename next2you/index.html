@@ -42,6 +42,10 @@ header h1 span { color: #00b4d8; }
 .hint { font-size: 0.75rem; color: #aaa; margin-top: 5px; }
 .anon-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.1); border-radius: 20px; padding: 6px 14px; font-size: 0.8rem; margin-top: 16px; }
 #statusMsg { text-align: center; padding: 20px; color: #666; font-size: 0.9rem; }
+.privacy-note { background: #f4f8fb; border: 1px solid #dbe9f2; border-radius: 12px; padding: 12px 14px; margin: 4px 0 18px; font-size: 0.82rem; line-height: 1.45; color: #444; }
+.privacy-note div { display: flex; gap: 8px; }
+.privacy-note div + div { margin-top: 7px; }
+.privacy-note .warn { color: #8a5a00; }
 </style>
 </head>
 <body>
@@ -81,6 +85,12 @@ header h1 span { color: #00b4d8; }
       <label>Alter <span style="font-weight:400;color:#aaa">(optional)</span></label>
       <input type="number" id="age" placeholder="z.B. 32" min="16" max="99">
       <div class="hint">Wird für den Altersfilter genutzt. Niemand sieht dein genaues Alter.</div>
+    </div>
+
+    <div class="privacy-note" id="privacyNote">
+      <div><span>🔒</span><span><b>Komplett anonym</b> – kein Name, keine E-Mail, kein Passwort.</span></div>
+      <div><span>📱</span><span>Dein Zugang ist <b>nur in diesem Browser</b> gespeichert.</span></div>
+      <div class="warn"><span>⚠️</span><span><b>Browserdaten löschen</b>, anderer Browser, anderes Gerät oder Inkognito-Fenster → <b>Zugang und Chatverlauf sind weg.</b></span></div>
     </div>
 
     <button class="btn-primary" id="saveBtn" onclick="saveProfile()">Weiter →</button>
