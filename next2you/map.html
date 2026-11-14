@@ -27,6 +27,11 @@ select:focus { border-color: #00b4d8; }
 .btn-refresh { padding: 6px 14px; background: #00b4d8; color: white; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
 .btn-refresh:hover { background: #0092b0; }
 #map { flex: 1; z-index: 1; }
+.fgroup { display: flex; align-items: center; gap: 8px; }
+.fslider { flex: 1 1 100%; }
+.fslider input[type="range"] { flex: 1; min-width: 0; }
+.fslider label { min-width: 54px; }
+.radius-val { text-align: right; min-width: 52px; }
 .match-count { font-size: 0.75rem; color: #888; margin-left: auto; white-space: nowrap; }
 /* Leaflet popup */
 .popup-box { min-width: 180px; }
@@ -73,23 +78,35 @@ select:focus { border-color: #00b4d8; }
 </header>
 
 <div class="filter-bar">
-  <label>Radius</label>
-  <input type="range" id="radiusSlider" min="0" max="3" step="1" value="1" oninput="onRadiusChange()">
-  <span class="radius-val" id="radiusVal">1 km</span>
+  <div class="fgroup fslider">
+    <label>Radius</label>
+    <input type="range" id="radiusSlider" min="0" max="3" step="1" value="1" oninput="onRadiusChange()">
+    <span class="radius-val" id="radiusVal">1 km</span>
+  </div>
 
-  <label>Geschlecht</label>
-  <select id="genderFilter" onchange="loadMatches()">
-    <option value="">Alle</option>
-    <option value="m">Männer</option>
-    <option value="f">Frauen</option>
-    <option value="d">Divers</option>
-  </select>
+  <div class="fgroup fslider">
+    <label>Match</label>
+    <input type="range" id="matchSlider" min="0" max="100" step="10" value="0" oninput="onMatchChange()">
+    <span class="radius-val" id="matchVal">≥ 0 %</span>
+  </div>
 
-  <label>Alter</label>
-  <div class="age-row">
-    <input type="number" id="ageMin" placeholder="von" min="16" max="99" oninput="loadMatches()">
-    <span style="font-size:0.75rem;color:#aaa">–</span>
-    <input type="number" id="ageMax" placeholder="bis" min="16" max="99" oninput="loadMatches()">
+  <div class="fgroup">
+    <label>Geschlecht</label>
+    <select id="genderFilter" onchange="loadMatches()">
+      <option value="">Alle</option>
+      <option value="m">Männer</option>
+      <option value="f">Frauen</option>
+      <option value="d">Divers</option>
+    </select>
+  </div>
+
+  <div class="fgroup">
+    <label>Alter</label>
+    <div class="age-row">
+      <input type="number" id="ageMin" placeholder="von" min="16" max="99" oninput="loadMatches()">
+      <span style="font-size:0.75rem;color:#aaa">–</span>
+      <input type="number" id="ageMax" placeholder="bis" min="16" max="99" oninput="loadMatches()">
+    </div>
   </div>
 
   <button class="btn-refresh" onclick="loadMatches()">↻</button>
@@ -158,6 +175,10 @@ async function init() {
   if (!session) { window.location.href = 'index.html'; return; }
   n2yPresence(db, SUPABASE_URL, ANON_KEY);
   myUserId = session.user.id;
+  try {
+    const saved = parseInt(localStorage.getItem(MATCH_KEY), 10);
+    if (saved >= 0 && saved <= 100) { document.getElementById('matchSlider').value = saved; document.getElementById('matchVal').textContent = '≥ ' + saved + ' %'; }
+  } catch {}
 
   const { data: profile } = await db.from('n2y_users')
     .select('id,nickname,latitude,longitude,topics_text,is_active')
@@ -198,6 +219,20 @@ async function init() {
     .subscribe();
 }
 
+const MATCH_KEY = 'n2y-min-match';
+let lastMatches = [];
+
+function minMatch() {
+  return parseInt(document.getElementById('matchSlider').value, 10) || 0;
+}
+
+function onMatchChange() {
+  const v = minMatch();
+  document.getElementById('matchVal').textContent = '≥ ' + v + ' %';
+  try { localStorage.setItem(MATCH_KEY, String(v)); } catch {}
+  renderMatches();
+}
+
 async function loadMatches() {
   if (!myProfile?.latitude || !myProfile?.topics_text) return;
 
@@ -216,16 +251,22 @@ async function loadMatches() {
     age_max: amax
   });
 
-  // Alte Marker entfernen
+  if (error || !data) { document.getElementById('matchCount').textContent = 'Fehler'; return; }
+  lastMatches = data;
+  renderMatches();
+}
+
+function renderMatches() {
   matchMarkers.forEach(m => m.remove());
   matchMarkers = [];
+  const min = minMatch();
+  const shown = lastMatches.filter(u => Math.round(u.sim * 100) >= min);
+  const countEl = document.getElementById('matchCount');
+  if (shown.length) countEl.textContent = shown.length + ' in der Nähe' + (shown.length < lastMatches.length ? ` (von ${lastMatches.length})` : '');
+  else if (lastMatches.length) countEl.textContent = `Niemand mit ≥ ${min} % Match – Regler verringern?`;
+  else countEl.textContent = 'Gerade niemand in der Nähe – Radius vergrößern?';
 
-  if (error || !data) { document.getElementById('matchCount').textContent = 'Fehler'; return; }
-  document.getElementById('matchCount').textContent = data.length
-    ? data.length + ' in der Nähe'
-    : 'Gerade niemand in der Nähe – Radius vergrößern?';
-
-  data.forEach(u => {
+  shown.forEach(u => {
     const marker = L.marker([u.lat_approx, u.lng_approx], { icon: makeMarkerIcon(u.sim, false, u.inactive_min) }).addTo(map);
 
     const genderLabel = u.gender === 'm' ? 'Mann' : u.gender === 'f' ? 'Frau' : u.gender === 'd' ? 'Divers' : '';
