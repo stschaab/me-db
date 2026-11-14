@@ -1,6 +1,6 @@
 -- Next2You – Supabase Setup (Projekt thgawuqcogugzurrijkp)
 -- Angewendet als Migration "n2y_setup". Idempotent.
--- Registrierung läuft über die Edge Function n2y-signup (siehe edge-function-n2y-signup.ts),
+-- Registrierung läuft über die Edge Function n2y-signup (siehe edge-functions/n2y-signup.ts),
 -- die Nutzer mit app_metadata.n2y = true anlegt.
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA extensions;
@@ -391,3 +391,33 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
 $$;
 REVOKE EXECUTE ON FUNCTION public.n2y_partner_presence() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.n2y_partner_presence() TO authenticated;
+
+-- ─── Testnutzer antworten menschlich (Edge Function n2y-bot-reply) ───────────
+-- Der Trigger antwortet nicht mehr selbst, sondern ruft per pg_net die Edge Function
+-- auf (edge-functions/n2y-bot-reply). Diese wartet kurz, sendet "tippt…" (Realtime-Broadcast
+-- auf typing:<conversation_id>) und antwortet passend zum Gesprächsverlauf (bots.js).
+-- n2y_test_bots.replies wird nicht mehr genutzt.
+CREATE OR REPLACE FUNCTION public.n2y_test_bot_reply()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $f$
+DECLARE v_bot UUID;
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.n2y_test_bots WHERE user_id = NEW.sender_id) THEN
+    RETURN NULL;
+  END IF;
+  SELECT b.user_id INTO v_bot
+  FROM public.n2y_conversations c
+  JOIN public.n2y_test_bots b
+    ON b.user_id = CASE WHEN c.user1_id = NEW.sender_id THEN c.user2_id ELSE c.user1_id END
+  WHERE c.id = NEW.conversation_id;
+  IF v_bot IS NULL THEN
+    RETURN NULL;
+  END IF;
+  PERFORM net.http_post(
+    url := 'https://thgawuqcogugzurrijkp.supabase.co/functions/v1/n2y-bot-reply',
+    headers := jsonb_build_object('Content-Type', 'application/json',
+      'Authorization', 'Bearer <ANON_KEY>'),
+    body := jsonb_build_object('message_id', NEW.id),
+    timeout_milliseconds := 5000);
+  RETURN NULL;
+END $f$;
+-- (Live-Version enthält den öffentlichen Anon-Key statt <ANON_KEY>.)
