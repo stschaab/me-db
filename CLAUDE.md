@@ -15,6 +15,6 @@
 - Next2You-Konten dürfen keine me-db-Daten sehen: Restriktive Policy `"block n2y users"` auf allen me-db-Tabellen
   und `storage.objects`. Der Event-Trigger `n2y_autoguard` setzt sie automatisch für neue Tabellen mit RLS.
 - Schema/Funktionen: `next2you/supabase-setup.sql`; Edge-Function-Quellen: `next2you/edge-functions/`.
-- Testnutzer „… (Test)“ antworten über `n2y-bot-reply` (Logik in `bots.js`, lokal mit Node testbar).
+- KI-Testnutzer „… (KI)“ antworten über `n2y-bot-reply` (Logik in `bots.js`, lokal mit Node testbar).
 - `execute_sql` mit `begin … rollback` nie im selben Aufruf wie dauerhafte Änderungen – das Rollback nimmt sie mit.
 - DELETE/DROP lösen eine Supabase-Rückfrage aus; wenn möglich vermeiden (CREATE OR REPLACE, neue Funktion statt DROP).

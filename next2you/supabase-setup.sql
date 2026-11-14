@@ -274,7 +274,7 @@ $$;
 -- und sortiert bei Gleichstand nach Spitzname.
 
 -- ─── Nur für Tests: Antwort-Bots ─────────────────────────────────────────────
--- Testnutzer (Spitzname "… (Test)", app_metadata.n2y_test) antworten automatisch.
+-- KI-Testnutzer (Spitzname "… (KI)", früher "… (Test)", app_metadata.n2y_test) antworten automatisch.
 -- Aufräumen:
 --   DELETE FROM auth.users WHERE raw_app_meta_data->>'n2y_test' = 'true';
 --   DROP TRIGGER n2y_test_bot_reply ON public.n2y_messages;
