@@ -21,15 +21,21 @@ header h1 span { color: #00b4d8; }
 .tab { display: flex; align-items: center; gap: 7px; padding: 8px 12px; border-radius: 10px 10px 0 0; background: #24305a; color: #c9d6f0; font-size: 0.82rem; cursor: pointer; white-space: nowrap; border: none; font-family: inherit; flex-shrink: 0; }
 .tab:hover { background: #2d3b6b; }
 .tab.active { background: white; color: #1a1a2e; font-weight: 700; }
-.tab .t-av { width: 20px; height: 20px; border-radius: 50%; background: #00b4d8; color: white; font-size: 0.68rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.tab .t-av { position: relative; width: 20px; height: 20px; border-radius: 50%; background: #00b4d8; color: white; font-size: 0.68rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 .tab .t-badge { background: #ff5a5f; color: white; border-radius: 10px; font-size: 0.66rem; font-weight: 700; padding: 1px 6px; }
 .tab.active .t-badge { display: none; }
 
 .chat-header { background: white; padding: 12px 16px 10px; border-bottom: 1px solid #e8eaed; flex-shrink: 0; }
 .ch-row { display: flex; align-items: center; gap: 12px; }
-.chat-avatar { width: 38px; height: 38px; border-radius: 50%; background: #00b4d8; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.95rem; flex-shrink: 0; }
+.chat-avatar { position: relative; width: 38px; height: 38px; border-radius: 50%; background: #00b4d8; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.95rem; flex-shrink: 0; }
 .chat-partner-name { font-weight: 700; font-size: 0.95rem; }
 .chat-partner-meta { font-size: 0.72rem; color: #888; }
+.chat-partner-status { font-size: 0.72rem; margin-top: 1px; }
+.chat-partner-status.active { color: #1e9e57; } .chat-partner-status.idle { color: #b7791f; } .chat-partner-status.offline { color: #888; }
+.st-dot { position: absolute; right: -2px; bottom: -2px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid white; }
+.st-dot.active { background: #2ecc71; } .st-dot.idle { background: #f5a623; } .st-dot.offline { background: #9aa0a6; }
+.tab .st-dot { width: 8px; height: 8px; border-width: 1.5px; border-color: #24305a; }
+.tab.active .st-dot { border-color: white; }
 .location-share-btn { margin-left: auto; padding: 7px 12px; border: 1px solid #00b4d8; border-radius: 8px; background: white; color: #00b4d8; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .location-share-btn:hover { background: #e8f8fc; }
 .interests { margin-top: 10px; background: #f0f8fb; border-radius: 10px; padding: 8px 11px; font-size: 0.82rem; line-height: 1.4; color: #2b3a4a; cursor: pointer; }
@@ -72,6 +78,7 @@ header h1 span { color: #00b4d8; }
     <div>
       <div class="chat-partner-name" id="chatPartnerName">…</div>
       <div class="chat-partner-meta" id="chatPartnerMeta"></div>
+      <div class="chat-partner-status" id="chatPartnerStatus"></div>
     </div>
     <button class="location-share-btn" onclick="shareLocation()">📍 Standort teilen</button>
   </div>
@@ -102,6 +109,7 @@ let activeConv = null;      // conversation id
 let lastDay = '';
 let openToken = 0;          // guards against late responses after switching tabs
 const drafts = {};
+let presence = {};          // partner_id -> row of n2y_partner_presence
 const profiles = {};
 
 function escHtml(s) {
@@ -130,11 +138,34 @@ function renderTabs() {
     const name = c.partner_nickname || 'Anonym';
     const unread = Number(c.unread || 0);
     return `<button class="tab${c.conversation_id === activeConv ? ' active' : ''}" onclick="openConversation('${c.conversation_id}')">
-      <span class="t-av">${escHtml(name[0].toUpperCase())}</span>${escHtml(name)}${unread ? `<span class="t-badge">${unread}</span>` : ''}
+      <span class="t-av">${escHtml(name[0].toUpperCase())}${dotHtml(c.partner_id)}</span>${escHtml(name)}${unread ? `<span class="t-badge">${unread}</span>` : ''}
     </button>`;
   }).join('');
   const active = el.querySelector('.tab.active');
   if (active) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+function dotHtml(partnerId) {
+  const st = n2yStatus(presence[partnerId]);
+  return st ? `<span class="st-dot ${st.cls}" title="${st.text}"></span>` : '';
+}
+
+function renderPartnerStatus() {
+  const conv = convs.find(c => c.conversation_id === activeConv);
+  const st = conv ? n2yStatus(presence[conv.partner_id]) : null;
+  const el = document.getElementById('chatPartnerStatus');
+  el.className = 'chat-partner-status' + (st ? ' ' + st.cls : '');
+  el.textContent = st ? st.text : '';
+  const av = document.getElementById('chatAvatar');
+  av.querySelector('.st-dot')?.remove();
+  if (st && conv) av.insertAdjacentHTML('beforeend', dotHtml(conv.partner_id));
+}
+
+async function loadPresence() {
+  const { data } = await db.rpc('n2y_partner_presence');
+  presence = Object.fromEntries((data || []).map(p => [p.partner_id, p]));
+  renderTabs();
+  renderPartnerStatus();
 }
 
 async function loadConvs() {
@@ -219,6 +250,7 @@ async function openConversation(id) {
   if (token !== openToken) return;
 
   showProfile(profile || { nickname: conv?.partner_nickname });
+  renderPartnerStatus();
   messagesEl.innerHTML = '';
   if (!messages || !messages.length) {
     messagesEl.innerHTML = '<div class="info" id="emptyMsg">Noch keine Nachrichten. Fang einfach an!</div>';
@@ -243,6 +275,10 @@ async function resolveConversation(partnerId) {
 }
 
 function onNewMessage(msg) {
+  if (msg.sender_id !== myId) {
+    presence[msg.sender_id] = { ...(presence[msg.sender_id] || {}), status: presence[msg.sender_id]?.status === 'hidden' ? 'hidden' : 'active', inactive_min: 0 };
+    renderPartnerStatus();
+  }
   if (msg.conversation_id === activeConv) {
     document.getElementById('emptyMsg')?.remove();
     appendMessage(msg);
@@ -284,6 +320,8 @@ async function init() {
     return;
   }
   openConversation(convId);
+  loadPresence();
+  setInterval(loadPresence, 60000);
 
   db.channel('n2y-chat')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'n2y_messages' }, (p) => onNewMessage(p.new))

@@ -25,3 +25,17 @@ function n2yPresence(db, supabaseUrl, anonKey) {
     }).catch(() => {});
   });
 }
+
+function n2yIdleLabel(min) {
+  if (min < 60) return min + ' min';
+  const h = Math.floor(min / 60), m = min % 60;
+  return h + 'h' + (m ? m + 'min' : '');
+}
+
+// p = row of n2y_partner_presence(); null when the partner hides their status
+function n2yStatus(p) {
+  if (!p || p.status === 'hidden') return null;
+  if (p.status === 'active') return { cls: 'active', text: '🟢 aktiv' };
+  if (p.status === 'idle') return { cls: 'idle', text: '💤 seit ' + n2yIdleLabel(p.inactive_min) + ' inaktiv' };
+  return { cls: 'offline', text: '⚫ offline' };
+}

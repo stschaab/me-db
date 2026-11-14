@@ -371,3 +371,23 @@ REVOKE EXECUTE ON FUNCTION public.n2y_people_nearby(DOUBLE PRECISION, DOUBLE PRE
 GRANT EXECUTE ON FUNCTION public.n2y_heartbeat() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.n2y_offline() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.n2y_people_nearby(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT, TEXT, INT, INT) TO authenticated;
+
+-- ─── Status der Gesprächspartner (aktiv / inaktiv / offline) ─────────────────
+-- Nur für eigene Gesprächspartner; wer "unsichtbar" ist, liefert 'hidden'.
+CREATE OR REPLACE FUNCTION public.n2y_partner_presence()
+RETURNS TABLE(partner_id UUID, status TEXT, inactive_min INT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT p.id,
+         CASE WHEN NOT p.is_active THEN 'hidden'
+              WHEN (p.offline_at IS NOT NULL AND p.offline_at >= p.last_seen)
+                   OR p.last_seen < NOW() - INTERVAL '2 hours' THEN 'offline'
+              WHEN p.last_seen > NOW() - INTERVAL '3 minutes' THEN 'active'
+              ELSE 'idle' END,
+         GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - p.last_seen)) / 60))::INT
+  FROM public.n2y_conversations c
+  JOIN public.n2y_users p
+    ON p.id = CASE WHEN c.user1_id = auth.uid() THEN c.user2_id ELSE c.user1_id END
+  WHERE auth.uid() IN (c.user1_id, c.user2_id);
+$$;
+REVOKE EXECUTE ON FUNCTION public.n2y_partner_presence() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.n2y_partner_presence() TO authenticated;

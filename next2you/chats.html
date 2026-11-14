@@ -18,13 +18,17 @@ header h1 span { color: #00b4d8; }
 .container { max-width: 540px; margin: 0 auto; padding: 20px 16px; }
 .conv { display: flex; align-items: center; gap: 12px; background: white; border-radius: 16px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); text-decoration: none; color: inherit; }
 .conv:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
-.avatar { width: 42px; height: 42px; border-radius: 50%; background: #00b4d8; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+.avatar { position: relative; width: 42px; height: 42px; border-radius: 50%; background: #00b4d8; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
 .body { flex: 1; min-width: 0; }
 .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .name { font-weight: 700; font-size: 0.95rem; }
 .time { font-size: 0.7rem; color: #aaa; white-space: nowrap; }
 .last { font-size: 0.85rem; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
 .conv.unread .last { color: #1a1a2e; font-weight: 600; }
+.st-dot { position: absolute; right: -2px; bottom: -2px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid white; }
+.st-dot.active { background: #2ecc71; } .st-dot.idle { background: #f5a623; } .st-dot.offline { background: #9aa0a6; }
+.st-text { font-size: 0.7rem; font-weight: 400; margin-left: 6px; }
+.st-text.active { color: #1e9e57; } .st-text.idle { color: #b7791f; } .st-text.offline { color: #999; }
 .badge { background: #00b4d8; color: white; border-radius: 12px; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; flex-shrink: 0; }
 .empty { text-align: center; color: #888; padding: 48px 20px; font-size: 0.9rem; line-height: 1.6; }
 .empty a { color: #00b4d8; }
@@ -59,7 +63,9 @@ function fmtWhen(ts) {
 }
 
 async function load() {
-  const { data, error } = await db.rpc('n2y_my_conversations');
+  const [{ data, error }, { data: pres }] = await Promise.all([
+    db.rpc('n2y_my_conversations'), db.rpc('n2y_partner_presence')]);
+  const presence = Object.fromEntries((pres || []).map(p => [p.partner_id, p]));
   const list = document.getElementById('list');
   if (error) { list.innerHTML = '<div class="empty">Fehler: ' + escHtml(error.message) + '</div>'; return; }
   if (!data.length) {
@@ -68,10 +74,11 @@ async function load() {
   }
   list.innerHTML = data.map(c => {
     const name = c.partner_nickname || 'Anonym';
+    const st = n2yStatus(presence[c.partner_id]);
     return `<a class="conv${c.unread ? ' unread' : ''}" href="chat.html?conv=${c.conversation_id}">
-      <div class="avatar">${escHtml(name[0].toUpperCase())}</div>
+      <div class="avatar">${escHtml(name[0].toUpperCase())}${st ? `<span class="st-dot ${st.cls}"></span>` : ''}</div>
       <div class="body">
-        <div class="row"><span class="name">${escHtml(name)}</span><span class="time">${fmtWhen(c.last_at)}</span></div>
+        <div class="row"><span class="name">${escHtml(name)}${st ? `<span class="st-text ${st.cls}">${st.cls === 'idle' ? n2yIdleLabel(presence[c.partner_id].inactive_min) : (st.cls === 'active' ? 'aktiv' : 'offline')}</span>` : ''}</span><span class="time">${fmtWhen(c.last_at)}</span></div>
         <div class="last">${escHtml(c.last_message || 'Noch keine Nachrichten')}</div>
       </div>
       ${c.unread ? `<span class="badge">${c.unread}</span>` : ''}
@@ -84,6 +91,7 @@ async function init() {
   if (!session) { window.location.href = 'index.html'; return; }
   n2yPresence(db, SUPABASE_URL, ANON_KEY);
   await load();
+  setInterval(load, 60000);
   db.channel('n2y-inbox')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'n2y_messages' }, load)
     .subscribe();
