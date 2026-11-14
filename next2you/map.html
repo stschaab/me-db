@@ -40,8 +40,10 @@ select:focus { border-color: #00b4d8; }
 .popup-box .p-chat-btn:hover { background: #0092b0; }
 #noGpsMsg { display: none; position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; padding: 12px 20px; border-radius: 12px; font-size: 0.88rem; z-index: 999; text-align: center; }
 #noGpsMsg a { color: #00b4d8; }
-#accHint { display: none; position: absolute; top: 120px; left: 50%; transform: translateX(-50%); width: min(92%, 420px); background: #fff3e0; color: #8a4b00; border: 1px solid #ffcc80; padding: 10px 14px; border-radius: 12px; font-size: 0.8rem; line-height: 1.4; z-index: 999; box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+#accHint { display: none; position: absolute; top: 120px; left: 50%; transform: translateX(-50%); width: min(92%, 420px); background: #fff3e0; color: #8a4b00; border: 1px solid #ffcc80; padding: 10px 36px 10px 14px; border-radius: 12px; font-size: 0.8rem; line-height: 1.4; z-index: 999; box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
 #accHint b { color: #6d3a00; }
+#accHint .ah-close { position: absolute; top: 4px; right: 6px; border: none; background: none; color: #8a4b00; font-size: 1.3rem; line-height: 1; padding: 4px 6px; cursor: pointer; }
+#accBubble { display: none; position: absolute; top: 120px; right: 12px; width: 32px; height: 32px; border-radius: 50%; background: #fff3e0; border: 1.5px solid #ffb74d; color: #8a4b00; font: italic 700 1.05rem Georgia, serif; z-index: 999; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
 .my-pin.blink svg { animation: pinblink 0.8s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes pinblink { 0%, 100% { opacity: 1; transform: scale(1.2); } 50% { opacity: 0.35; transform: scale(1); } }
 .leaflet-container.picking { cursor: crosshair; }
@@ -91,7 +93,8 @@ select:focus { border-color: #00b4d8; }
 </div>
 
 <div id="map"></div>
-<div id="accHint"></div>
+<div id="accHint"><button class="ah-close" onclick="hideAccHint()" aria-label="Hinweis ausblenden">×</button><div id="accHintText"></div></div>
+<button id="accBubble" onclick="openAccHint()" title="Standort ungenau – Hinweis anzeigen" aria-label="Hinweis: Standort ungenau">i</button>
 <div id="editBar">
   <div><b>📌 Position selbst setzen:</b> Zieh deinen blinkenden Pin oder tippe auf die Karte, wo du gerade bist.</div>
   <div class="eb-btns">
@@ -119,6 +122,7 @@ function isManual() {
 function setManual(on) {
   try { on ? localStorage.setItem(MANUAL_KEY, '1') : localStorage.removeItem(MANUAL_KEY); } catch {}
   document.getElementById('manualChip').style.display = on ? 'block' : 'none';
+  renderAccHint();
 }
 
 function onRadiusChange() {
@@ -246,14 +250,43 @@ function drawMyCell(lat, lng) {
   else myCell = L.rectangle(bounds, { color: '#00b4d8', weight: 1, fillOpacity: 0.12, interactive: false }).addTo(map);
 }
 
+const ACC_HIDDEN_KEY = 'n2y-acc-hint-hidden';
+let lastAccuracy = null;
+
+function accHintCollapsed() {
+  try { return localStorage.getItem(ACC_HIDDEN_KEY) === '1'; } catch { return false; }
+}
+
+// Hint and (i) bubble are mutually exclusive; both only for a coarse GPS fix that is actually in use
+function renderAccHint() {
+  const hint = document.getElementById('accHint'), bubble = document.getElementById('accBubble');
+  const coarse = lastAccuracy !== null && lastAccuracy > 300 && !isManual() && !editing;
+  const collapsed = accHintCollapsed();
+  hint.style.display = coarse && !collapsed ? 'block' : 'none';
+  bubble.style.display = coarse && collapsed ? 'block' : 'none';
+  if (coarse) {
+    const top = document.getElementById('map').getBoundingClientRect().top + 10 + 'px';
+    hint.style.top = top; bubble.style.top = top;
+  }
+}
+
+function hideAccHint() {
+  try { localStorage.setItem(ACC_HIDDEN_KEY, '1'); } catch {}
+  renderAccHint();
+}
+
+function openAccHint() {
+  try { localStorage.removeItem(ACC_HIDDEN_KEY); } catch {}
+  renderAccHint();
+}
+
 function showAccuracyHint(acc) {
-  const el = document.getElementById('accHint');
-  if (acc <= 300) { el.style.display = 'none'; return; }
+  lastAccuracy = acc;
   const km = acc >= 1000 ? (acc / 1000).toFixed(1).replace('.', ',') + ' km' : Math.round(acc) + ' m';
-  el.innerHTML = `<b>Nur ungefährer Standort (±${km}).</b> Dein Handy gibt dem Browser keine genaue Position – andere sehen dich evtl. am falschen Ort. ` +
+  document.getElementById('accHintText').innerHTML = `<b>Nur ungefährer Standort (±${km}).</b> Dein Handy gibt dem Browser keine genaue Position – andere sehen dich evtl. am falschen Ort. ` +
     `Android: Einstellungen → Apps → Browser → Berechtigungen → Standort → <b>„Genauen Standort verwenden“</b> einschalten – ` +
     `oder <b>halte deinen Pin gedrückt</b> und setze deine Position selbst.`;
-  el.style.display = 'block';
+  renderAccHint();
 }
 
 function bindMyPopup() {
@@ -286,7 +319,7 @@ function startEdit() {
   myMarker.dragging.enable();
   myMarker.getElement().classList.add('blink');
   map.getContainer().classList.add('picking');
-  document.getElementById('accHint').style.display = 'none';
+  renderAccHint();
   document.getElementById('manualChip').style.display = 'none';
   document.getElementById('editBar').style.display = 'block';
 }
@@ -298,6 +331,7 @@ function endEdit() {
   map.getContainer().classList.remove('picking');
   document.getElementById('editBar').style.display = 'none';
   bindMyPopup();
+  renderAccHint();
 }
 
 function cancelEdit() {
@@ -322,10 +356,10 @@ async function saveEdit() {
 
 function useGps() {
   setManual(false);
-  refreshLocation(myUserId);
+  refreshLocation(myUserId, true);
 }
 
-function refreshLocation(userId) {
+function refreshLocation(userId, fresh = false) {
   if (!navigator.geolocation || isManual() || editing) return;
   navigator.geolocation.getCurrentPosition(async (pos) => {
     if (isManual() || editing) return;
@@ -338,7 +372,7 @@ function refreshLocation(userId) {
     if (!map.getBounds().pad(-0.1).contains([latitude, longitude])) map.panTo([latitude, longitude]);
     await db.from('n2y_users').update({ latitude, longitude, last_seen: new Date().toISOString() }).eq('id', userId);
     loadMatches();
-  }, () => {}, { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 });
+  }, () => {}, { enableHighAccuracy: true, maximumAge: fresh ? 0 : 30000, timeout: 15000 });
 }
 
 async function loadUnread() {
@@ -355,6 +389,7 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+window.addEventListener('resize', renderAccHint);
 init();
 </script>
 </body>
