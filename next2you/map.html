@@ -40,6 +40,8 @@ select:focus { border-color: #00b4d8; }
 .popup-box .p-chat-btn:hover { background: #0092b0; }
 #noGpsMsg { display: none; position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; padding: 12px 20px; border-radius: 12px; font-size: 0.88rem; z-index: 999; text-align: center; }
 #noGpsMsg a { color: #00b4d8; }
+#accHint { display: none; position: absolute; top: 120px; left: 50%; transform: translateX(-50%); width: min(92%, 420px); background: #fff3e0; color: #8a4b00; border: 1px solid #ffcc80; padding: 10px 14px; border-radius: 12px; font-size: 0.8rem; line-height: 1.4; z-index: 999; box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+#accHint b { color: #6d3a00; }
 </style>
 </head>
 <body>
@@ -78,6 +80,7 @@ select:focus { border-color: #00b4d8; }
 </div>
 
 <div id="map"></div>
+<div id="accHint"></div>
 <div id="noGpsMsg">Kein Standort gesetzt. <a href="topics.html">Hier aktivieren →</a></div>
 
 <script>
@@ -86,7 +89,7 @@ const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY, { auth: { storageKey: 'n2y-auth' } });
 
 const RADII = [0.5, 1, 2, 5];
-let map, myMarker, matchMarkers = [];
+let map, myMarker, myCell, matchMarkers = [];
 let myProfile = null;
 
 function onRadiusChange() {
@@ -132,9 +135,10 @@ async function init() {
   if (profile?.latitude) {
     myMarker = L.marker([profile.latitude, profile.longitude], { icon: makeMarkerIcon(1, true) })
       .addTo(map)
-      .bindPopup('<b>Du</b><br><small>' + (profile.nickname || 'Anonym') + '</small>');
-    // last_seen aktualisieren
+      .bindPopup('<b>Du</b><br><small>Genau hier siehst nur du dich.<br>Andere sehen deinen Pin nur in der Mitte des hellblauen Felds (~200 m).</small>');
+    drawMyCell(profile.latitude, profile.longitude);
     await db.from('n2y_users').update({ last_seen: new Date().toISOString(), is_active: true }).eq('id', session.user.id);
+    refreshLocation(session.user.id);
     loadMatches();
   } else {
     document.getElementById('noGpsMsg').style.display = 'block';
@@ -142,7 +146,10 @@ async function init() {
 
   loadUnread();
   setInterval(() => {
-    if (myProfile?.latitude) db.from('n2y_users').update({ last_seen: new Date().toISOString() }).eq('id', session.user.id).then(() => {});
+    if (myProfile?.latitude) {
+      db.from('n2y_users').update({ last_seen: new Date().toISOString() }).eq('id', session.user.id).then(() => {});
+      refreshLocation(session.user.id);
+    }
     loadMatches(); loadUnread();
   }, 60000);
   db.channel('n2y-map-inbox')
@@ -196,6 +203,37 @@ async function loadMatches() {
     marker.bindPopup(popup, { maxWidth: 240 });
     matchMarkers.push(marker);
   });
+}
+
+// Same grid as n2y_nearby_matches: what other people see of your position
+function drawMyCell(lat, lng) {
+  const cLat = Math.round(lat / 0.0018) * 0.0018, cLng = Math.round(lng / 0.0027) * 0.0027;
+  const bounds = [[cLat - 0.0009, cLng - 0.00135], [cLat + 0.0009, cLng + 0.00135]];
+  if (myCell) myCell.setBounds(bounds);
+  else myCell = L.rectangle(bounds, { color: '#00b4d8', weight: 1, fillOpacity: 0.12, interactive: false }).addTo(map);
+}
+
+function showAccuracyHint(acc) {
+  const el = document.getElementById('accHint');
+  if (acc <= 300) { el.style.display = 'none'; return; }
+  const km = acc >= 1000 ? (acc / 1000).toFixed(1).replace('.', ',') + ' km' : Math.round(acc) + ' m';
+  el.innerHTML = `<b>Nur ungefährer Standort (±${km}).</b> Dein Handy gibt dem Browser keine genaue Position – andere sehen dich evtl. am falschen Ort. ` +
+    `Android: Einstellungen → Apps → Browser → Berechtigungen → Standort → <b>„Genauen Standort verwenden“</b> einschalten.`;
+  el.style.display = 'block';
+}
+
+function refreshLocation(userId) {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const { latitude, longitude, accuracy } = pos.coords;
+    showAccuracyHint(accuracy);
+    myProfile.latitude = latitude;
+    myProfile.longitude = longitude;
+    myMarker.setLatLng([latitude, longitude]);
+    drawMyCell(latitude, longitude);
+    await db.from('n2y_users').update({ latitude, longitude, last_seen: new Date().toISOString() }).eq('id', userId);
+    loadMatches();
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 });
 }
 
 async function loadUnread() {
