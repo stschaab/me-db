@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Next2You · Start</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a1a2e; min-height: 100vh; display: flex; flex-direction: column; }
+header { background: #1a1a2e; color: white; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+header h1 span { color: #00b4d8; }
+.back { color: #7ec8e3; font-size: 0.8rem; text-decoration: none; }
+.back:hover { text-decoration: underline; }
+.hero { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%); color: white; padding: 48px 24px 36px; text-align: center; }
+.hero h2 { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 10px; }
+.hero h2 span { color: #00b4d8; }
+.hero p { font-size: 1rem; opacity: 0.75; max-width: 320px; margin: 0 auto; line-height: 1.5; }
+.card { background: white; border-radius: 20px; padding: 28px 24px; margin: 24px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+.card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 20px; color: #1a1a2e; }
+.field { margin-bottom: 18px; }
+.field label { display: block; font-size: 0.8rem; font-weight: 600; color: #666; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+.field input[type="text"], .field input[type="number"] {
+  width: 100%; padding: 13px 14px; border: 1.5px solid #e0e0e0; border-radius: 10px;
+  font-size: 1rem; outline: none; transition: border-color 0.15s; color: #1a1a2e;
+}
+.field input:focus { border-color: #00b4d8; }
+.gender-row { display: flex; gap: 10px; }
+.gender-btn {
+  flex: 1; padding: 12px 6px; border: 1.5px solid #e0e0e0; border-radius: 10px;
+  background: white; font-size: 0.95rem; cursor: pointer; transition: all 0.15s; color: #1a1a2e; text-align: center;
+}
+.gender-btn.active { border-color: #00b4d8; background: #e8f8fc; color: #0077a0; font-weight: 700; }
+.btn-primary {
+  width: 100%; padding: 15px; background: #00b4d8; color: white; border: none;
+  border-radius: 12px; font-size: 1.05rem; font-weight: 700; cursor: pointer;
+  transition: background 0.15s; letter-spacing: -0.01em;
+}
+.btn-primary:hover { background: #0092b0; }
+.btn-primary:disabled { background: #b0d8e8; cursor: not-allowed; }
+.hint { font-size: 0.75rem; color: #aaa; margin-top: 5px; }
+.anon-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.1); border-radius: 20px; padding: 6px 14px; font-size: 0.8rem; margin-top: 16px; }
+#statusMsg { text-align: center; padding: 20px; color: #666; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Next<span>2</span>You</h1>
+  <a class="back" href="../me-db-dashboard.html">← MeDB</a>
+</header>
+
+<div class="hero">
+  <h2>Finde Leute <span>in deiner Nähe</span></h2>
+  <p>Anonym. Echte Interessen. Spontane Treffen.</p>
+  <div class="anon-badge">🔒 Kein Name. Keine E-Mail. Kein Tracking.</div>
+</div>
+
+<div id="statusMsg">Verbinde…</div>
+
+<div id="mainForm" style="display:none">
+  <div class="card">
+    <h3>Erstell dein anonymes Profil</h3>
+
+    <div class="field">
+      <label>Spitzname <span style="font-weight:400;color:#aaa">(optional)</span></label>
+      <input type="text" id="nickname" placeholder="z.B. KaffeePhilosoph" maxlength="30">
+    </div>
+
+    <div class="field">
+      <label>Ich bin</label>
+      <div class="gender-row">
+        <button class="gender-btn" data-g="m" onclick="selectGender('m')">Mann</button>
+        <button class="gender-btn" data-g="f" onclick="selectGender('f')">Frau</button>
+        <button class="gender-btn" data-g="d" onclick="selectGender('d')">Divers</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Alter <span style="font-weight:400;color:#aaa">(optional)</span></label>
+      <input type="number" id="age" placeholder="z.B. 32" min="16" max="99">
+      <div class="hint">Wird für den Altersfilter genutzt. Niemand sieht dein genaues Alter.</div>
+    </div>
+
+    <button class="btn-primary" id="saveBtn" onclick="saveProfile()">Weiter →</button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY, { auth: { storageKey: 'n2y-auth' } });
+const CREDS_KEY = 'n2y-creds';
+
+let selectedGender = null;
+
+function selectGender(g) {
+  selectedGender = g;
+  document.querySelectorAll('.gender-btn').forEach(b => b.classList.toggle('active', b.dataset.g === g));
+}
+
+function loadCreds() {
+  try { return JSON.parse(localStorage.getItem(CREDS_KEY)); } catch { return null; }
+}
+
+async function signIn() {
+  const saved = loadCreds();
+  if (saved) {
+    const { data, error } = await db.auth.signInWithPassword(saved);
+    if (!error) return data.session;
+  }
+  const { data: creds, error } = await db.functions.invoke('n2y-signup', { body: {} });
+  if (error || !creds?.email) throw new Error(error?.message || 'Registrierung fehlgeschlagen');
+  localStorage.setItem(CREDS_KEY, JSON.stringify({ email: creds.email, password: creds.password }));
+  const { data, error: loginErr } = await db.auth.signInWithPassword({ email: creds.email, password: creds.password });
+  if (loginErr) throw loginErr;
+  return data.session;
+}
+
+async function init() {
+  let { data: { session } } = await db.auth.getSession();
+  if (!session) {
+    try { session = await signIn(); }
+    catch (e) { document.getElementById('statusMsg').textContent = 'Fehler beim Anmelden: ' + e.message; return; }
+  }
+
+  const { data: profile } = await db.from('n2y_users')
+    .select('id,nickname,gender,age_years,topics_text,latitude')
+    .eq('id', session.user.id).maybeSingle();
+  if (profile && profile.topics_text && profile.latitude) {
+    window.location.href = 'map.html';
+    return;
+  }
+  if (profile && profile.topics_text) {
+    window.location.href = 'topics.html';
+    return;
+  }
+
+  // Bestehende Werte vorbelegen
+  if (profile) {
+    if (profile.nickname) document.getElementById('nickname').value = profile.nickname;
+    if (profile.gender) selectGender(profile.gender);
+    if (profile.age_years) document.getElementById('age').value = profile.age_years;
+  }
+
+  document.getElementById('statusMsg').style.display = 'none';
+  document.getElementById('mainForm').style.display = 'block';
+}
+
+async function saveProfile() {
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = '…';
+
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { btn.disabled = false; btn.textContent = 'Weiter →'; return; }
+
+  const nickname = document.getElementById('nickname').value.trim() || 'Anonym';
+  const age = parseInt(document.getElementById('age').value) || null;
+
+  const { error } = await db.from('n2y_users').upsert({
+    id: session.user.id,
+    nickname,
+    gender: selectedGender,
+    age_years: age,
+    last_seen: new Date().toISOString()
+  });
+
+  if (error) { alert('Fehler: ' + error.message); btn.disabled = false; btn.textContent = 'Weiter →'; return; }
+  window.location.href = 'topics.html';
+}
+
+init();
+</script>
+</body>
+</html>
