@@ -24,8 +24,19 @@ header h1 span { color: #00b4d8; }
 select, input[type="range"] { font-size: 0.85rem; padding: 5px 8px; border: 1px solid #e0e0e0; border-radius: 8px; background: white; color: #1a1a2e; cursor: pointer; outline: none; }
 select:focus { border-color: #00b4d8; }
 .radius-val { font-size: 0.82rem; font-weight: 700; color: #00b4d8; min-width: 42px; }
-.age-row { display: flex; align-items: center; gap: 6px; }
-.age-row input { width: 56px; padding: 5px 7px; }
+input[type="range"] { accent-color: #00b4d8; }
+.age-range { position: relative; flex: 1; min-width: 0; height: 28px; }
+.age-track, .age-fill { position: absolute; top: 50%; height: 4px; transform: translateY(-50%); border-radius: 2px; }
+.age-track { left: 0; right: 0; background: #e0e0e0; }
+.age-fill { background: #00b4d8; }
+.age-range input[type="range"] { position: absolute; left: 0; top: 0; width: 100%; height: 28px; margin: 0; padding: 0; border: none;
+  background: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
+.age-range input[type="range"]::-webkit-slider-runnable-track { background: none; border: none; }
+.age-range input[type="range"]::-moz-range-track { background: none; border: none; }
+.age-range input[type="range"]::-webkit-slider-thumb { pointer-events: auto; -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+  background: #00b4d8; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.3); cursor: pointer; margin-top: 0; }
+.age-range input[type="range"]::-moz-range-thumb { pointer-events: auto; width: 20px; height: 20px; border-radius: 50%;
+  background: #00b4d8; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.3); cursor: pointer; }
 .btn-refresh { padding: 6px 14px; background: #00b4d8; color: white; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
 .btn-refresh:hover { background: #0092b0; }
 #map { flex: 1; z-index: 1; }
@@ -98,13 +109,15 @@ select:focus { border-color: #00b4d8; }
     </select>
   </div>
 
-  <div class="fgroup">
+  <div class="fgroup fslider">
     <label>Alter</label>
-    <div class="age-row">
-      <input type="number" id="ageMin" placeholder="von" min="16" max="99" oninput="loadMatches()">
-      <span style="font-size:0.75rem;color:#aaa">–</span>
-      <input type="number" id="ageMax" placeholder="bis" min="16" max="99" oninput="loadMatches()">
+    <div class="age-range">
+      <div class="age-track"></div>
+      <div class="age-fill" id="ageFill"></div>
+      <input type="range" id="ageMin" min="16" max="99" step="1" value="16" aria-label="Mindestalter" oninput="onAgeInput(event)">
+      <input type="range" id="ageMax" min="16" max="99" step="1" value="99" aria-label="Höchstalter" oninput="onAgeInput(event)">
     </div>
+    <span class="radius-val" id="ageVal">Alle</span>
   </div>
 
   <button class="btn-refresh" onclick="loadMatches()">↻</button>
@@ -173,7 +186,10 @@ async function init() {
   try {
     const saved = parseInt(localStorage.getItem(MATCH_KEY), 10);
     if (saved >= 0 && saved <= 100) { document.getElementById('matchSlider').value = saved; document.getElementById('matchVal').textContent = '≥ ' + saved + ' %'; }
+    const ages = JSON.parse(localStorage.getItem(AGE_KEY) || 'null');
+    if (Array.isArray(ages) && ages.length === 2) { document.getElementById('ageMin').value = ages[0]; document.getElementById('ageMax').value = ages[1]; }
   } catch {}
+  renderAge();
 
   const { data: profile } = await db.from('n2y_users')
     .select('id,nickname,latitude,longitude,topics_text,is_active')
@@ -221,6 +237,35 @@ async function init() {
 }
 
 const MATCH_KEY = 'n2y-min-match';
+const AGE_LO = 16, AGE_HI = 99, AGE_KEY = 'n2y-age-range';
+let ageTimer = null;
+
+function ageRange() {
+  return [parseInt(document.getElementById('ageMin').value, 10), parseInt(document.getElementById('ageMax').value, 10)];
+}
+
+function renderAge() {
+  const [a, b] = ageRange();
+  const pct = (v) => ((v - AGE_LO) / (AGE_HI - AGE_LO)) * 100;
+  const fill = document.getElementById('ageFill');
+  fill.style.left = pct(a) + '%';
+  fill.style.width = (pct(b) - pct(a)) + '%';
+  document.getElementById('ageVal').textContent =
+    a === AGE_LO && b === AGE_HI ? 'Alle' : b === AGE_HI ? `ab ${a}` : a === AGE_LO ? `bis ${b}` : a === b ? `${a}` : `${a}–${b}`;
+  // When both thumbs sit at the top end, the lower one must stay grabbable
+  document.getElementById('ageMin').style.zIndex = a >= AGE_HI - 3 ? 3 : 1;
+}
+
+function onAgeInput(e) {
+  const lo = document.getElementById('ageMin'), hi = document.getElementById('ageMax');
+  if (+lo.value > +hi.value) { if (e.target === lo) lo.value = hi.value; else hi.value = lo.value; }
+  renderAge();
+  clearTimeout(ageTimer);
+  ageTimer = setTimeout(() => {
+    try { localStorage.setItem(AGE_KEY, JSON.stringify(ageRange())); } catch {}
+    loadMatches();
+  }, 350);
+}
 let lastMatches = [];
 
 function minMatch() {
@@ -246,8 +291,9 @@ async function loadMatches() {
   if (tooFar) { lastMatches = []; renderMatches(); return; }
 
   const gf = document.getElementById('genderFilter').value || null;
-  const amin = parseInt(document.getElementById('ageMin').value) || null;
-  const amax = parseInt(document.getElementById('ageMax').value) || null;
+  const [ageA, ageB] = ageRange();
+  const amin = ageA > AGE_LO ? ageA : null;   // full range = no filter, so people without age stay visible
+  const amax = ageB < AGE_HI ? ageB : null;
 
   const { data, error } = await db.rpc('n2y_people_in_view', {
     min_lat: b.getSouth(), min_lng: b.getWest(), max_lat: b.getNorth(), max_lng: b.getEast(),
