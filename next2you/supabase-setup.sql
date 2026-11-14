@@ -421,3 +421,42 @@ BEGIN
   RETURN NULL;
 END $f$;
 -- (Live-Version enthält den öffentlichen Anon-Key statt <ANON_KEY>.)
+
+-- ─── Semantischer Interessen-Match (Embeddings) ──────────────────────────────
+-- Edge Function n2y-embed (edge-functions/n2y-embed) berechnet bei jeder Änderung von
+-- topics_text ein Embedding: voyage-3, wenn das Secret VOYAGE_API_KEY gesetzt ist, sonst
+-- Supabases eingebautes gte-small. Match = max(Wort-Match, kalibrierter Cosinus).
+-- Nach Wechsel des Modells: alle Profile neu einbetten (n2y-embed mit {user_id} je Profil aufrufen).
+ALTER TABLE public.n2y_users ADD COLUMN IF NOT EXISTS topics_embedding public.vector;
+ALTER TABLE public.n2y_users ADD COLUMN IF NOT EXISTS topics_embedding_model TEXT;
+
+CREATE OR REPLACE FUNCTION public.n2y_semantic_match(model TEXT, cos_sim DOUBLE PRECISION)
+RETURNS REAL LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
+  SELECT CASE
+    WHEN cos_sim IS NULL THEN 0
+    WHEN model = 'gte-small' THEN GREATEST(0, LEAST(1, (cos_sim - 0.80) / 0.12))
+    WHEN model = 'voyage-3'  THEN GREATEST(0, LEAST(1, (cos_sim - 0.35) / 0.40))
+    ELSE 0 END::REAL;
+$$;
+
+CREATE OR REPLACE FUNCTION public.n2y_request_embedding()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $f$
+BEGIN
+  IF TG_OP = 'UPDATE' AND NEW.topics_text IS NOT DISTINCT FROM OLD.topics_text THEN
+    RETURN NULL;
+  END IF;
+  PERFORM net.http_post(
+    url := 'https://thgawuqcogugzurrijkp.supabase.co/functions/v1/n2y-embed',
+    headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer <ANON_KEY>'),
+    body := jsonb_build_object('user_id', NEW.id),
+    timeout_milliseconds := 30000);
+  RETURN NULL;
+END $f$;
+REVOKE EXECUTE ON FUNCTION public.n2y_request_embedding() FROM PUBLIC, anon, authenticated;
+CREATE OR REPLACE TRIGGER n2y_request_embedding AFTER INSERT OR UPDATE OF topics_text ON public.n2y_users
+  FOR EACH ROW EXECUTE FUNCTION public.n2y_request_embedding();
+
+-- n2y_people_nearby: Spalte "sim" ist jetzt
+--   GREATEST(n2y_topic_match(my_text, c.topics_text),
+--            n2y_semantic_match(me.model, 1 - (me.emb <=> c.topics_embedding)))  -- nur bei gleichem Modell
+-- (vollständige Live-Definition siehe Datenbank; Signatur unverändert)
