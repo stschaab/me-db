@@ -508,3 +508,52 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
 $$;
 REVOKE EXECUTE ON FUNCTION public.n2y_people_in_view(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT, TEXT, INT, INT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.n2y_people_in_view(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT, TEXT, INT, INT) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Chat löschen – nur für den löschenden Nutzer (Migration n2y_delete_chat_per_user).
+-- Aus Sicherheitsgründen wird nichts entfernt: pro Nutzer ein Zeitstempel, ältere
+-- Nachrichten sind für ihn per RLS unsichtbar; der Partner sieht weiterhin alles.
+-- Neue Nachrichten danach lassen den Chat wieder erscheinen (nur mit den neuen).
+-- ---------------------------------------------------------------------------
+ALTER TABLE public.n2y_conversations
+  ADD COLUMN IF NOT EXISTS user1_deleted_at timestamptz,
+  ADD COLUMN IF NOT EXISTS user2_deleted_at timestamptz;
+
+CREATE OR REPLACE FUNCTION public.n2y_delete_chat(p_conversation uuid)
+RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
+  UPDATE public.n2y_conversations c SET
+    user1_deleted_at = CASE WHEN c.user1_id = auth.uid() THEN now() ELSE c.user1_deleted_at END,
+    user2_deleted_at = CASE WHEN c.user2_id = auth.uid() THEN now() ELSE c.user2_deleted_at END
+  WHERE c.id = p_conversation AND auth.uid() IN (c.user1_id, c.user2_id);
+$$;
+REVOKE EXECUTE ON FUNCTION public.n2y_delete_chat(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.n2y_delete_chat(uuid) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.n2y_my_conversations()
+RETURNS TABLE(conversation_id uuid, partner_id uuid, partner_nickname text, last_message text, last_at timestamptz, unread bigint)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT c.id, p.id, p.nickname, lm.content, COALESCE(lm.created_at, c.created_at),
+         (SELECT COUNT(*) FROM public.n2y_messages m
+          WHERE m.conversation_id = c.id AND m.sender_id <> auth.uid() AND NOT m.is_read
+            AND (x.cutoff IS NULL OR m.created_at > x.cutoff))
+  FROM public.n2y_conversations c
+  CROSS JOIN LATERAL (SELECT CASE WHEN c.user1_id = auth.uid() THEN c.user1_deleted_at ELSE c.user2_deleted_at END AS cutoff) x
+  JOIN public.n2y_users p
+    ON p.id = CASE WHEN c.user1_id = auth.uid() THEN c.user2_id ELSE c.user1_id END
+  LEFT JOIN LATERAL (
+    SELECT m.content, m.created_at FROM public.n2y_messages m
+    WHERE m.conversation_id = c.id AND (x.cutoff IS NULL OR m.created_at > x.cutoff)
+    ORDER BY m.created_at DESC LIMIT 1
+  ) lm ON TRUE
+  WHERE auth.uid() IN (c.user1_id, c.user2_id)
+    AND (x.cutoff IS NULL OR lm.created_at IS NOT NULL)
+  ORDER BY 5 DESC;
+$$;
+
+ALTER POLICY "n2y: read messages" ON public.n2y_messages USING (
+  EXISTS (SELECT 1 FROM public.n2y_conversations c
+          WHERE c.id = n2y_messages.conversation_id
+            AND ((auth.uid() = c.user1_id AND (c.user1_deleted_at IS NULL OR n2y_messages.created_at > c.user1_deleted_at))
+              OR (auth.uid() = c.user2_id AND (c.user2_deleted_at IS NULL OR n2y_messages.created_at > c.user2_deleted_at))))
+);
+NOTIFY pgrst, 'reload schema';
