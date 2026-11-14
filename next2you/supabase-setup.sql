@@ -202,3 +202,54 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.n2y_messages;
   END IF;
 END $$;
+
+-- ─── Migration "n2y_autoguard_and_signup_limit" + "n2y_signup_slot" ──────────
+
+-- Neue me-db-Tabellen mit RLS bekommen den Next2You-Riegel automatisch
+CREATE OR REPLACE FUNCTION public.n2y_autoguard_new_tables()
+RETURNS event_trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT c.relname
+    FROM pg_event_trigger_ddl_commands() d
+    JOIN pg_class c ON c.oid = d.objid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE d.object_type = 'table' AND n.nspname = 'public'
+      AND c.relrowsecurity AND c.relname NOT LIKE 'n2y\_%'
+      AND NOT EXISTS (SELECT 1 FROM pg_policies p
+                      WHERE p.schemaname = 'public' AND p.tablename = c.relname AND p.policyname = 'block n2y users')
+  LOOP
+    EXECUTE format('CREATE POLICY "block n2y users" ON public.%I AS RESTRICTIVE FOR ALL TO authenticated
+                    USING (NOT (SELECT public.n2y_is_n2y_user())) WITH CHECK (NOT (SELECT public.n2y_is_n2y_user()))', r.relname);
+  END LOOP;
+END $$;
+
+DROP EVENT TRIGGER IF EXISTS n2y_autoguard;
+CREATE EVENT TRIGGER n2y_autoguard ON ddl_command_end
+  WHEN TAG IN ('CREATE TABLE', 'ALTER TABLE')
+  EXECUTE FUNCTION public.n2y_autoguard_new_tables();
+REVOKE EXECUTE ON FUNCTION public.n2y_autoguard_new_tables() FROM PUBLIC, anon, authenticated;
+
+-- Registrierungs-Limit pro IP (nur Hash gespeichert, nur service_role)
+CREATE TABLE IF NOT EXISTS public.n2y_signups (
+  ip_hash    TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS n2y_signups_ip_time ON public.n2y_signups (ip_hash, created_at);
+ALTER TABLE public.n2y_signups ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.n2y_signup_slot(p_ip_hash TEXT, p_max INT)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext('n2y_signup:' || p_ip_hash));
+  IF (SELECT COUNT(*) FROM public.n2y_signups
+      WHERE ip_hash = p_ip_hash AND created_at > NOW() - INTERVAL '1 hour') >= p_max THEN
+    RETURN FALSE;
+  END IF;
+  INSERT INTO public.n2y_signups (ip_hash) VALUES (p_ip_hash);
+  DELETE FROM public.n2y_signups WHERE created_at < NOW() - INTERVAL '1 day';
+  RETURN TRUE;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.n2y_signup_slot(TEXT, INT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.n2y_signup_slot(TEXT, INT) TO service_role;
