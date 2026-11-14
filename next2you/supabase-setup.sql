@@ -253,3 +253,56 @@ BEGIN
 END $$;
 REVOKE EXECUTE ON FUNCTION public.n2y_signup_slot(TEXT, INT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.n2y_signup_slot(TEXT, INT) TO service_role;
+
+-- ─── Themen-Match: Anteil meiner Themenwörter, die beim anderen vorkommen ─────
+-- Ersetzt die reine Trigramm-Ähnlichkeit, die lange Texte stark benachteiligt hat.
+CREATE OR REPLACE FUNCTION public.n2y_topic_match(mine TEXT, theirs TEXT)
+RETURNS REAL LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
+  WITH words AS (
+    SELECT DISTINCT w FROM regexp_split_to_table(lower(COALESCE(mine, '')), '[^[:alnum:]äöüß]+') AS w
+    WHERE char_length(w) >= 2 AND w NOT IN (
+      'und','oder','ich','mich','mir','mein','meine','gerade','viel','sehr','gern','gerne','auch','über','ueber',
+      'für','fuer','mit','der','die','das','den','dem','des','ein','eine','einen','einem','zu','zum','zur','im','in',
+      'am','an','auf','vor','allem','bin','mag','liebe','lese','suche','leute','interessiere','interessieren',
+      'mich','sich','wie','was','ist','sind','bei','von','vom','aus','als','es','du','wir','man','alles','gut')
+  )
+  SELECT CASE WHEN COUNT(*) = 0 OR COALESCE(theirs, '') = '' THEN 0::REAL
+    ELSE (COUNT(*) FILTER (WHERE extensions.word_similarity(w, lower(theirs)) >= 0.6))::REAL / COUNT(*) END
+  FROM words;
+$$;
+-- n2y_nearby_matches nutzt seitdem public.n2y_topic_match(my_text, c.topics_text) als "sim"
+-- und sortiert bei Gleichstand nach Spitzname.
+
+-- ─── Nur für Tests: Antwort-Bots ─────────────────────────────────────────────
+-- Testnutzer (Spitzname "… (Test)", app_metadata.n2y_test) antworten automatisch.
+-- Aufräumen:
+--   DELETE FROM auth.users WHERE raw_app_meta_data->>'n2y_test' = 'true';
+--   DROP TRIGGER n2y_test_bot_reply ON public.n2y_messages;
+--   DROP FUNCTION public.n2y_test_bot_reply(); DROP TABLE public.n2y_test_bots;
+CREATE TABLE IF NOT EXISTS public.n2y_test_bots (
+  user_id UUID PRIMARY KEY REFERENCES public.n2y_users(id) ON DELETE CASCADE,
+  replies TEXT[] NOT NULL
+);
+ALTER TABLE public.n2y_test_bots ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.n2y_test_bot_reply()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $f$
+DECLARE v_bot UUID; v_replies TEXT[]; n INT;
+BEGIN
+  SELECT b.user_id, b.replies INTO v_bot, v_replies
+  FROM public.n2y_conversations c
+  JOIN public.n2y_test_bots b
+    ON b.user_id = CASE WHEN c.user1_id = NEW.sender_id THEN c.user2_id ELSE c.user1_id END
+  WHERE c.id = NEW.conversation_id;
+  IF v_bot IS NULL OR EXISTS (SELECT 1 FROM public.n2y_test_bots WHERE user_id = NEW.sender_id) THEN
+    RETURN NULL;
+  END IF;
+  SELECT COUNT(*) INTO n FROM public.n2y_messages
+  WHERE conversation_id = NEW.conversation_id AND sender_id = NEW.sender_id;
+  INSERT INTO public.n2y_messages (conversation_id, sender_id, content, created_at)
+  VALUES (NEW.conversation_id, v_bot, v_replies[LEAST(n, array_length(v_replies, 1))], NOW() + INTERVAL '2 seconds');
+  RETURN NULL;
+END $f$;
+REVOKE EXECUTE ON FUNCTION public.n2y_test_bot_reply() FROM PUBLIC, anon, authenticated;
+CREATE OR REPLACE TRIGGER n2y_test_bot_reply AFTER INSERT ON public.n2y_messages
+  FOR EACH ROW EXECUTE FUNCTION public.n2y_test_bot_reply();
