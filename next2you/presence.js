@@ -32,10 +32,21 @@ function n2yIdleLabel(min) {
   return h + 'h' + (m ? m + 'min' : '');
 }
 
+// Last activity derived from inactive_min (minute precision); short form for lists
+function n2yLastSeenLabel(min, short = false) {
+  const d = new Date(Date.now() - min * 60000), now = new Date();
+  const yest = new Date(now); yest.setDate(now.getDate() - 1);
+  const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  if (d.toDateString() === now.toDateString()) return short ? time : 'heute ' + time;
+  if (d.toDateString() === yest.toDateString()) return short ? 'gestern' : 'gestern ' + time;
+  const date = d.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+  return short ? date : date + ', ' + time;
+}
+
 // p = row of n2y_partner_presence(); null when the partner hides their status
 function n2yStatus(p) {
   if (!p || p.status === 'hidden') return null;
   if (p.status === 'active') return { cls: 'active', text: '🟢 aktiv' };
   if (p.status === 'idle') return { cls: 'idle', text: '💤 seit ' + n2yIdleLabel(p.inactive_min) + ' inaktiv' };
-  return { cls: 'offline', text: '⚫ offline' };
+  return { cls: 'offline', text: '⚫ offline · zuletzt ' + n2yLastSeenLabel(p.inactive_min) };
 }

@@ -78,7 +78,7 @@ async function load() {
     return `<a class="conv${c.unread ? ' unread' : ''}" href="chat.html?conv=${c.conversation_id}">
       <div class="avatar">${escHtml(name[0].toUpperCase())}${st ? `<span class="st-dot ${st.cls}"></span>` : ''}</div>
       <div class="body">
-        <div class="row"><span class="name">${escHtml(name)}${st ? `<span class="st-text ${st.cls}">${st.cls === 'idle' ? n2yIdleLabel(presence[c.partner_id].inactive_min) : (st.cls === 'active' ? 'aktiv' : 'offline')}</span>` : ''}</span><span class="time">${fmtWhen(c.last_at)}</span></div>
+        <div class="row"><span class="name">${escHtml(name)}${st ? `<span class="st-text ${st.cls}">${st.cls === 'idle' ? n2yIdleLabel(presence[c.partner_id].inactive_min) : (st.cls === 'active' ? 'aktiv' : 'offline · ' + n2yLastSeenLabel(presence[c.partner_id].inactive_min, true))}</span>` : ''}</span><span class="time">${fmtWhen(c.last_at)}</span></div>
         <div class="last">${escHtml(c.last_message || 'Noch keine Nachrichten')}</div>
       </div>
       ${c.unread ? `<span class="badge">${c.unread}</span>` : ''}
