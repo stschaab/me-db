@@ -53,6 +53,15 @@ header h1 span { color: #00b4d8; }
 .msg.theirs { align-self: flex-start; background: white; color: #1a1a2e; border-bottom-left-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
 .msg .time { font-size: 0.65rem; opacity: 0.65; margin-top: 3px; }
 .msg.mine .time { text-align: right; }
+.msg.mine { -webkit-touch-callout: none; }
+.msg.deleted { font-style: italic; }
+.msg.mine.deleted { background: #bfe6ef; color: #3d6470; }
+.msg.theirs.deleted { color: #999; }
+.msg.pressed { filter: brightness(0.92); }
+.msg-menu { position: fixed; z-index: 50; background: white; border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.18); padding: 6px; min-width: 190px; }
+.msg-menu button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 10px 12px; border-radius: 8px; font-size: 0.9rem; font-family: inherit; color: #c62828; cursor: pointer; }
+.msg-menu button:hover { background: #fdecec; }
+.msg-menu .mm-info { padding: 8px 12px; font-size: 0.8rem; color: #888; }
 .msg-day-sep { text-align: center; font-size: 0.7rem; color: #aaa; padding: 8px 0; }
 .typing { font-size: 0.78rem; color: #888; padding: 0 18px; min-height: 20px; line-height: 20px; flex-shrink: 0; }
 .typing .dots span { animation: tdot 1.2s infinite; }
@@ -233,10 +242,84 @@ function appendMessage(msg) {
     lastDay = day;
   }
   const div = document.createElement('div');
-  div.className = 'msg ' + (msg.sender_id === myId ? 'mine' : 'theirs');
-  div.innerHTML = escHtml(msg.content) + '<div class="time">' + fmtTime(msg.created_at) + '</div>';
+  renderMessage(div, msg);
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
+}
+
+const DELETE_WINDOW_MS = 60 * 60 * 1000;   // must match n2y_delete_message (1 hour)
+const msgById = {};
+
+function renderMessage(div, msg) {
+  msgById[msg.id] = msg;
+  div.dataset.id = msg.id;
+  div.className = 'msg ' + (msg.sender_id === myId ? 'mine' : 'theirs') + (msg.deleted_at ? ' deleted' : '');
+  div.innerHTML = (msg.deleted_at ? '🚫 Nachricht gelöscht' : escHtml(msg.content)) +
+    '<div class="time">' + fmtTime(msg.created_at) + '</div>';
+}
+
+function onMessageUpdated(msg) {
+  if (!msg.deleted_at || !msgById[msg.id] || msgById[msg.id].deleted_at) return;
+  const div = document.querySelector(`.msg[data-id="${msg.id}"]`);
+  if (div) renderMessage(div, msg);
+}
+
+// Long-press (or right-click) on an own message -> "Für alle löschen"
+function closeMsgMenu() {
+  document.getElementById('msgMenu')?.remove();
+  document.querySelectorAll('.msg.pressed').forEach(d => d.classList.remove('pressed'));
+}
+
+function openMsgMenu(div, x, y) {
+  const msg = msgById[div.dataset.id];
+  if (!msg || msg.sender_id !== myId || msg.deleted_at) return;
+  closeMsgMenu();
+  div.classList.add('pressed');
+  const menu = document.createElement('div');
+  menu.id = 'msgMenu'; menu.className = 'msg-menu';
+  const canDelete = Date.now() - new Date(msg.created_at).getTime() < DELETE_WINDOW_MS;
+  menu.innerHTML = canDelete
+    ? '<button id="mmDelete">🗑 Für alle löschen</button>'
+    : '<div class="mm-info">Löschen für alle ist nur bis 1 Std. nach dem Senden möglich.</div>';
+  document.body.appendChild(menu);
+  const w = menu.offsetWidth, h = menu.offsetHeight;
+  menu.style.left = Math.max(8, Math.min(x - w + 20, innerWidth - w - 8)) + 'px';
+  menu.style.top = Math.max(8, Math.min(y + 8, innerHeight - h - 8)) + 'px';
+  if (canDelete) document.getElementById('mmDelete').onclick = () => deleteMessage(msg);
+}
+
+async function deleteMessage(msg) {
+  closeMsgMenu();
+  if (!confirm('Nachricht für alle löschen?\n\nBei dir und deinem Gegenüber steht dann „Nachricht gelöscht“.')) return;
+  const { data, error } = await db.rpc('n2y_delete_message', { p_message: msg.id });
+  if (error) { alert('Fehler: ' + error.message); return; }
+  if (data === false) { alert('Diese Nachricht kann nicht mehr gelöscht werden (nur bis 1 Std. nach dem Senden).'); return; }
+  onMessageUpdated({ ...msg, deleted_at: new Date().toISOString() });
+}
+
+function setupMessageMenu() {
+  const box = document.getElementById('messages');
+  let timer = null, start = null;
+  const cancel = () => { clearTimeout(timer); timer = null; };
+  box.addEventListener('pointerdown', (e) => {
+    const div = e.target.closest('.msg.mine:not(.deleted)');
+    if (!div || e.button > 0) return;
+    start = [e.clientX, e.clientY];
+    cancel();
+    timer = setTimeout(() => { timer = null; openMsgMenu(div, start[0], start[1]); }, 500);
+  });
+  box.addEventListener('pointermove', (e) => {
+    if (timer && Math.hypot(e.clientX - start[0], e.clientY - start[1]) > 10) cancel();
+  });
+  ['pointerup', 'pointercancel', 'scroll'].forEach(ev => box.addEventListener(ev, cancel));
+  box.addEventListener('contextmenu', (e) => {
+    const div = e.target.closest('.msg.mine:not(.deleted)');
+    if (!div) return;
+    e.preventDefault();
+    cancel();
+    if (!document.getElementById('msgMenu')) openMsgMenu(div, e.clientX, e.clientY);
+  });
+  document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#msgMenu') && !e.target.closest('.msg.pressed')) closeMsgMenu(); });
 }
 
 // "tippt…" via Realtime broadcast on channel typing:<conversation>; test personas use the same channel
@@ -271,6 +354,7 @@ function sendTyping() {
 
 async function openConversation(id) {
   if (!id) return;
+  closeMsgMenu();
   const token = ++openToken;
   activeConv = id;
   document.querySelector('.chat-header').style.display = '';
@@ -343,6 +427,7 @@ async function init() {
   if (!session) { window.location.href = 'index.html'; return; }
   n2yPresence(db, SUPABASE_URL, ANON_KEY);
   myId = session.user.id;
+  setupMessageMenu();
 
   const params = new URLSearchParams(location.search);
   const withId = params.get('with');
@@ -374,6 +459,7 @@ async function init() {
 
   db.channel('n2y-chat')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'n2y_messages' }, (p) => onNewMessage(p.new))
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'n2y_messages' }, (p) => onMessageUpdated(p.new))
     .subscribe();
 }
 

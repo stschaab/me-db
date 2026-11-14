@@ -557,3 +557,41 @@ ALTER POLICY "n2y: read messages" ON public.n2y_messages USING (
               OR (auth.uid() = c.user2_id AND (c.user2_deleted_at IS NULL OR n2y_messages.created_at > c.user2_deleted_at))))
 );
 NOTIFY pgrst, 'reload schema';
+
+-- ---------------------------------------------------------------------------
+-- Einzelne Nachricht "für alle löschen" (Migration n2y_delete_message_for_all).
+-- Nur eigene Nachrichten, nur bis 1 Std. nach dem Senden. Für beide steht dann
+-- "🚫 Nachricht gelöscht"; der Originaltext wird aus Sicherheitsgründen in
+-- n2y_deleted_messages archiviert (keine Policies → nur Service-Rolle).
+-- ---------------------------------------------------------------------------
+ALTER TABLE public.n2y_messages ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+
+CREATE TABLE IF NOT EXISTS public.n2y_deleted_messages (
+  message_id uuid PRIMARY KEY,
+  conversation_id uuid NOT NULL,
+  sender_id uuid NOT NULL,
+  content text NOT NULL,
+  created_at timestamptz NOT NULL,
+  deleted_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.n2y_deleted_messages ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.n2y_deleted_messages FROM anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.n2y_delete_message(p_message uuid)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE m public.n2y_messages;
+BEGIN
+  SELECT * INTO m FROM public.n2y_messages
+  WHERE id = p_message AND sender_id = auth.uid() AND deleted_at IS NULL
+    AND created_at > now() - interval '1 hour'
+  FOR UPDATE;
+  IF NOT FOUND THEN RETURN false; END IF;
+  INSERT INTO public.n2y_deleted_messages(message_id, conversation_id, sender_id, content, created_at)
+  VALUES (m.id, m.conversation_id, m.sender_id, m.content, m.created_at)
+  ON CONFLICT (message_id) DO NOTHING;
+  UPDATE public.n2y_messages SET content = '🚫 Nachricht gelöscht', deleted_at = now() WHERE id = m.id;
+  RETURN true;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.n2y_delete_message(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.n2y_delete_message(uuid) TO authenticated;
+NOTIFY pgrst, 'reload schema';
