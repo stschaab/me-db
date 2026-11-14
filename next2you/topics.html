@@ -56,12 +56,17 @@ textarea:focus { border-color: #00b4d8; }
 .btn-primary:disabled { background: #b0d8e8; cursor: not-allowed; }
 .char-count { font-size: 0.72rem; color: #bbb; text-align: right; margin-top: 4px; }
 .transcript-hint { font-size: 0.8rem; color: #00b4d8; margin-top: 8px; min-height: 20px; }
-.example-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.chips-panel { margin-top: 14px; max-height: 240px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #edf0f3; border-radius: 12px; padding: 0 10px 10px; background: #fafbfc; }
+.chips-hint { font-size: 0.72rem; color: #999; margin-top: 12px; }
+.chip-group-title { position: sticky; top: 0; background: #fafbfc; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #888; padding: 10px 2px 6px; z-index: 1; }
+.example-chips { display: flex; flex-wrap: wrap; gap: 7px; }
 .chip {
-  padding: 6px 12px; border-radius: 20px; background: #f0f4f8; font-size: 0.78rem;
-  cursor: pointer; border: 1px solid #e0e0e0; color: #555; transition: all 0.12s;
+  padding: 6px 12px; border-radius: 20px; background: white; font-size: 0.8rem;
+  cursor: pointer; border: 1px solid #e0e0e0; color: #555; transition: all 0.12s; user-select: none;
 }
 .chip:hover { background: #e8f8fc; border-color: #00b4d8; color: #0092b0; }
+.chip.on { background: #00b4d8; border-color: #00b4d8; color: white; }
+.chip.on::before { content: '✓ '; }
 </style>
 </head>
 <body>
@@ -89,16 +94,8 @@ textarea:focus { border-color: #00b4d8; }
     </button>
     <div class="transcript-hint" id="transcriptHint"></div>
 
-    <div class="example-chips" id="exampleChips">
-      <span class="chip" onclick="addChip('KI & Technologie')">KI & Technologie</span>
-      <span class="chip" onclick="addChip('Philosophie')">Philosophie</span>
-      <span class="chip" onclick="addChip('Klettern & Sport')">Klettern & Sport</span>
-      <span class="chip" onclick="addChip('Musik & Konzerte')">Musik & Konzerte</span>
-      <span class="chip" onclick="addChip('Reisen')">Reisen</span>
-      <span class="chip" onclick="addChip('Startup & Business')">Startup & Business</span>
-      <span class="chip" onclick="addChip('Fotografie')">Fotografie</span>
-      <span class="chip" onclick="addChip('Sprachen lernen')">Sprachen lernen</span>
-    </div>
+    <div class="chips-hint">Oder antippen – nochmal tippen entfernt das Thema wieder:</div>
+    <div class="chips-panel" id="chipsPanel"></div>
   </div>
 
   <div class="card">
@@ -146,6 +143,7 @@ async function init() {
 }
 
 function updateCount() {
+  if (document.getElementById('chipsPanel').children.length) renderChipStates();
   const t = document.getElementById('topicsText');
   document.getElementById('charCount').textContent = t.value.length;
   checkSaveReady();
@@ -160,11 +158,46 @@ function checkSaveReady() {
   else document.getElementById('saveBtn').textContent = 'Standort aktivieren';
 }
 
-function addChip(text) {
+const TOPIC_GROUPS = [
+  ['💡 Wissen & Denken', ['KI & Technologie', 'Philosophie', 'Psychologie', 'Wissenschaft', 'Geschichte', 'Politik & Gesellschaft']],
+  ['🎨 Kultur', ['Bücher & Lesen', 'Musik & Konzerte', 'Film & Serien', 'Kunst & Design', 'Theater', 'Fotografie']],
+  ['🏃 Sport & Draußen', ['Laufen', 'Klettern & Bouldern', 'Radfahren', 'Wandern & Natur', 'Yoga & Meditation', 'Fitness']],
+  ['🍳 Genuss', ['Kochen & Rezepte', 'Kaffee', 'Wein & Craft Beer', 'Restaurants entdecken']],
+  ['💼 Beruf & Projekte', ['Startup & Business', 'Programmieren', 'Karriere', 'Nachhaltigkeit', 'Finanzen & Investieren']],
+  ['🌍 Leben', ['Reisen', 'Sprachen lernen', 'Familie & Kinder', 'Neu in der Stadt', 'Hunde & Tiere']],
+  ['🎲 Freizeit', ['Brettspiele', 'Gaming', 'Gärtnern', 'Ehrenamt']],
+];
+
+function hasTopic(text, topic) {
+  return text.toLowerCase().includes(topic.toLowerCase());
+}
+
+function renderChips() {
+  const panel = document.getElementById('chipsPanel');
+  panel.innerHTML = TOPIC_GROUPS.map(([title, topics]) =>
+    `<div class="chip-group-title">${title}</div><div class="example-chips">` +
+    topics.map(t => `<span class="chip" data-topic="${t}">${t}</span>`).join('') + '</div>').join('');
+  panel.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => toggleChip(c.dataset.topic)));
+  renderChipStates();
+}
+
+function renderChipStates() {
+  const text = document.getElementById('topicsText').value;
+  document.querySelectorAll('#chipsPanel .chip').forEach(c => c.classList.toggle('on', hasTopic(text, c.dataset.topic)));
+}
+
+function toggleChip(topic) {
   const ta = document.getElementById('topicsText');
-  const sep = ta.value.length > 0 && !ta.value.endsWith(' ') ? ', ' : '';
-  ta.value = (ta.value + sep + text).substring(0, 500);
+  if (hasTopic(ta.value, topic)) {
+    const i = ta.value.toLowerCase().indexOf(topic.toLowerCase());
+    ta.value = (ta.value.slice(0, i) + ta.value.slice(i + topic.length))
+      .replace(/\s*,\s*,\s*/g, ', ').replace(/^\s*,\s*|\s*,\s*$/g, '').trim();
+  } else {
+    const sep = ta.value.trim().length > 0 ? ', ' : '';
+    ta.value = (ta.value.trim() + sep + topic).substring(0, 500);
+  }
   updateCount();
+  renderChipStates();
 }
 
 function toggleMic() {
@@ -245,6 +278,7 @@ async function save() {
   window.location.href = 'map.html';
 }
 
+renderChips();
 init();
 </script>
 </body>
