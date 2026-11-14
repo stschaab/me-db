@@ -8,6 +8,8 @@
 <script src="presence.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a1a2e; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -38,6 +40,8 @@ select:focus { border-color: #00b4d8; }
 .popup-box .p-nick { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
 .popup-box .p-meta { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
 .popup-box .p-topics { font-size: 0.82rem; line-height: 1.4; color: #333; margin-bottom: 10px; max-height: 160px; overflow-y: auto; white-space: pre-wrap; }
+.n2y-cluster { background: #00b4d8; color: white; border: 3px solid rgba(255,255,255,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+.popup-box .p-dist { font-size: 0.75rem; color: #555; margin-bottom: 6px; }
 .popup-box .p-active { font-size: 0.75rem; color: #555; margin-bottom: 6px; }
 .idle-pin svg { opacity: 0.55; }
 .pin-idle { position: absolute; left: 24px; top: 4px; background: rgba(255,255,255,0.95); color: #666; border: 1px solid #ddd; border-radius: 8px; font-size: 10px; font-weight: 600; line-height: 1; padding: 3px 5px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
@@ -78,12 +82,6 @@ select:focus { border-color: #00b4d8; }
 </header>
 
 <div class="filter-bar">
-  <div class="fgroup fslider">
-    <label>Radius</label>
-    <input type="range" id="radiusSlider" min="0" max="3" step="1" value="1" oninput="onRadiusChange()">
-    <span class="radius-val" id="radiusVal">1 km</span>
-  </div>
-
   <div class="fgroup fslider">
     <label>Match</label>
     <input type="range" id="matchSlider" min="0" max="100" step="10" value="0" oninput="onMatchChange()">
@@ -131,8 +129,11 @@ const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY, { auth: { storageKey: 'n2y-auth' } });
 
-const RADII = [0.5, 1, 2, 5];
-let map, myMarker, myCell, matchMarkers = [];
+const MIN_ZOOM_PEOPLE = 12;      // ≈ district level; further out shows a hint instead of pins
+const MAX_SPAN = { lat: 0.3, lng: 0.5 };  // same limit as n2y_people_in_view
+let map, myMarker, myCell, people, matchMarkers = [];
+let loadSeq = 0, moveTimer = null;
+let openPersonId = null, reloadPending = false;   // don't wipe an open popup with a reload
 let myProfile = null;
 let myUserId = null, editing = false, editOrig = null;
 const MANUAL_KEY = 'n2y-manual-pos';
@@ -144,12 +145,6 @@ function setManual(on) {
   try { on ? localStorage.setItem(MANUAL_KEY, '1') : localStorage.removeItem(MANUAL_KEY); } catch {}
   document.getElementById('manualChip').style.display = on ? 'block' : 'none';
   renderAccHint();
-}
-
-function onRadiusChange() {
-  const v = RADII[document.getElementById('radiusSlider').value];
-  document.getElementById('radiusVal').textContent = v < 1 ? (v * 1000) + ' m' : v + ' km';
-  loadMatches();
 }
 
 function simColor(sim) {
@@ -194,6 +189,12 @@ async function init() {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 19
   }).addTo(map);
+  // Nearby pins merge into a numbered circle; people in the same 200 m cell fan out when tapped
+  people = L.markerClusterGroup({
+    showCoverageOnHover: false, spiderfyOnMaxZoom: true, maxClusterRadius: 45, zoomToBoundsOnClick: true,
+    iconCreateFunction: (c) => L.divIcon({ html: String(c.getChildCount()), className: 'n2y-cluster', iconSize: [38, 38] }),
+  }).addTo(map);
+  map.on('moveend', () => { clearTimeout(moveTimer); moveTimer = setTimeout(loadMatches, 400); });
 
   if (profile?.latitude) {
     myMarker = L.marker([profile.latitude, profile.longitude], { icon: makeMarkerIcon(1, true) }).addTo(map);
@@ -233,62 +234,101 @@ function onMatchChange() {
   renderMatches();
 }
 
-async function loadMatches() {
-  if (!myProfile?.latitude || !myProfile?.topics_text) return;
+let tooFar = false;
 
-  const radius = RADII[document.getElementById('radiusSlider').value];
+async function loadMatches() {
+  if (!myProfile?.latitude || !myProfile?.topics_text || !map) return;
+  if (openPersonId) { reloadPending = true; return; }
+  const seq = ++loadSeq;
+  const b = map.getBounds();
+  tooFar = map.getZoom() < MIN_ZOOM_PEOPLE ||
+    b.getNorth() - b.getSouth() > MAX_SPAN.lat || b.getEast() - b.getWest() > MAX_SPAN.lng;
+  if (tooFar) { lastMatches = []; renderMatches(); return; }
+
   const gf = document.getElementById('genderFilter').value || null;
   const amin = parseInt(document.getElementById('ageMin').value) || null;
   const amax = parseInt(document.getElementById('ageMax').value) || null;
 
-  const { data, error } = await db.rpc('n2y_people_nearby', {
-    my_lat: myProfile.latitude,
-    my_lng: myProfile.longitude,
-    radius_km: radius,
+  const { data, error } = await db.rpc('n2y_people_in_view', {
+    min_lat: b.getSouth(), min_lng: b.getWest(), max_lat: b.getNorth(), max_lng: b.getEast(),
     my_text: myProfile.topics_text,
     gender_filter: gf,
     age_min: amin,
     age_max: amax
   });
+  if (seq !== loadSeq) return;   // a newer request (map moved again) is on its way
 
   if (error || !data) { document.getElementById('matchCount').textContent = 'Fehler'; return; }
   lastMatches = data;
   renderMatches();
 }
 
-function renderMatches() {
-  matchMarkers.forEach(m => m.remove());
-  matchMarkers = [];
-  const min = minMatch();
-  const shown = lastMatches.filter(u => Math.round(u.sim * 100) >= min);
-  const countEl = document.getElementById('matchCount');
-  if (shown.length) countEl.textContent = shown.length + ' in der Nähe' + (shown.length < lastMatches.length ? ` (von ${lastMatches.length})` : '');
-  else if (lastMatches.length) countEl.textContent = `Niemand mit ≥ ${min} % Match – Regler verringern?`;
-  else countEl.textContent = 'Gerade niemand in der Nähe – Radius vergrößern?';
+function distLabel(m) {
+  if (m == null) return '';
+  if (m < 1000) return '~' + Math.max(100, Math.round(m / 100) * 100) + ' m entfernt';
+  return '~' + (m / 1000).toFixed(1).replace('.', ',') + ' km entfernt';
+}
 
-  shown.forEach(u => {
-    const marker = L.marker([u.lat_approx, u.lng_approx], { icon: makeMarkerIcon(u.sim, false, u.inactive_min) }).addTo(map);
+const markerById = new Map();   // person id -> { marker, key }
 
-    const genderLabel = u.gender === 'm' ? 'Mann' : u.gender === 'f' ? 'Frau' : u.gender === 'd' ? 'Divers' : '';
-    const ageLabel = u.age_years ? ', ' + u.age_years + ' J.' : '';
-    const metaLabel = [genderLabel + ageLabel].filter(Boolean).join(' · ');
-    const simPct = Math.round(u.sim * 100);
+function personKey(u) {
+  return [u.lat_approx, u.lng_approx, Math.round(u.sim * 100), u.inactive_min >= 3 ? u.inactive_min : 0,
+          u.nickname, u.gender, u.age_years, u.topics_text, u.distance_m].join('|');
+}
 
-    const popup = `<div class="popup-box">
+function buildPersonMarker(u) {
+  const marker = L.marker([u.lat_approx, u.lng_approx], { icon: makeMarkerIcon(u.sim, false, u.inactive_min) });
+  const genderLabel = u.gender === 'm' ? 'Mann' : u.gender === 'f' ? 'Frau' : u.gender === 'd' ? 'Divers' : '';
+  const ageLabel = u.age_years ? ', ' + u.age_years + ' J.' : '';
+  const metaLabel = [genderLabel + ageLabel].filter(Boolean).join(' · ');
+  const simPct = Math.round(u.sim * 100);
+  marker.bindPopup(`<div class="popup-box">
       <div class="p-nick">${escHtml(u.nickname || 'Anonym')}</div>
       ${metaLabel ? `<div class="p-meta">${escHtml(metaLabel)}</div>` : ''}
       <div class="p-topics">${escHtml(u.topics_text || '')}</div>
+      ${u.distance_m != null ? `<div class="p-dist">📍 ${distLabel(u.distance_m)}</div>` : ''}
       <div class="p-active">${u.inactive_min >= 3 ? `💤 seit ${n2yIdleLabel(u.inactive_min)} inaktiv` : '🟢 gerade aktiv'}</div>
       ${simPct > 0 ? `<div class="p-sim">⚡ ${simPct}% Interesse-Match</div>` : ''}
       <button class="p-chat-btn" onclick="startChat('${u.id}')">💬 Gespräch starten</button>
-    </div>`;
-
-    marker.bindPopup(popup, { maxWidth: 240 });
-    matchMarkers.push(marker);
+    </div>`, { maxWidth: 240 });
+  marker.on('popupopen', () => { openPersonId = u.id; });
+  marker.on('popupclose', () => {
+    if (openPersonId !== u.id) return;
+    openPersonId = null;
+    if (reloadPending) { reloadPending = false; loadMatches(); }
   });
+  return marker;
 }
 
-// Same grid as n2y_people_nearby: what other people see of your position
+// Only pins whose data changed are replaced, so open popups and fanned-out groups survive reloads
+function renderMatches() {
+  const min = minMatch();
+  const shown = lastMatches.filter(u => Math.round(u.sim * 100) >= min);
+  const countEl = document.getElementById('matchCount');
+  if (tooFar) countEl.textContent = 'Zum Anzeigen von Leuten näher heranzoomen';
+  else if (shown.length && lastMatches.length >= 100) countEl.textContent = shown.length + ' beste Treffer – reinzoomen für mehr';
+  else if (shown.length) countEl.textContent = shown.length + ' im Ausschnitt' + (shown.length < lastMatches.length ? ` (von ${lastMatches.length})` : '');
+  else if (lastMatches.length) countEl.textContent = `Niemand mit ≥ ${min} % Match – Regler verringern?`;
+  else countEl.textContent = 'Niemand im Ausschnitt – rauszoomen oder verschieben';
+
+  const keep = new Set(shown.map(u => u.id));
+  for (const [id, e] of markerById) {
+    if (!keep.has(id)) { people.removeLayer(e.marker); markerById.delete(id); }
+  }
+  const added = [];
+  shown.forEach(u => {
+    const key = personKey(u), existing = markerById.get(u.id);
+    if (existing && existing.key === key) return;
+    if (existing) people.removeLayer(existing.marker);
+    const marker = buildPersonMarker(u);
+    markerById.set(u.id, { marker, key });
+    added.push(marker);
+  });
+  if (added.length) people.addLayers(added);
+  matchMarkers = [...markerById.values()].map(e => e.marker);
+}
+
+// Same grid as n2y_people_in_view: what other people see of your position
 function drawMyCell(lat, lng) {
   const cLat = Math.round(lat / 0.0018) * 0.0018, cLng = Math.round(lng / 0.0027) * 0.0027;
   const bounds = [[cLat - 0.0009, cLng - 0.00135], [cLat + 0.0009, cLng + 0.00135]];

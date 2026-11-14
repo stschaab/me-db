@@ -460,3 +460,51 @@ CREATE OR REPLACE TRIGGER n2y_request_embedding AFTER INSERT OR UPDATE OF topics
 --   GREATEST(n2y_topic_match(my_text, c.topics_text),
 --            n2y_semantic_match(me.model, 1 - (me.emb <=> c.topics_embedding)))  -- nur bei gleichem Modell
 -- (vollständige Live-Definition siehe Datenbank; Signatur unverändert)
+
+-- ─── Leute im sichtbaren Kartenausschnitt (ersetzt den Radius) ──────────────
+-- Gleiche Regeln wie n2y_people_nearby, aber gefiltert auf den Ausschnitt (auf dem 200-m-Raster),
+-- plus Entfernung zur eigenen Position. Ausschnitte > 0,3° × 0,5° (≈ 33 × 36 km) liefern nichts,
+-- höchstens 100 Personen mit dem besten Match.
+CREATE OR REPLACE FUNCTION public.n2y_people_in_view(
+  min_lat DOUBLE PRECISION, min_lng DOUBLE PRECISION, max_lat DOUBLE PRECISION, max_lng DOUBLE PRECISION,
+  my_text TEXT, gender_filter TEXT DEFAULT NULL, age_min INT DEFAULT NULL, age_max INT DEFAULT NULL)
+RETURNS TABLE(id UUID, nickname TEXT, gender TEXT, age_years INT,
+              lat_approx DOUBLE PRECISION, lng_approx DOUBLE PRECISION, topics_text TEXT, sim REAL,
+              inactive_min INT, distance_m INT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  WITH me AS (
+    SELECT topics_embedding AS emb, topics_embedding_model AS model, latitude AS lat, longitude AS lng
+    FROM public.n2y_users WHERE id = auth.uid()
+  ), cand AS (
+    SELECT u.id, u.nickname, u.gender, u.age_years, u.topics_text, u.last_seen,
+           u.topics_embedding, u.topics_embedding_model,
+           ROUND(u.latitude  / 0.0018) * 0.0018 AS lat_a,
+           ROUND(u.longitude / 0.0027) * 0.0027 AS lng_a
+    FROM public.n2y_users u
+    WHERE auth.uid() IS NOT NULL AND u.id <> auth.uid() AND u.is_active
+      AND u.last_seen > NOW() - INTERVAL '2 hours' AND u.latitude IS NOT NULL
+      AND (u.offline_at IS NULL OR u.offline_at < u.last_seen)
+      AND (gender_filter IS NULL OR u.gender = gender_filter)
+      AND (age_min IS NULL OR u.age_years >= age_min)
+      AND (age_max IS NULL OR u.age_years <= age_max)
+      AND max_lat - min_lat BETWEEN 0 AND 0.3
+      AND max_lng - min_lng BETWEEN 0 AND 0.5
+  )
+  SELECT c.id, c.nickname, c.gender, c.age_years, c.lat_a, c.lng_a, c.topics_text,
+         GREATEST(
+           public.n2y_topic_match(my_text, c.topics_text),
+           CASE WHEN me.model IS NOT NULL AND me.model = c.topics_embedding_model
+                THEN public.n2y_semantic_match(me.model, 1 - (me.emb OPERATOR(public.<=>) c.topics_embedding))
+                ELSE 0 END
+         )::REAL,
+         GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - c.last_seen)) / 60))::INT,
+         CASE WHEN me.lat IS NULL THEN NULL ELSE ROUND(6371000 * acos(LEAST(1.0,
+           cos(radians(me.lat)) * cos(radians(c.lat_a)) * cos(radians(c.lng_a) - radians(me.lng)) +
+           sin(radians(me.lat)) * sin(radians(c.lat_a)))))::INT END
+  FROM cand c LEFT JOIN me ON TRUE
+  WHERE c.lat_a BETWEEN min_lat AND max_lat AND c.lng_a BETWEEN min_lng AND max_lng
+  ORDER BY 8 DESC, c.nickname
+  LIMIT 100;
+$$;
+REVOKE EXECUTE ON FUNCTION public.n2y_people_in_view(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT, TEXT, INT, INT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.n2y_people_in_view(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT, TEXT, INT, INT) TO authenticated;
