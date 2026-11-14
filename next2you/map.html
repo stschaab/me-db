@@ -144,7 +144,7 @@ function simColor(sim) {
 function idleLabel(min) {
   if (min < 60) return min + ' min';
   const h = Math.floor(min / 60), m = min % 60;
-  return h + ' h' + (m ? ' ' + m + ' min' : '');
+  return h + 'h' + (m ? m + 'min' : '');
 }
 
 function makeMarkerIcon(sim, isMe, inactiveMin = 0) {
