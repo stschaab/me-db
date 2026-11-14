@@ -109,6 +109,10 @@ textarea:focus { border-color: #00b4d8; }
       </button>
       <span id="gpsAccuracy"></span>
     </div>
+    <div id="gpsWarn" style="display:none;margin-top:12px;font-size:0.8rem;line-height:1.4;color:#8a4b00;background:#fff3e0;border-radius:10px;padding:10px 12px">
+      Nur ungefährer Standort. Für Treffen in der Nähe bei Android <b>„Genau“</b> erlauben
+      (Einstellungen → Apps → Browser → Berechtigungen → Standort → „Genauen Standort verwenden“).
+    </div>
   </div>
 
   <button class="btn-primary" id="saveBtn" onclick="save()" disabled>Auf die Karte →</button>
@@ -217,7 +221,8 @@ function setGpsOk(lat, lng, acc) {
   const btn = document.getElementById('gpsBtn');
   btn.className = 'gps-btn ok';
   document.getElementById('gpsBtnLabel').textContent = '✓ Standort gesetzt';
-  if (acc) document.getElementById('gpsAccuracy').textContent = '±' + Math.round(acc) + ' m';
+  if (acc) document.getElementById('gpsAccuracy').textContent = '±' + (acc >= 1000 ? (acc / 1000).toFixed(1).replace('.', ',') + ' km' : Math.round(acc) + ' m');
+  document.getElementById('gpsWarn').style.display = acc > 300 ? 'block' : 'none';
 }
 
 async function save() {
