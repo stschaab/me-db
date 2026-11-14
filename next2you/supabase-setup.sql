@@ -306,3 +306,68 @@ END $f$;
 REVOKE EXECUTE ON FUNCTION public.n2y_test_bot_reply() FROM PUBLIC, anon, authenticated;
 CREATE OR REPLACE TRIGGER n2y_test_bot_reply AFTER INSERT ON public.n2y_messages
   FOR EACH ROW EXECUTE FUNCTION public.n2y_test_bot_reply();
+
+-- ─── Anwesenheit: aktiv / inaktiv / offline ──────────────────────────────────
+-- Jede sichtbare Next2You-Seite ruft minütlich n2y_heartbeat() (presence.js),
+-- beim Schließen des Tabs n2y_offline(). Pins verschwinden bei offline oder
+-- nach 2 h ohne Heartbeat; dazwischen liefert n2y_people_nearby inactive_min.
+-- Hinweis: n2y_topic_match (oben) war versehentlich nicht aktiv und wurde hier neu angelegt.
+ALTER TABLE public.n2y_users ADD COLUMN IF NOT EXISTS offline_at TIMESTAMPTZ;
+
+CREATE OR REPLACE FUNCTION public.n2y_heartbeat()
+RETURNS VOID LANGUAGE sql SET search_path = '' AS $$
+  UPDATE public.n2y_users SET last_seen = GREATEST(last_seen, NOW()), offline_at = NULL WHERE id = auth.uid();
+$$;
+
+CREATE OR REPLACE FUNCTION public.n2y_offline()
+RETURNS VOID LANGUAGE sql SET search_path = '' AS $$
+  UPDATE public.n2y_users SET offline_at = NOW() WHERE id = auth.uid();
+$$;
+
+CREATE OR REPLACE FUNCTION public.n2y_people_nearby(
+  my_lat DOUBLE PRECISION, my_lng DOUBLE PRECISION, radius_km DOUBLE PRECISION, my_text TEXT,
+  gender_filter TEXT DEFAULT NULL, age_min INT DEFAULT NULL, age_max INT DEFAULT NULL)
+RETURNS TABLE(id UUID, nickname TEXT, gender TEXT, age_years INT,
+              lat_approx DOUBLE PRECISION, lng_approx DOUBLE PRECISION, topics_text TEXT, sim REAL,
+              inactive_min INT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  WITH cand AS (
+    SELECT u.id, u.nickname, u.gender, u.age_years, u.topics_text, u.last_seen,
+           ROUND(u.latitude  / 0.0018) * 0.0018 AS lat_a,
+           ROUND(u.longitude / 0.0027) * 0.0027 AS lng_a
+    FROM public.n2y_users u
+    WHERE auth.uid() IS NOT NULL AND u.id <> auth.uid() AND u.is_active
+      AND u.last_seen > NOW() - INTERVAL '2 hours' AND u.latitude IS NOT NULL
+      AND (u.offline_at IS NULL OR u.offline_at < u.last_seen)
+      AND (gender_filter IS NULL OR u.gender = gender_filter)
+      AND (age_min IS NULL OR u.age_years >= age_min)
+      AND (age_max IS NULL OR u.age_years <= age_max)
+  )
+  SELECT c.id, c.nickname, c.gender, c.age_years, c.lat_a, c.lng_a, c.topics_text,
+         public.n2y_topic_match(my_text, c.topics_text),
+         GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - c.last_seen)) / 60))::INT
+  FROM cand c
+  WHERE 6371 * acos(LEAST(1.0,
+          cos(radians(my_lat)) * cos(radians(c.lat_a)) * cos(radians(c.lng_a) - radians(my_lng)) +
+          sin(radians(my_lat)) * sin(radians(c.lat_a)))) < LEAST(radius_km, 10)
+  ORDER BY 8 DESC, c.nickname
+  LIMIT 30;
+$$;
+
+-- Alte Funktion bleibt als Wrapper erhalten (Ersetzen bräuchte DROP)
+CREATE OR REPLACE FUNCTION public.n2y_nearby_matches(
+  my_lat DOUBLE PRECISION, my_lng DOUBLE PRECISION, radius_km DOUBLE PRECISION, my_text TEXT,
+  gender_filter TEXT DEFAULT NULL, age_min INT DEFAULT NULL, age_max INT DEFAULT NULL)
+RETURNS TABLE(id UUID, nickname TEXT, gender TEXT, age_years INT,
+              lat_approx DOUBLE PRECISION, lng_approx DOUBLE PRECISION, topics_text TEXT, sim REAL)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT p.id, p.nickname, p.gender, p.age_years, p.lat_approx, p.lng_approx, p.topics_text, p.sim
+  FROM public.n2y_people_nearby(my_lat, my_lng, radius_km, my_text, gender_filter, age_min, age_max) p;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.n2y_heartbeat() FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.n2y_offline() FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.n2y_people_nearby(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT, TEXT, INT, INT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.n2y_heartbeat() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.n2y_offline() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.n2y_people_nearby(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT, TEXT, INT, INT) TO authenticated;

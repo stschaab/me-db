@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Next2You · Karte</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="presence.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <style>
@@ -32,6 +33,9 @@ select:focus { border-color: #00b4d8; }
 .popup-box .p-nick { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
 .popup-box .p-meta { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
 .popup-box .p-topics { font-size: 0.82rem; line-height: 1.4; color: #333; margin-bottom: 10px; max-height: 160px; overflow-y: auto; white-space: pre-wrap; }
+.popup-box .p-active { font-size: 0.75rem; color: #555; margin-bottom: 6px; }
+.idle-pin svg { opacity: 0.55; }
+.pin-idle { position: absolute; left: 24px; top: 4px; background: rgba(255,255,255,0.95); color: #666; border: 1px solid #ddd; border-radius: 8px; font-size: 10px; font-weight: 600; line-height: 1; padding: 3px 5px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
 .popup-box .p-sim { font-size: 0.72rem; font-weight: 700; color: #00b4d8; margin-bottom: 10px; }
 .popup-box .p-chat-btn {
   display: block; width: 100%; padding: 9px; background: #00b4d8; color: white;
@@ -137,18 +141,28 @@ function simColor(sim) {
   return '#90cad8';
 }
 
-function makeMarkerIcon(sim, isMe) {
+function idleLabel(min) {
+  if (min < 60) return min + ' min';
+  const h = Math.floor(min / 60), m = min % 60;
+  return h + ' h' + (m ? ' ' + m + ' min' : '');
+}
+
+function makeMarkerIcon(sim, isMe, inactiveMin = 0) {
   const color = isMe ? '#1a1a2e' : simColor(sim);
+  const idle = !isMe && inactiveMin >= 3;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
     <path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 22 14 22S28 24.5 28 14C28 6.27 21.73 0 14 0z" fill="${color}"/>
     <circle cx="14" cy="14" r="6" fill="white"/>
   </svg>`;
-  return L.divIcon({ html: svg, iconSize: [28, 36], iconAnchor: [14, 36], className: isMe ? 'my-pin' : '' });
+  const badge = idle ? `<span class="pin-idle">${idleLabel(inactiveMin)}</span>` : '';
+  return L.divIcon({ html: svg + badge, iconSize: [28, 36], iconAnchor: [14, 36],
+                     className: isMe ? 'my-pin' : (idle ? 'idle-pin' : '') });
 }
 
 async function init() {
   const { data: { session } } = await db.auth.getSession();
   if (!session) { window.location.href = 'index.html'; return; }
+  n2yPresence(db, SUPABASE_URL, ANON_KEY);
   myUserId = session.user.id;
 
   const { data: profile } = await db.from('n2y_users')
@@ -174,7 +188,6 @@ async function init() {
     map.on('click', (e) => { if (editing) { myMarker.setLatLng(e.latlng); drawMyCell(e.latlng.lat, e.latlng.lng); } });
     drawMyCell(profile.latitude, profile.longitude);
     setManual(isManual());
-    await db.from('n2y_users').update({ last_seen: new Date().toISOString(), is_active: true }).eq('id', session.user.id);
     refreshLocation(session.user.id);
     loadMatches();
   } else {
@@ -183,10 +196,7 @@ async function init() {
 
   loadUnread();
   setInterval(() => {
-    if (myProfile?.latitude) {
-      db.from('n2y_users').update({ last_seen: new Date().toISOString() }).eq('id', session.user.id).then(() => {});
-      refreshLocation(session.user.id);
-    }
+    if (myProfile?.latitude) refreshLocation(session.user.id);
     loadMatches(); loadUnread();
   }, 60000);
   db.channel('n2y-map-inbox')
@@ -202,7 +212,7 @@ async function loadMatches() {
   const amin = parseInt(document.getElementById('ageMin').value) || null;
   const amax = parseInt(document.getElementById('ageMax').value) || null;
 
-  const { data, error } = await db.rpc('n2y_nearby_matches', {
+  const { data, error } = await db.rpc('n2y_people_nearby', {
     my_lat: myProfile.latitude,
     my_lng: myProfile.longitude,
     radius_km: radius,
@@ -222,7 +232,7 @@ async function loadMatches() {
     : 'Gerade niemand in der Nähe – Radius vergrößern?';
 
   data.forEach(u => {
-    const marker = L.marker([u.lat_approx, u.lng_approx], { icon: makeMarkerIcon(u.sim) }).addTo(map);
+    const marker = L.marker([u.lat_approx, u.lng_approx], { icon: makeMarkerIcon(u.sim, false, u.inactive_min) }).addTo(map);
 
     const genderLabel = u.gender === 'm' ? 'Mann' : u.gender === 'f' ? 'Frau' : u.gender === 'd' ? 'Divers' : '';
     const ageLabel = u.age_years ? ', ' + u.age_years + ' J.' : '';
@@ -233,6 +243,7 @@ async function loadMatches() {
       <div class="p-nick">${escHtml(u.nickname || 'Anonym')}</div>
       ${metaLabel ? `<div class="p-meta">${escHtml(metaLabel)}</div>` : ''}
       <div class="p-topics">${escHtml(u.topics_text || '')}</div>
+      <div class="p-active">${u.inactive_min >= 3 ? `💤 seit ${idleLabel(u.inactive_min)} inaktiv` : '🟢 gerade aktiv'}</div>
       ${simPct > 0 ? `<div class="p-sim">⚡ ${simPct}% Interesse-Match</div>` : ''}
       <button class="p-chat-btn" onclick="startChat('${u.id}')">💬 Gespräch starten</button>
     </div>`;
@@ -242,7 +253,7 @@ async function loadMatches() {
   });
 }
 
-// Same grid as n2y_nearby_matches: what other people see of your position
+// Same grid as n2y_people_nearby: what other people see of your position
 function drawMyCell(lat, lng) {
   const cLat = Math.round(lat / 0.0018) * 0.0018, cLng = Math.round(lng / 0.0027) * 0.0027;
   const bounds = [[cLat - 0.0009, cLng - 0.00135], [cLat + 0.0009, cLng + 0.00135]];
