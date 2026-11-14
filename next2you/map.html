@@ -141,12 +141,6 @@ function simColor(sim) {
   return '#90cad8';
 }
 
-function idleLabel(min) {
-  if (min < 60) return min + ' min';
-  const h = Math.floor(min / 60), m = min % 60;
-  return h + 'h' + (m ? m + 'min' : '');
-}
-
 function makeMarkerIcon(sim, isMe, inactiveMin = 0) {
   const color = isMe ? '#1a1a2e' : simColor(sim);
   const idle = !isMe && inactiveMin >= 3;
@@ -154,7 +148,7 @@ function makeMarkerIcon(sim, isMe, inactiveMin = 0) {
     <path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 22 14 22S28 24.5 28 14C28 6.27 21.73 0 14 0z" fill="${color}"/>
     <circle cx="14" cy="14" r="6" fill="white"/>
   </svg>`;
-  const badge = idle ? `<span class="pin-idle">${idleLabel(inactiveMin)}</span>` : '';
+  const badge = idle ? `<span class="pin-idle">${n2yIdleLabel(inactiveMin)}</span>` : '';
   return L.divIcon({ html: svg + badge, iconSize: [28, 36], iconAnchor: [14, 36],
                      className: isMe ? 'my-pin' : (idle ? 'idle-pin' : '') });
 }
@@ -243,7 +237,7 @@ async function loadMatches() {
       <div class="p-nick">${escHtml(u.nickname || 'Anonym')}</div>
       ${metaLabel ? `<div class="p-meta">${escHtml(metaLabel)}</div>` : ''}
       <div class="p-topics">${escHtml(u.topics_text || '')}</div>
-      <div class="p-active">${u.inactive_min >= 3 ? `💤 seit ${idleLabel(u.inactive_min)} inaktiv` : '🟢 gerade aktiv'}</div>
+      <div class="p-active">${u.inactive_min >= 3 ? `💤 seit ${n2yIdleLabel(u.inactive_min)} inaktiv` : '🟢 gerade aktiv'}</div>
       ${simPct > 0 ? `<div class="p-sim">⚡ ${simPct}% Interesse-Match</div>` : ''}
       <button class="p-chat-btn" onclick="startChat('${u.id}')">💬 Gespräch starten</button>
     </div>`;
