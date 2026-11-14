@@ -30,6 +30,8 @@ header h1 span { color: #00b4d8; }
 .st-text { font-size: 0.7rem; font-weight: 400; margin-left: 6px; }
 .st-text.active { color: #1e9e57; } .st-text.idle { color: #b7791f; } .st-text.offline { color: #999; }
 .badge { background: #00b4d8; color: white; border-radius: 12px; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; flex-shrink: 0; }
+.del-btn { background: none; border: none; font-size: 1rem; padding: 6px; margin: -6px -6px -6px 0; cursor: pointer; opacity: 0.35; flex-shrink: 0; }
+.del-btn:hover { opacity: 0.8; }
 .empty { text-align: center; color: #888; padding: 48px 20px; font-size: 0.9rem; line-height: 1.6; }
 .empty a { color: #00b4d8; }
 </style>
@@ -50,6 +52,7 @@ header h1 span { color: #00b4d8; }
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
 const db = supabase.createClient(SUPABASE_URL, ANON_KEY, { auth: { storageKey: 'n2y-auth' } });
+let convs = [];
 
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -67,6 +70,7 @@ async function load() {
     db.rpc('n2y_my_conversations'), db.rpc('n2y_partner_presence')]);
   const presence = Object.fromEntries((pres || []).map(p => [p.partner_id, p]));
   const list = document.getElementById('list');
+  convs = data || [];
   if (error) { list.innerHTML = '<div class="empty">Fehler: ' + escHtml(error.message) + '</div>'; return; }
   if (!data.length) {
     list.innerHTML = '<div class="empty">Noch keine Gespräche.<br><a href="map.html">Auf der Karte jemanden anschreiben →</a></div>';
@@ -82,8 +86,19 @@ async function load() {
         <div class="last">${escHtml(c.last_message || 'Noch keine Nachrichten')}</div>
       </div>
       ${c.unread ? `<span class="badge">${c.unread}</span>` : ''}
+      <button class="del-btn" title="Chat löschen" onclick="deleteChat(event, '${c.conversation_id}')">🗑</button>
     </a>`;
   }).join('');
+}
+
+// Hides the chat only for me; messages stay stored (and visible to the partner)
+async function deleteChat(e, convId) {
+  e.preventDefault(); e.stopPropagation();
+  const name = convs.find(c => c.conversation_id === convId)?.partner_nickname || 'Anonym';
+  if (!confirm('Chat mit ' + name + ' löschen?\n\nEr verschwindet nur bei dir. Schreibt ' + name + ' dir erneut, erscheint der Chat wieder – nur mit den neuen Nachrichten.')) return;
+  const { error } = await db.rpc('n2y_delete_chat', { p_conversation: convId });
+  if (error) { alert('Fehler: ' + error.message); return; }
+  load();
 }
 
 async function init() {
