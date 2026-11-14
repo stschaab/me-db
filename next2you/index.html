@@ -111,7 +111,12 @@ async function signIn() {
     if (!error) return data.session;
   }
   const { data: creds, error } = await db.functions.invoke('n2y-signup', { body: {} });
-  if (error || !creds?.email) throw new Error(error?.message || 'Registrierung fehlgeschlagen');
+  if (error || !creds?.email) {
+    const status = error?.context?.status;
+    throw new Error(status === 429
+      ? 'Zu viele neue Profile von diesem Netzwerk – bitte in einer Stunde erneut versuchen.'
+      : 'Registrierung gerade nicht möglich – bitte später erneut versuchen.');
+  }
   localStorage.setItem(CREDS_KEY, JSON.stringify({ email: creds.email, password: creds.password }));
   const { data, error: loginErr } = await db.auth.signInWithPassword({ email: creds.email, password: creds.password });
   if (loginErr) throw loginErr;
