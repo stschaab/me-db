@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Next2You · Karte</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a1a2e; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+header { background: #1a1a2e; color: white; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; z-index: 1000; }
+header h1 { font-size: 1.1rem; font-weight: 700; }
+header h1 span { color: #00b4d8; }
+.nav-links { display: flex; gap: 14px; align-items: center; }
+.nav-links a { color: #7ec8e3; font-size: 0.8rem; text-decoration: none; }
+.nav-links a:hover { text-decoration: underline; }
+.filter-bar { background: white; padding: 10px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid #e8eaed; flex-shrink: 0; z-index: 900; }
+.filter-bar label { font-size: 0.72rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.04em; }
+select, input[type="range"] { font-size: 0.85rem; padding: 5px 8px; border: 1px solid #e0e0e0; border-radius: 8px; background: white; color: #1a1a2e; cursor: pointer; outline: none; }
+select:focus { border-color: #00b4d8; }
+.radius-val { font-size: 0.82rem; font-weight: 700; color: #00b4d8; min-width: 42px; }
+.age-row { display: flex; align-items: center; gap: 6px; }
+.age-row input { width: 56px; padding: 5px 7px; }
+.btn-refresh { padding: 6px 14px; background: #00b4d8; color: white; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+.btn-refresh:hover { background: #0092b0; }
+#map { flex: 1; z-index: 1; }
+.match-count { font-size: 0.75rem; color: #888; margin-left: auto; white-space: nowrap; }
+/* Leaflet popup */
+.popup-box { min-width: 180px; }
+.popup-box .p-nick { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+.popup-box .p-meta { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
+.popup-box .p-topics { font-size: 0.82rem; line-height: 1.4; color: #333; margin-bottom: 10px; max-height: 80px; overflow: hidden; }
+.popup-box .p-sim { font-size: 0.72rem; font-weight: 700; color: #00b4d8; margin-bottom: 10px; }
+.popup-box .p-chat-btn {
+  display: block; width: 100%; padding: 9px; background: #00b4d8; color: white;
+  border: none; border-radius: 8px; font-size: 0.88rem; font-weight: 700; cursor: pointer; text-align: center;
+}
+.popup-box .p-chat-btn:hover { background: #0092b0; }
+#noGpsMsg { display: none; position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; padding: 12px 20px; border-radius: 12px; font-size: 0.88rem; z-index: 999; text-align: center; }
+#noGpsMsg a { color: #00b4d8; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Next<span>2</span>You</h1>
+  <div class="nav-links">
+    <a href="topics.html">✏️ Themen</a>
+    <a href="settings.html">⚙</a>
+  </div>
+</header>
+
+<div class="filter-bar">
+  <label>Radius</label>
+  <input type="range" id="radiusSlider" min="0" max="3" step="1" value="1" oninput="onRadiusChange()">
+  <span class="radius-val" id="radiusVal">1 km</span>
+
+  <label>Geschlecht</label>
+  <select id="genderFilter" onchange="loadMatches()">
+    <option value="">Alle</option>
+    <option value="m">Männer</option>
+    <option value="f">Frauen</option>
+    <option value="d">Divers</option>
+  </select>
+
+  <label>Alter</label>
+  <div class="age-row">
+    <input type="number" id="ageMin" placeholder="von" min="16" max="99" oninput="loadMatches()">
+    <span style="font-size:0.75rem;color:#aaa">–</span>
+    <input type="number" id="ageMax" placeholder="bis" min="16" max="99" oninput="loadMatches()">
+  </div>
+
+  <button class="btn-refresh" onclick="loadMatches()">↻</button>
+  <span class="match-count" id="matchCount"></span>
+</div>
+
+<div id="map"></div>
+<div id="noGpsMsg">Kein Standort gesetzt. <a href="topics.html">Hier aktivieren →</a></div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+const RADII = [0.5, 1, 2, 5];
+let map, myMarker, matchMarkers = [];
+let myProfile = null;
+
+function onRadiusChange() {
+  const v = RADII[document.getElementById('radiusSlider').value];
+  document.getElementById('radiusVal').textContent = v < 1 ? (v * 1000) + ' m' : v + ' km';
+  loadMatches();
+}
+
+function getGenderIcon(gender) {
+  if (gender === 'm') return '👤';
+  if (gender === 'f') return '👤';
+  return '👤';
+}
+
+function simColor(sim) {
+  if (sim > 0.4) return '#00b4d8';
+  if (sim > 0.2) return '#0077a0';
+  return '#90cad8';
+}
+
+function makeMarkerIcon(sim, isMe) {
+  const color = isMe ? '#1a1a2e' : simColor(sim);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
+    <path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 22 14 22S28 24.5 28 14C28 6.27 21.73 0 14 0z" fill="${color}"/>
+    <circle cx="14" cy="14" r="6" fill="white"/>
+  </svg>`;
+  return L.divIcon({ html: svg, iconSize: [28, 36], iconAnchor: [14, 36], className: '' });
+}
+
+async function init() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+
+  const { data: profile } = await db.from('n2y_users')
+    .select('id,nickname,latitude,longitude,topics_text,is_active')
+    .eq('id', session.user.id).single();
+
+  myProfile = profile;
+
+  // Karte initialisieren
+  const lat = profile?.latitude || 48.137;
+  const lng = profile?.longitude || 11.576;
+  map = L.map('map').setView([lat, lng], 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+  }).addTo(map);
+
+  if (profile?.latitude) {
+    myMarker = L.marker([profile.latitude, profile.longitude], { icon: makeMarkerIcon(1, true) })
+      .addTo(map)
+      .bindPopup('<b>Du</b><br><small>' + (profile.nickname || 'Anonym') + '</small>');
+    // last_seen aktualisieren
+    await db.from('n2y_users').update({ last_seen: new Date().toISOString(), is_active: true }).eq('id', session.user.id);
+    loadMatches();
+  } else {
+    document.getElementById('noGpsMsg').style.display = 'block';
+  }
+
+  // Auto-refresh alle 60s
+  setInterval(loadMatches, 60000);
+}
+
+async function loadMatches() {
+  if (!myProfile?.latitude || !myProfile?.topics_text) return;
+
+  const radius = RADII[document.getElementById('radiusSlider').value];
+  const gf = document.getElementById('genderFilter').value || null;
+  const amin = parseInt(document.getElementById('ageMin').value) || null;
+  const amax = parseInt(document.getElementById('ageMax').value) || null;
+
+  const { data, error } = await db.rpc('n2y_nearby_matches', {
+    my_lat: myProfile.latitude,
+    my_lng: myProfile.longitude,
+    radius_km: radius,
+    my_text: myProfile.topics_text,
+    gender_filter: gf,
+    age_min: amin,
+    age_max: amax
+  });
+
+  // Alte Marker entfernen
+  matchMarkers.forEach(m => m.remove());
+  matchMarkers = [];
+
+  if (error || !data) { document.getElementById('matchCount').textContent = 'Fehler'; return; }
+  document.getElementById('matchCount').textContent = data.length + ' in der Nähe';
+
+  data.forEach(u => {
+    const marker = L.marker([u.lat_approx, u.lng_approx], { icon: makeMarkerIcon(u.sim) }).addTo(map);
+
+    const genderLabel = u.gender === 'm' ? 'Mann' : u.gender === 'f' ? 'Frau' : u.gender === 'd' ? 'Divers' : '';
+    const ageLabel = u.age_years ? ', ' + u.age_years + ' J.' : '';
+    const metaLabel = [genderLabel + ageLabel].filter(Boolean).join(' · ');
+    const simPct = Math.round(u.sim * 100);
+
+    const popup = `<div class="popup-box">
+      <div class="p-nick">${escHtml(u.nickname || 'Anonym')}</div>
+      ${metaLabel ? `<div class="p-meta">${escHtml(metaLabel)}</div>` : ''}
+      <div class="p-topics">${escHtml(u.topics_text || '')}</div>
+      ${simPct > 0 ? `<div class="p-sim">⚡ ${simPct}% Interesse-Match</div>` : ''}
+      <button class="p-chat-btn" onclick="startChat('${u.id}')">💬 Gespräch starten</button>
+    </div>`;
+
+    marker.bindPopup(popup, { maxWidth: 240 });
+    matchMarkers.push(marker);
+  });
+}
+
+function startChat(userId) {
+  window.location.href = 'chat.html?with=' + userId;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>
+</body>
+</html>

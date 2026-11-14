@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Next2You · Themen</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a1a2e; min-height: 100vh; }
+header { background: #1a1a2e; color: white; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 1.1rem; font-weight: 700; }
+header h1 span { color: #00b4d8; }
+.nav-links { display: flex; gap: 16px; }
+.nav-links a { color: #7ec8e3; font-size: 0.8rem; text-decoration: none; }
+.nav-links a:hover { text-decoration: underline; }
+.container { max-width: 540px; margin: 0 auto; padding: 24px 20px; }
+.section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 10px; }
+.card { background: white; border-radius: 20px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 16px; }
+.card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+.card p { font-size: 0.85rem; color: #666; line-height: 1.5; margin-bottom: 16px; }
+textarea {
+  width: 100%; min-height: 120px; padding: 14px; border: 1.5px solid #e0e0e0;
+  border-radius: 12px; font-size: 0.95rem; font-family: inherit; outline: none;
+  resize: vertical; line-height: 1.5; color: #1a1a2e; transition: border-color 0.15s;
+}
+textarea:focus { border-color: #00b4d8; }
+.mic-btn {
+  display: flex; align-items: center; gap: 10px; padding: 13px 18px;
+  border: 1.5px solid #00b4d8; border-radius: 12px; background: white;
+  color: #00b4d8; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  width: 100%; transition: all 0.15s; margin-top: 10px;
+}
+.mic-btn:hover { background: #e8f8fc; }
+.mic-btn.listening { background: #00b4d8; color: white; border-color: #00b4d8; }
+.mic-btn.listening .mic-icon { animation: pulse 0.8s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.mic-icon { font-size: 1.2rem; }
+.gps-row { display: flex; align-items: center; gap: 12px; }
+.gps-btn {
+  flex: 1; padding: 13px 16px; border: 1.5px solid #e0e0e0; border-radius: 12px;
+  background: white; font-size: 0.9rem; cursor: pointer; color: #1a1a2e;
+  display: flex; align-items: center; gap: 8px; transition: all 0.15s;
+}
+.gps-btn:hover { border-color: #00b4d8; }
+.gps-btn.ok { border-color: #2e7d32; background: #e8f5e9; color: #2e7d32; font-weight: 600; }
+.gps-btn.error { border-color: #c62828; background: #ffebee; color: #c62828; }
+#gpsAccuracy { font-size: 0.75rem; color: #888; white-space: nowrap; }
+.btn-primary {
+  width: 100%; padding: 15px; background: #00b4d8; color: white; border: none;
+  border-radius: 12px; font-size: 1.05rem; font-weight: 700; cursor: pointer;
+  transition: background 0.15s; margin-top: 4px;
+}
+.btn-primary:hover { background: #0092b0; }
+.btn-primary:disabled { background: #b0d8e8; cursor: not-allowed; }
+.char-count { font-size: 0.72rem; color: #bbb; text-align: right; margin-top: 4px; }
+.transcript-hint { font-size: 0.8rem; color: #00b4d8; margin-top: 8px; min-height: 20px; }
+.example-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.chip {
+  padding: 6px 12px; border-radius: 20px; background: #f0f4f8; font-size: 0.78rem;
+  cursor: pointer; border: 1px solid #e0e0e0; color: #555; transition: all 0.12s;
+}
+.chip:hover { background: #e8f8fc; border-color: #00b4d8; color: #0092b0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Next<span>2</span>You</h1>
+  <div class="nav-links">
+    <a href="map.html">Karte</a>
+    <a href="settings.html">⚙</a>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="card">
+    <h3>Worüber möchtest du reden?</h3>
+    <p>Beschreib in deinen Worten, was dich gerade interessiert – so findet die App passende Leute in deiner Nähe.</p>
+
+    <textarea id="topicsText" maxlength="500" placeholder="z.B. Ich lese gerade viel über KI und Philosophie, interessiere mich für Klettern und möchte über nachhaltige Ernährung reden…" oninput="updateCount()"></textarea>
+    <div class="char-count"><span id="charCount">0</span>/500</div>
+
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()">
+      <span class="mic-icon">🎤</span>
+      <span id="micLabel">Sprich einfach drauf los</span>
+    </button>
+    <div class="transcript-hint" id="transcriptHint"></div>
+
+    <div class="example-chips" id="exampleChips">
+      <span class="chip" onclick="addChip('KI & Technologie')">KI & Technologie</span>
+      <span class="chip" onclick="addChip('Philosophie')">Philosophie</span>
+      <span class="chip" onclick="addChip('Klettern & Sport')">Klettern & Sport</span>
+      <span class="chip" onclick="addChip('Musik & Konzerte')">Musik & Konzerte</span>
+      <span class="chip" onclick="addChip('Reisen')">Reisen</span>
+      <span class="chip" onclick="addChip('Startup & Business')">Startup & Business</span>
+      <span class="chip" onclick="addChip('Fotografie')">Fotografie</span>
+      <span class="chip" onclick="addChip('Sprachen lernen')">Sprachen lernen</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📍 Dein Standort</h3>
+    <p style="margin-bottom:14px">Nur auf ~200 m gerundet für andere sichtbar. Nie deine genaue Position.</p>
+    <div class="gps-row">
+      <button class="gps-btn" id="gpsBtn" onclick="getGPS()">
+        <span>📍</span> <span id="gpsBtnLabel">Standort aktivieren</span>
+      </button>
+      <span id="gpsAccuracy"></span>
+    </div>
+  </div>
+
+  <button class="btn-primary" id="saveBtn" onclick="save()" disabled>Auf die Karte →</button>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+let userLat = null, userLng = null;
+let recognition = null;
+
+async function init() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+
+  const { data: profile } = await db.from('n2y_users').select('topics_text,latitude,longitude').eq('id', session.user.id).single();
+  if (profile) {
+    if (profile.topics_text) document.getElementById('topicsText').value = profile.topics_text;
+    if (profile.latitude) {
+      userLat = profile.latitude; userLng = profile.longitude;
+      setGpsOk(profile.latitude, profile.longitude);
+    }
+  }
+  updateCount();
+  checkSaveReady();
+}
+
+function updateCount() {
+  const t = document.getElementById('topicsText');
+  document.getElementById('charCount').textContent = t.value.length;
+  checkSaveReady();
+}
+
+function checkSaveReady() {
+  const hasText = document.getElementById('topicsText').value.trim().length > 10;
+  const hasGps = userLat !== null;
+  document.getElementById('saveBtn').disabled = !(hasText && hasGps);
+  if (hasText && hasGps) document.getElementById('saveBtn').textContent = 'Auf die Karte →';
+  else if (!hasText) document.getElementById('saveBtn').textContent = 'Themen eingeben (min. 10 Zeichen)';
+  else document.getElementById('saveBtn').textContent = 'Standort aktivieren';
+}
+
+function addChip(text) {
+  const ta = document.getElementById('topicsText');
+  const sep = ta.value.length > 0 && !ta.value.endsWith(' ') ? ', ' : '';
+  ta.value = (ta.value + sep + text).substring(0, 500);
+  updateCount();
+}
+
+function toggleMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('Spracheingabe wird in diesem Browser nicht unterstützt.'); return; }
+  if (recognition) { recognition.stop(); recognition = null; return; }
+
+  recognition = new SR();
+  recognition.lang = 'de-DE';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  document.getElementById('micBtn').classList.add('listening');
+  document.getElementById('micLabel').textContent = 'Zuhören… (klicken zum Stoppen)';
+  document.getElementById('transcriptHint').textContent = '';
+
+  recognition.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    const ta = document.getElementById('topicsText');
+    const sep = ta.value.length > 0 ? ' ' : '';
+    ta.value = (ta.value + sep + text).substring(0, 500);
+    document.getElementById('transcriptHint').textContent = '✓ „' + text + '"';
+    updateCount();
+  };
+  recognition.onerror = (e) => {
+    document.getElementById('transcriptHint').textContent = 'Fehler: ' + e.error;
+  };
+  recognition.onend = () => {
+    recognition = null;
+    document.getElementById('micBtn').classList.remove('listening');
+    document.getElementById('micLabel').textContent = 'Sprich einfach drauf los';
+  };
+  recognition.start();
+}
+
+function getGPS() {
+  document.getElementById('gpsBtnLabel').textContent = 'Ermittle Position…';
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      setGpsOk(userLat, userLng, pos.coords.accuracy);
+      checkSaveReady();
+    },
+    (err) => {
+      const btn = document.getElementById('gpsBtn');
+      btn.className = 'gps-btn error';
+      document.getElementById('gpsBtnLabel').textContent = 'Zugriff verweigert';
+      document.getElementById('gpsAccuracy').textContent = '';
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+function setGpsOk(lat, lng, acc) {
+  const btn = document.getElementById('gpsBtn');
+  btn.className = 'gps-btn ok';
+  document.getElementById('gpsBtnLabel').textContent = '✓ Standort gesetzt';
+  if (acc) document.getElementById('gpsAccuracy').textContent = '±' + Math.round(acc) + ' m';
+}
+
+async function save() {
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = '…';
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+
+  const { error } = await db.from('n2y_users').upsert({
+    id: session.user.id,
+    topics_text: document.getElementById('topicsText').value.trim(),
+    latitude: userLat,
+    longitude: userLng,
+    last_seen: new Date().toISOString(),
+    is_active: true
+  });
+  if (error) { alert('Fehler: ' + error.message); btn.disabled = false; return; }
+  window.location.href = 'map.html';
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Next2You · Einstellungen</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a1a2e; }
+header { background: #1a1a2e; color: white; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 1.1rem; font-weight: 700; }
+header h1 span { color: #00b4d8; }
+.nav-links a { color: #7ec8e3; font-size: 0.8rem; text-decoration: none; }
+.nav-links a:hover { text-decoration: underline; }
+.container { max-width: 540px; margin: 0 auto; padding: 24px 20px; }
+.card { background: white; border-radius: 20px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 16px; }
+.card h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 18px; color: #1a1a2e; border-bottom: 1px solid #f0f0f0; padding-bottom: 12px; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 0.75rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.field input[type="text"], .field input[type="number"], .field select {
+  width: 100%; padding: 11px 13px; border: 1.5px solid #e0e0e0; border-radius: 10px;
+  font-size: 0.95rem; outline: none; transition: border-color 0.15s; color: #1a1a2e; background: white;
+}
+.field input:focus, .field select:focus { border-color: #00b4d8; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+.toggle-row span { font-size: 0.95rem; }
+.toggle-row small { font-size: 0.78rem; color: #888; display: block; }
+.toggle { position: relative; width: 50px; height: 28px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.slider-sw { position: absolute; inset: 0; background: #e0e0e0; border-radius: 28px; cursor: pointer; transition: 0.2s; }
+.slider-sw:before { content: ''; position: absolute; width: 22px; height: 22px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.2s; }
+.toggle input:checked + .slider-sw { background: #00b4d8; }
+.toggle input:checked + .slider-sw:before { transform: translateX(22px); }
+.btn-save { width: 100%; padding: 13px; background: #00b4d8; color: white; border: none; border-radius: 12px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: background 0.15s; }
+.btn-save:hover { background: #0092b0; }
+.btn-save:disabled { background: #b0d8e8; cursor: not-allowed; }
+.btn-danger { width: 100%; padding: 13px; background: white; color: #c62828; border: 1.5px solid #c62828; border-radius: 12px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.btn-danger:hover { background: #ffebee; }
+.save-hint { text-align: center; font-size: 0.78rem; color: #2e7d32; margin-top: 10px; min-height: 20px; }
+#statusMsg { text-align: center; padding: 40px 20px; color: #888; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Next<span>2</span>You</h1>
+  <div class="nav-links">
+    <a href="map.html">← Karte</a>
+  </div>
+</header>
+
+<div id="statusMsg">Lade…</div>
+
+<div id="mainContent" style="display:none" class="container">
+
+  <div class="card">
+    <h3>Sichtbarkeit</h3>
+    <div class="toggle-row">
+      <div>
+        <span>Auf der Karte sichtbar</span>
+        <small>Wenn deaktiviert, siehst du andere, aber niemand sieht dich.</small>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="isActive" checked>
+        <span class="slider-sw"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Mein Profil</h3>
+    <div class="field">
+      <label>Spitzname</label>
+      <input type="text" id="nickname" maxlength="30">
+    </div>
+    <div class="field">
+      <label>Ich bin</label>
+      <select id="gender">
+        <option value="">Keine Angabe</option>
+        <option value="m">Mann</option>
+        <option value="f">Frau</option>
+        <option value="d">Divers</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Alter</label>
+      <input type="number" id="age" min="16" max="99" placeholder="optional">
+    </div>
+    <button class="btn-save" id="saveBtn" onclick="saveProfile()">Speichern</button>
+    <div class="save-hint" id="saveHint"></div>
+  </div>
+
+  <div class="card">
+    <h3>Themen & Standort</h3>
+    <p style="font-size:0.85rem;color:#666;margin-bottom:14px">Themen und Standort auf der Themen-Seite bearbeiten.</p>
+    <a href="topics.html" style="display:block;padding:12px;background:#f0f4f8;border-radius:10px;text-decoration:none;color:#1a1a2e;font-size:0.9rem;text-align:center;font-weight:600">✏️ Themen & Standort bearbeiten →</a>
+  </div>
+
+  <div class="card">
+    <h3>Konto</h3>
+    <button class="btn-danger" onclick="deleteAccount()">🗑 Profil & Daten löschen</button>
+    <p style="font-size:0.72rem;color:#aaa;margin-top:10px;text-align:center">Löscht alle deine Next2You-Daten unwiderruflich.</p>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+let myId = null;
+
+async function init() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+  myId = session.user.id;
+
+  const { data: profile } = await db.from('n2y_users').select('*').eq('id', myId).single();
+  if (!profile) { window.location.href = 'index.html'; return; }
+
+  document.getElementById('isActive').checked = profile.is_active !== false;
+  document.getElementById('nickname').value = profile.nickname || '';
+  document.getElementById('gender').value = profile.gender || '';
+  document.getElementById('age').value = profile.age_years || '';
+
+  document.getElementById('isActive').addEventListener('change', toggleVisibility);
+
+  document.getElementById('statusMsg').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+}
+
+async function toggleVisibility() {
+  const active = document.getElementById('isActive').checked;
+  await db.from('n2y_users').update({ is_active: active }).eq('id', myId);
+}
+
+async function saveProfile() {
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = '…';
+
+  const { error } = await db.from('n2y_users').update({
+    nickname: document.getElementById('nickname').value.trim() || 'Anonym',
+    gender: document.getElementById('gender').value || null,
+    age_years: parseInt(document.getElementById('age').value) || null
+  }).eq('id', myId);
+
+  if (error) { alert('Fehler: ' + error.message); }
+  else { document.getElementById('saveHint').textContent = '✓ Gespeichert'; setTimeout(() => document.getElementById('saveHint').textContent = '', 2000); }
+
+  btn.disabled = false; btn.textContent = 'Speichern';
+}
+
+async function deleteAccount() {
+  if (!confirm('Wirklich alle Next2You-Daten löschen? Das kann nicht rückgängig gemacht werden.')) return;
+  if (!confirm('Letzter Check: Alle Chats und dein Profil werden gelöscht.')) return;
+
+  await db.from('n2y_users').delete().eq('id', myId);
+  await db.auth.signOut();
+  window.location.href = 'index.html';
+}
+
+init();
+</script>
+</body>
+</html>
