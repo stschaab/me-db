@@ -1,87 +1,112 @@
--- Next2You – Supabase Setup
--- Ausführen im Supabase SQL Editor (Projekt: thgawuqcogugzurrijkp)
---
--- Voraussetzung: Anonymous Sign-ins aktivieren unter
---   Authentication → Configuration → "Enable anonymous sign-ins" ✓
+-- Next2You – Supabase Setup (Projekt thgawuqcogugzurrijkp)
+-- Angewendet als Migration "n2y_setup". Idempotent.
+-- Registrierung läuft über die Edge Function n2y-signup (siehe edge-function-n2y-signup.ts),
+-- die Nutzer mit app_metadata.n2y = true anlegt.
 
--- Extension für Trigram-Ähnlichkeit (Interesse-Matching)
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA extensions;
 
 -- ─── Tabellen ────────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS n2y_users (
-  id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  created_at      TIMESTAMPTZ DEFAULT NOW(),
-  last_seen       TIMESTAMPTZ DEFAULT NOW(),
-  nickname        TEXT,
-  gender          TEXT CHECK (gender IN ('m', 'f', 'd')),
-  age_years       INT  CHECK (age_years BETWEEN 16 AND 99),
-  latitude        DOUBLE PRECISION,
-  longitude       DOUBLE PRECISION,
-  is_active       BOOLEAN DEFAULT TRUE,
-  topics_text     TEXT,
-  topics_tsvector TSVECTOR GENERATED ALWAYS AS
-                  (to_tsvector('german', COALESCE(topics_text, ''))) STORED
+CREATE TABLE IF NOT EXISTS public.n2y_users (
+  id          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  nickname    TEXT CHECK (char_length(nickname) <= 30),
+  gender      TEXT CHECK (gender IN ('m', 'f', 'd')),
+  age_years   INT  CHECK (age_years BETWEEN 16 AND 99),
+  latitude    DOUBLE PRECISION CHECK (latitude BETWEEN -90 AND 90),
+  longitude   DOUBLE PRECISION CHECK (longitude BETWEEN -180 AND 180),
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  topics_text TEXT CHECK (char_length(topics_text) <= 500)
 );
 
-CREATE TABLE IF NOT EXISTS n2y_conversations (
+CREATE TABLE IF NOT EXISTS public.n2y_conversations (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  user1_id   UUID NOT NULL REFERENCES n2y_users(id) ON DELETE CASCADE,
-  user2_id   UUID NOT NULL REFERENCES n2y_users(id) ON DELETE CASCADE,
-  UNIQUE(user1_id, user2_id)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  user1_id   UUID NOT NULL REFERENCES public.n2y_users(id) ON DELETE CASCADE,
+  user2_id   UUID NOT NULL REFERENCES public.n2y_users(id) ON DELETE CASCADE,
+  CHECK (user1_id <> user2_id)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS n2y_conversations_pair
+  ON public.n2y_conversations (LEAST(user1_id, user2_id), GREATEST(user1_id, user2_id));
 
-CREATE TABLE IF NOT EXISTS n2y_messages (
+CREATE TABLE IF NOT EXISTS public.n2y_messages (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at      TIMESTAMPTZ DEFAULT NOW(),
-  conversation_id UUID NOT NULL REFERENCES n2y_conversations(id) ON DELETE CASCADE,
-  sender_id       UUID NOT NULL REFERENCES n2y_users(id) ON DELETE CASCADE,
-  content         TEXT NOT NULL,
-  is_read         BOOLEAN DEFAULT FALSE
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  conversation_id UUID NOT NULL REFERENCES public.n2y_conversations(id) ON DELETE CASCADE,
+  sender_id       UUID NOT NULL REFERENCES public.n2y_users(id) ON DELETE CASCADE,
+  content         TEXT NOT NULL CHECK (char_length(content) BETWEEN 1 AND 2000),
+  is_read         BOOLEAN NOT NULL DEFAULT FALSE
 );
+CREATE INDEX IF NOT EXISTS n2y_messages_conv ON public.n2y_messages (conversation_id, created_at);
 
--- ─── Row Level Security ───────────────────────────────────────────────────────
+-- ─── RLS für Next2You-Tabellen ───────────────────────────────────────────────
 
-ALTER TABLE n2y_users          ENABLE ROW LEVEL SECURITY;
-ALTER TABLE n2y_conversations  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE n2y_messages       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.n2y_users         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.n2y_conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.n2y_messages      ENABLE ROW LEVEL SECURITY;
 
--- Jeder kann nur seine eigene Zeile lesen/schreiben
--- (Koordinaten bleiben so privat; Discovery läuft über die Funktion unten)
-CREATE POLICY "n2y: own user row"
-  ON n2y_users FOR ALL
-  USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
+DROP POLICY IF EXISTS "n2y: own user row" ON public.n2y_users;
+CREATE POLICY "n2y: own user row" ON public.n2y_users
+  FOR ALL TO authenticated
+  USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
--- Konversationen: nur eigene
-CREATE POLICY "n2y: own conversations"
-  ON n2y_conversations FOR ALL
-  USING (auth.uid() = user1_id OR auth.uid() = user2_id)
-  WITH CHECK (auth.uid() = user1_id OR auth.uid() = user2_id);
+DROP POLICY IF EXISTS "n2y: own conversations" ON public.n2y_conversations;
+DROP POLICY IF EXISTS "n2y: read own conversations" ON public.n2y_conversations;
+CREATE POLICY "n2y: read own conversations" ON public.n2y_conversations
+  FOR SELECT TO authenticated
+  USING (auth.uid() IN (user1_id, user2_id));
+DROP POLICY IF EXISTS "n2y: start conversation" ON public.n2y_conversations;
+CREATE POLICY "n2y: start conversation" ON public.n2y_conversations
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user1_id);
 
--- Nachrichten: nur in eigenen Konversationen
-CREATE POLICY "n2y: own messages"
-  ON n2y_messages FOR ALL
-  USING (
-    conversation_id IN (
-      SELECT id FROM n2y_conversations
-      WHERE user1_id = auth.uid() OR user2_id = auth.uid()
-    )
-  )
-  WITH CHECK (
-    sender_id = auth.uid() AND
-    conversation_id IN (
-      SELECT id FROM n2y_conversations
-      WHERE user1_id = auth.uid() OR user2_id = auth.uid()
-    )
-  );
+DROP POLICY IF EXISTS "n2y: own messages" ON public.n2y_messages;
+DROP POLICY IF EXISTS "n2y: read messages" ON public.n2y_messages;
+CREATE POLICY "n2y: read messages" ON public.n2y_messages
+  FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.n2y_conversations c
+                 WHERE c.id = conversation_id AND auth.uid() IN (c.user1_id, c.user2_id)));
+DROP POLICY IF EXISTS "n2y: send messages" ON public.n2y_messages;
+CREATE POLICY "n2y: send messages" ON public.n2y_messages
+  FOR INSERT TO authenticated
+  WITH CHECK (sender_id = auth.uid() AND EXISTS (
+    SELECT 1 FROM public.n2y_conversations c
+    WHERE c.id = conversation_id AND auth.uid() IN (c.user1_id, c.user2_id)));
 
--- ─── Matching-Funktion ────────────────────────────────────────────────────────
--- SECURITY DEFINER: umgeht RLS → kann andere Nutzer sehen,
--- gibt aber nur gerundete Koordinaten zurück (200 m Raster)
+-- ─── Schutz der me-db-Daten vor Next2You-Nutzern ─────────────────────────────
 
-CREATE OR REPLACE FUNCTION n2y_nearby_matches(
+CREATE OR REPLACE FUNCTION public.n2y_is_n2y_user()
+RETURNS BOOLEAN LANGUAGE sql STABLE SET search_path = '' AS $$
+  SELECT COALESCE((auth.jwt() -> 'app_metadata' ->> 'n2y')::BOOLEAN, FALSE)
+      OR COALESCE((auth.jwt() ->> 'is_anonymous')::BOOLEAN, FALSE);
+$$;
+
+DO $$
+DECLARE t RECORD;
+BEGIN
+  FOR t IN SELECT tablename FROM pg_tables
+           WHERE schemaname = 'public' AND rowsecurity AND tablename NOT LIKE 'n2y\_%'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS "block n2y users" ON public.%I', t.tablename);
+    EXECUTE format('CREATE POLICY "block n2y users" ON public.%I AS RESTRICTIVE FOR ALL TO authenticated
+                    USING (NOT (SELECT public.n2y_is_n2y_user())) WITH CHECK (NOT (SELECT public.n2y_is_n2y_user()))', t.tablename);
+  END LOOP;
+
+  BEGIN
+    EXECUTE 'DROP POLICY IF EXISTS "block n2y users" ON storage.objects';
+    EXECUTE 'CREATE POLICY "block n2y users" ON storage.objects AS RESTRICTIVE FOR ALL TO authenticated
+             USING (NOT (SELECT public.n2y_is_n2y_user())) WITH CHECK (NOT (SELECT public.n2y_is_n2y_user()))';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'storage.objects: keine Rechte für Policy';
+  END;
+END $$;
+
+-- ─── Funktionen ──────────────────────────────────────────────────────────────
+
+-- Distanz und Ausgabe nur auf ~200-m-Raster, damit sich keine genaue Position triangulieren lässt
+DROP FUNCTION IF EXISTS public.n2y_nearby_matches(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT, TEXT, INT, INT);
+CREATE FUNCTION public.n2y_nearby_matches(
   my_lat        DOUBLE PRECISION,
   my_lng        DOUBLE PRECISION,
   radius_km     DOUBLE PRECISION,
@@ -90,50 +115,90 @@ CREATE OR REPLACE FUNCTION n2y_nearby_matches(
   age_min       INT  DEFAULT NULL,
   age_max       INT  DEFAULT NULL
 )
-RETURNS TABLE(
-  id           UUID,
-  nickname     TEXT,
-  gender       TEXT,
-  age_years    INT,
-  lat_approx   DOUBLE PRECISION,
-  lng_approx   DOUBLE PRECISION,
-  topics_text  TEXT,
-  sim          REAL
-)
-LANGUAGE SQL SECURITY DEFINER AS $$
-  SELECT
-    u.id,
-    u.nickname,
-    u.gender,
-    u.age_years,
-    -- Koordinaten auf ~200 m gerundet (0.0018° ≈ 200 m Lat, 0.0027° ≈ 200 m Lng bei 48°N)
-    ROUND(u.latitude  / 0.0018)::DOUBLE PRECISION * 0.0018 AS lat_approx,
-    ROUND(u.longitude / 0.0027)::DOUBLE PRECISION * 0.0027 AS lng_approx,
-    u.topics_text,
-    GREATEST(0, similarity(COALESCE(u.topics_text, ''), COALESCE(my_text, '')))::REAL AS sim
-  FROM n2y_users u
-  WHERE u.id <> auth.uid()
-    AND u.is_active = TRUE
-    AND u.last_seen > NOW() - INTERVAL '2 hours'
-    AND u.latitude IS NOT NULL
-    AND (gender_filter IS NULL OR u.gender = gender_filter)
-    AND (age_min IS NULL OR u.age_years >= age_min)
-    AND (age_max IS NULL OR u.age_years <= age_max)
-    AND (
-      6371 * acos(
-        LEAST(1.0,
-          cos(radians(my_lat)) * cos(radians(u.latitude)) *
-          cos(radians(u.longitude) - radians(my_lng)) +
-          sin(radians(my_lat)) * sin(radians(u.latitude))
-        )
-      )
-    ) < radius_km
-  ORDER BY sim DESC
+RETURNS TABLE(id UUID, nickname TEXT, gender TEXT, age_years INT,
+              lat_approx DOUBLE PRECISION, lng_approx DOUBLE PRECISION,
+              topics_text TEXT, sim REAL)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  WITH cand AS (
+    SELECT u.id, u.nickname, u.gender, u.age_years, u.topics_text,
+           ROUND(u.latitude  / 0.0018) * 0.0018 AS lat_a,
+           ROUND(u.longitude / 0.0027) * 0.0027 AS lng_a
+    FROM public.n2y_users u
+    WHERE auth.uid() IS NOT NULL
+      AND u.id <> auth.uid()
+      AND u.is_active
+      AND u.last_seen > NOW() - INTERVAL '2 hours'
+      AND u.latitude IS NOT NULL
+      AND (gender_filter IS NULL OR u.gender = gender_filter)
+      AND (age_min IS NULL OR u.age_years >= age_min)
+      AND (age_max IS NULL OR u.age_years <= age_max)
+  )
+  SELECT c.id, c.nickname, c.gender, c.age_years, c.lat_a, c.lng_a, c.topics_text,
+         extensions.similarity(COALESCE(c.topics_text, ''), COALESCE(my_text, ''))::REAL
+  FROM cand c
+  WHERE 6371 * acos(LEAST(1.0,
+          cos(radians(my_lat)) * cos(radians(c.lat_a)) * cos(radians(c.lng_a) - radians(my_lng)) +
+          sin(radians(my_lat)) * sin(radians(c.lat_a)))) < LEAST(radius_km, 10)
+  ORDER BY 8 DESC
   LIMIT 30;
 $$;
 
--- Funktion für authentifizierte und anonyme Nutzer aufrufbar machen
-GRANT EXECUTE ON FUNCTION n2y_nearby_matches TO authenticated, anon;
+-- Öffentliches Profil (ohne Koordinaten): aktive Nutzer oder eigene Gesprächspartner
+CREATE OR REPLACE FUNCTION public.n2y_profile(p_id UUID)
+RETURNS TABLE(id UUID, nickname TEXT, gender TEXT, age_years INT, topics_text TEXT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT u.id, u.nickname, u.gender, u.age_years, u.topics_text
+  FROM public.n2y_users u
+  WHERE u.id = p_id AND auth.uid() IS NOT NULL
+    AND (u.is_active OR EXISTS (
+      SELECT 1 FROM public.n2y_conversations c
+      WHERE LEAST(c.user1_id, c.user2_id) = LEAST(u.id, auth.uid())
+        AND GREATEST(c.user1_id, c.user2_id) = GREATEST(u.id, auth.uid())));
+$$;
 
--- Realtime für n2y_messages aktivieren
-ALTER PUBLICATION supabase_realtime ADD TABLE n2y_messages;
+CREATE OR REPLACE FUNCTION public.n2y_my_conversations()
+RETURNS TABLE(conversation_id UUID, partner_id UUID, partner_nickname TEXT,
+              last_message TEXT, last_at TIMESTAMPTZ, unread BIGINT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT c.id, p.id, p.nickname, lm.content, COALESCE(lm.created_at, c.created_at),
+         (SELECT COUNT(*) FROM public.n2y_messages m
+          WHERE m.conversation_id = c.id AND m.sender_id <> auth.uid() AND NOT m.is_read)
+  FROM public.n2y_conversations c
+  JOIN public.n2y_users p
+    ON p.id = CASE WHEN c.user1_id = auth.uid() THEN c.user2_id ELSE c.user1_id END
+  LEFT JOIN LATERAL (
+    SELECT m.content, m.created_at FROM public.n2y_messages m
+    WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1
+  ) lm ON TRUE
+  WHERE auth.uid() IN (c.user1_id, c.user2_id)
+  ORDER BY 5 DESC;
+$$;
+
+CREATE OR REPLACE FUNCTION public.n2y_mark_read(p_conversation UUID)
+RETURNS VOID LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
+  UPDATE public.n2y_messages m SET is_read = TRUE
+  WHERE m.conversation_id = p_conversation
+    AND m.sender_id <> auth.uid()
+    AND NOT m.is_read
+    AND EXISTS (SELECT 1 FROM public.n2y_conversations c
+                WHERE c.id = p_conversation AND auth.uid() IN (c.user1_id, c.user2_id));
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.n2y_nearby_matches(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT, TEXT, INT, INT) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.n2y_profile(UUID) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.n2y_my_conversations() FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.n2y_mark_read(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.n2y_nearby_matches(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, TEXT, TEXT, INT, INT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.n2y_profile(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.n2y_my_conversations() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.n2y_mark_read(UUID) TO authenticated;
+
+-- ─── Realtime ────────────────────────────────────────────────────────────────
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables
+                 WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'n2y_messages') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.n2y_messages;
+  END IF;
+END $$;

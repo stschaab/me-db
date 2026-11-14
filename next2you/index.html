@@ -90,7 +90,8 @@ header h1 span { color: #00b4d8; }
 <script>
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
-const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY, { auth: { storageKey: 'n2y-auth' } });
+const CREDS_KEY = 'n2y-creds';
 
 let selectedGender = null;
 
@@ -99,16 +100,34 @@ function selectGender(g) {
   document.querySelectorAll('.gender-btn').forEach(b => b.classList.toggle('active', b.dataset.g === g));
 }
 
+function loadCreds() {
+  try { return JSON.parse(localStorage.getItem(CREDS_KEY)); } catch { return null; }
+}
+
+async function signIn() {
+  const saved = loadCreds();
+  if (saved) {
+    const { data, error } = await db.auth.signInWithPassword(saved);
+    if (!error) return data.session;
+  }
+  const { data: creds, error } = await db.functions.invoke('n2y-signup', { body: {} });
+  if (error || !creds?.email) throw new Error(error?.message || 'Registrierung fehlgeschlagen');
+  localStorage.setItem(CREDS_KEY, JSON.stringify({ email: creds.email, password: creds.password }));
+  const { data, error: loginErr } = await db.auth.signInWithPassword({ email: creds.email, password: creds.password });
+  if (loginErr) throw loginErr;
+  return data.session;
+}
+
 async function init() {
   let { data: { session } } = await db.auth.getSession();
   if (!session) {
-    const { data, error } = await db.auth.signInAnonymously();
-    if (error) { document.getElementById('statusMsg').textContent = 'Fehler beim Anmelden: ' + error.message; return; }
-    session = data.session;
+    try { session = await signIn(); }
+    catch (e) { document.getElementById('statusMsg').textContent = 'Fehler beim Anmelden: ' + e.message; return; }
   }
 
-  // Profil schon vorhanden?
-  const { data: profile } = await db.from('n2y_users').select('id,topics_text,latitude').eq('id', session.user.id).single();
+  const { data: profile } = await db.from('n2y_users')
+    .select('id,nickname,gender,age_years,topics_text,latitude')
+    .eq('id', session.user.id).maybeSingle();
   if (profile && profile.topics_text && profile.latitude) {
     window.location.href = 'map.html';
     return;

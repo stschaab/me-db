@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Next2You · Chats</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a1a2e; }
+header { background: #1a1a2e; color: white; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 1.1rem; font-weight: 700; }
+header h1 span { color: #00b4d8; }
+.nav-links { display: flex; gap: 14px; }
+.nav-links a { color: #7ec8e3; font-size: 0.8rem; text-decoration: none; }
+.nav-links a:hover { text-decoration: underline; }
+.container { max-width: 540px; margin: 0 auto; padding: 20px 16px; }
+.conv { display: flex; align-items: center; gap: 12px; background: white; border-radius: 16px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); text-decoration: none; color: inherit; }
+.conv:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+.avatar { width: 42px; height: 42px; border-radius: 50%; background: #00b4d8; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+.body { flex: 1; min-width: 0; }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.name { font-weight: 700; font-size: 0.95rem; }
+.time { font-size: 0.7rem; color: #aaa; white-space: nowrap; }
+.last { font-size: 0.85rem; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+.conv.unread .last { color: #1a1a2e; font-weight: 600; }
+.badge { background: #00b4d8; color: white; border-radius: 12px; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; flex-shrink: 0; }
+.empty { text-align: center; color: #888; padding: 48px 20px; font-size: 0.9rem; line-height: 1.6; }
+.empty a { color: #00b4d8; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Next<span>2</span>You</h1>
+  <div class="nav-links">
+    <a href="map.html">Karte</a>
+    <a href="settings.html">⚙</a>
+  </div>
+</header>
+
+<div class="container" id="list"><div class="empty">Lade…</div></div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY, { auth: { storageKey: 'n2y-auth' } });
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtWhen(ts) {
+  const d = new Date(ts);
+  if (d.toDateString() === new Date().toDateString())
+    return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+}
+
+async function load() {
+  const { data, error } = await db.rpc('n2y_my_conversations');
+  const list = document.getElementById('list');
+  if (error) { list.innerHTML = '<div class="empty">Fehler: ' + escHtml(error.message) + '</div>'; return; }
+  if (!data.length) {
+    list.innerHTML = '<div class="empty">Noch keine Gespräche.<br><a href="map.html">Auf der Karte jemanden anschreiben →</a></div>';
+    return;
+  }
+  list.innerHTML = data.map(c => {
+    const name = c.partner_nickname || 'Anonym';
+    return `<a class="conv${c.unread ? ' unread' : ''}" href="chat.html?conv=${c.conversation_id}">
+      <div class="avatar">${escHtml(name[0].toUpperCase())}</div>
+      <div class="body">
+        <div class="row"><span class="name">${escHtml(name)}</span><span class="time">${fmtWhen(c.last_at)}</span></div>
+        <div class="last">${escHtml(c.last_message || 'Noch keine Nachrichten')}</div>
+      </div>
+      ${c.unread ? `<span class="badge">${c.unread}</span>` : ''}
+    </a>`;
+  }).join('');
+}
+
+async function init() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+  await load();
+  db.channel('n2y-inbox')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'n2y_messages' }, load)
+    .subscribe();
+}
+
+init();
+</script>
+</body>
+</html>

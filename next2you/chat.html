@@ -42,7 +42,8 @@ header h1 span { color: #00b4d8; }
 <header>
   <h1>Next<span>2</span>You</h1>
   <div class="nav-links">
-    <a href="map.html">← Karte</a>
+    <a href="chats.html">💬 Chats</a>
+    <a href="map.html">Karte</a>
   </div>
 </header>
 
@@ -68,7 +69,7 @@ header h1 span { color: #00b4d8; }
 <script>
 const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
-const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY, { auth: { storageKey: 'n2y-auth' } });
 
 let myId = null, convId = null, partnerId = null, channel = null;
 
@@ -118,7 +119,12 @@ async function init() {
   if (!session) { window.location.href = 'index.html'; return; }
   myId = session.user.id;
 
-  // Konversation holen oder erstellen
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if ((partnerId && !UUID_RE.test(partnerId)) || (convId && !UUID_RE.test(convId)) || partnerId === myId) {
+    document.getElementById('loadingMsg').textContent = 'Ungültiger Chat-Link.';
+    return;
+  }
+
   if (!convId && partnerId) {
     // Existing conversation?
     const { data: existing } = await db.from('n2y_conversations')
@@ -132,8 +138,16 @@ async function init() {
       const { data: newConv, error } = await db.from('n2y_conversations')
         .insert({ user1_id: myId, user2_id: partnerId })
         .select('id').single();
-      if (error) { document.getElementById('loadingMsg').textContent = 'Fehler: ' + error.message; return; }
-      convId = newConv.id;
+      if (error && error.code === '23505') {
+        const { data: again } = await db.from('n2y_conversations').select('id')
+          .or(`and(user1_id.eq.${myId},user2_id.eq.${partnerId}),and(user1_id.eq.${partnerId},user2_id.eq.${myId})`)
+          .maybeSingle();
+        convId = again?.id;
+      } else if (error) {
+        document.getElementById('loadingMsg').textContent = 'Fehler: ' + error.message; return;
+      } else {
+        convId = newConv.id;
+      }
     }
   }
 
@@ -145,7 +159,8 @@ async function init() {
     if (conv) partnerId = conv.user1_id === myId ? conv.user2_id : conv.user1_id;
   }
   if (partnerId) {
-    const { data: partner } = await db.from('n2y_users').select('nickname,gender,age_years,topics_text').eq('id', partnerId).single();
+    const { data: rows } = await db.rpc('n2y_profile', { p_id: partnerId });
+    const partner = rows && rows[0];
     if (partner) {
       const name = partner.nickname || 'Anonym';
       document.getElementById('chatPartnerName').textContent = name;
@@ -179,9 +194,9 @@ async function init() {
       }
       appendMessage(msg, myId);
     });
+    db.rpc('n2y_mark_read', { p_conversation: convId }).then(() => {});
   }
 
-  // Realtime-Subscription
   channel = db.channel('conv:' + convId)
     .on('postgres_changes', {
       event: 'INSERT', schema: 'public', table: 'n2y_messages',
@@ -190,6 +205,7 @@ async function init() {
       const empty = document.getElementById('emptyMsg');
       if (empty) empty.remove();
       appendMessage(payload.new, myId);
+      if (payload.new.sender_id !== myId) db.rpc('n2y_mark_read', { p_conversation: convId }).then(() => {});
     })
     .subscribe();
 }
