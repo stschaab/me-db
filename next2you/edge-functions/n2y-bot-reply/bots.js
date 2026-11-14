@@ -1,9 +1,9 @@
-// Conversation logic for the Next2You test personas (plain JS so it runs in Deno and Node tests).
+// Conversation logic for the Next2You AI test personas (shown as "Name (KI)") (plain JS so it runs in Deno and Node tests).
 // pickReply() looks at the whole conversation, detects what the human just wrote and returns
 // a fitting, not-yet-used line of the persona.
 
 const PERSONAS = {
-  'Lena (Test)': {
+  'Lena': {
     place: 'im kleinen Café an der Ecke, am Fensterplatz',
     look: 'grüne Jacke, Laptop mit vielen Stickern',
     stay: 90,
@@ -25,7 +25,7 @@ const PERSONAS = {
       'Ich bin übrigens noch so bis {until} hier. Lust, auf einen Kaffee vorbeizukommen?',
       'Ich mag es, mit Leuten zu reden, die man sonst nie treffen würde. Du auch?'],
   },
-  'Jonas (Test)': {
+  'Jonas': {
     place: 'im Coworking-Café bei der U-Bahn, hinten am großen Tisch',
     look: 'dunkelblauer Hoodie, MacBook, Kopfhörer um den Hals',
     stay: 120,
@@ -46,7 +46,7 @@ const PERSONAS = {
       'Ich mach gleich eh Pause – wollen wir uns auf einen Kaffee treffen? Ich bin noch bis {until} da.',
       'Ich finde die Idee der App gut: Leute treffen, ohne gleich Dating-Vibes 👍'],
   },
-  'Mira (Test)': {
+  'Mira': {
     place: 'im Café beim Park, draußen unter dem Sonnenschirm',
     look: 'gelbe Regenjacke, Kamera auf dem Tisch',
     stay: 60,
@@ -67,7 +67,7 @@ const PERSONAS = {
       'Ich bin noch so bis {until} hier draußen – komm gern vorbei, wenn du magst!',
       'Die Sonne ist heute echt schön, oder? ☀️'],
   },
-  'Alex (Test)': {
+  'Alex': {
     place: 'im ruhigen Teehaus in der Altstadt, ganz hinten in der Leseecke',
     look: 'beiger Pulli, ein Buch von Marc Aurel auf dem Tisch',
     stay: 120,
@@ -91,7 +91,7 @@ const PERSONAS = {
       'Ich bin noch bis {until} im Teehaus. Wenn du magst, setz dich dazu 🍵',
       'Ich finde es schön, dass man hier so offen schreiben kann.'],
   },
-  'Peter (Test)': {
+  'Peter': {
     place: 'im Bistro gegenüber vom Jazzclub, am Tresen',
     look: 'Schiebermütze, grauer Bart',
     stay: 90,
@@ -114,7 +114,7 @@ const PERSONAS = {
       'Ich bin noch bis {until} im Bistro. Auf einen Kaffee – oder ein Gläschen – gern!',
       'Schön, dass sich junge Leute mit alten Herren unterhalten 😄'],
   },
-  'Sam (Test)': {
+  'Sam': {
     place: 'in der Bäckerei mit Sitzecke an der Haltestelle',
     look: 'schwarze Cap, Rucksack',
     stay: 45,
@@ -194,7 +194,8 @@ function fill(text, p, humanName, now) {
 
 // history: [{ fromBot: boolean, text: string }] in chronological order
 export function pickReply({ bot, humanName, history, now = new Date() }) {
-  const p = PERSONAS[bot] || GENERIC;
+  // Personas are keyed by first name, so the suffix ("(KI)", formerly "(Test)") does not matter
+  const p = PERSONAS[String(bot || '').replace(/\s*\(.*\)\s*$/, '').trim()] || GENERIC;
   const botTexts = history.filter(m => m.fromBot).map(m => m.text);
   let lastBotIdx = -1;
   history.forEach((m, i) => { if (m.fromBot) lastBotIdx = i; });
