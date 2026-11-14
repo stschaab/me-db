@@ -42,6 +42,17 @@ select:focus { border-color: #00b4d8; }
 #noGpsMsg a { color: #00b4d8; }
 #accHint { display: none; position: absolute; top: 120px; left: 50%; transform: translateX(-50%); width: min(92%, 420px); background: #fff3e0; color: #8a4b00; border: 1px solid #ffcc80; padding: 10px 14px; border-radius: 12px; font-size: 0.8rem; line-height: 1.4; z-index: 999; box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
 #accHint b { color: #6d3a00; }
+.my-pin.blink svg { animation: pinblink 0.8s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes pinblink { 0%, 100% { opacity: 1; transform: scale(1.2); } 50% { opacity: 0.35; transform: scale(1); } }
+.leaflet-container.picking { cursor: crosshair; }
+#editBar { display: none; position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); width: min(92%, 420px); background: #1a1a2e; color: white; padding: 12px 14px; border-radius: 14px; z-index: 1100; font-size: 0.85rem; line-height: 1.4; box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+#editBar .eb-btns { display: flex; gap: 8px; margin-top: 10px; }
+#editBar button { flex: 1; padding: 10px; border-radius: 9px; border: none; font-weight: 700; font-size: 0.88rem; cursor: pointer; font-family: inherit; }
+#editBar .eb-ok { background: #00b4d8; color: white; }
+#editBar .eb-cancel { background: #2d3b6b; color: #c9d6f0; }
+#manualChip { display: none; position: absolute; bottom: 24px; left: 12px; background: white; border: 1px solid #e0e0e0; border-radius: 20px; padding: 7px 12px; font-size: 0.78rem; z-index: 999; box-shadow: 0 2px 10px rgba(0,0,0,0.12); }
+#manualChip button { border: none; background: none; color: #0092b0; font-weight: 700; cursor: pointer; font-size: 0.78rem; font-family: inherit; padding: 0; }
+.popup-box .p-move-btn { display: block; width: 100%; margin-top: 10px; padding: 8px; background: white; color: #0092b0; border: 1px solid #00b4d8; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -81,6 +92,14 @@ select:focus { border-color: #00b4d8; }
 
 <div id="map"></div>
 <div id="accHint"></div>
+<div id="editBar">
+  <div><b>📌 Position selbst setzen:</b> Zieh deinen blinkenden Pin oder tippe auf die Karte, wo du gerade bist.</div>
+  <div class="eb-btns">
+    <button class="eb-cancel" onclick="cancelEdit()">Abbrechen</button>
+    <button class="eb-ok" onclick="saveEdit()">Fertig</button>
+  </div>
+</div>
+<div id="manualChip">📌 Selbst gesetzt · <button onclick="useGps()">GPS verwenden</button></div>
 <div id="noGpsMsg">Kein Standort gesetzt. <a href="topics.html">Hier aktivieren →</a></div>
 
 <script>
@@ -91,6 +110,16 @@ const db = supabase.createClient(SUPABASE_URL, ANON_KEY, { auth: { storageKey: '
 const RADII = [0.5, 1, 2, 5];
 let map, myMarker, myCell, matchMarkers = [];
 let myProfile = null;
+let myUserId = null, editing = false, editOrig = null;
+const MANUAL_KEY = 'n2y-manual-pos';
+
+function isManual() {
+  try { return localStorage.getItem(MANUAL_KEY) === '1'; } catch { return false; }
+}
+function setManual(on) {
+  try { on ? localStorage.setItem(MANUAL_KEY, '1') : localStorage.removeItem(MANUAL_KEY); } catch {}
+  document.getElementById('manualChip').style.display = on ? 'block' : 'none';
+}
 
 function onRadiusChange() {
   const v = RADII[document.getElementById('radiusSlider').value];
@@ -110,12 +139,13 @@ function makeMarkerIcon(sim, isMe) {
     <path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 22 14 22S28 24.5 28 14C28 6.27 21.73 0 14 0z" fill="${color}"/>
     <circle cx="14" cy="14" r="6" fill="white"/>
   </svg>`;
-  return L.divIcon({ html: svg, iconSize: [28, 36], iconAnchor: [14, 36], className: '' });
+  return L.divIcon({ html: svg, iconSize: [28, 36], iconAnchor: [14, 36], className: isMe ? 'my-pin' : '' });
 }
 
 async function init() {
   const { data: { session } } = await db.auth.getSession();
   if (!session) { window.location.href = 'index.html'; return; }
+  myUserId = session.user.id;
 
   const { data: profile } = await db.from('n2y_users')
     .select('id,nickname,latitude,longitude,topics_text,is_active')
@@ -133,10 +163,13 @@ async function init() {
   }).addTo(map);
 
   if (profile?.latitude) {
-    myMarker = L.marker([profile.latitude, profile.longitude], { icon: makeMarkerIcon(1, true) })
-      .addTo(map)
-      .bindPopup('<b>Du</b><br><small>Genau hier siehst nur du dich.<br>Andere sehen deinen Pin nur in der Mitte des hellblauen Felds (~200 m).</small>');
+    myMarker = L.marker([profile.latitude, profile.longitude], { icon: makeMarkerIcon(1, true) }).addTo(map);
+    bindMyPopup();
+    attachLongPress(myMarker);
+    myMarker.on('drag', () => { const p = myMarker.getLatLng(); drawMyCell(p.lat, p.lng); });
+    map.on('click', (e) => { if (editing) { myMarker.setLatLng(e.latlng); drawMyCell(e.latlng.lat, e.latlng.lng); } });
     drawMyCell(profile.latitude, profile.longitude);
+    setManual(isManual());
     await db.from('n2y_users').update({ last_seen: new Date().toISOString(), is_active: true }).eq('id', session.user.id);
     refreshLocation(session.user.id);
     loadMatches();
@@ -218,19 +251,91 @@ function showAccuracyHint(acc) {
   if (acc <= 300) { el.style.display = 'none'; return; }
   const km = acc >= 1000 ? (acc / 1000).toFixed(1).replace('.', ',') + ' km' : Math.round(acc) + ' m';
   el.innerHTML = `<b>Nur ungefährer Standort (±${km}).</b> Dein Handy gibt dem Browser keine genaue Position – andere sehen dich evtl. am falschen Ort. ` +
-    `Android: Einstellungen → Apps → Browser → Berechtigungen → Standort → <b>„Genauen Standort verwenden“</b> einschalten.`;
+    `Android: Einstellungen → Apps → Browser → Berechtigungen → Standort → <b>„Genauen Standort verwenden“</b> einschalten – ` +
+    `oder <b>halte deinen Pin gedrückt</b> und setze deine Position selbst.`;
   el.style.display = 'block';
 }
 
+function bindMyPopup() {
+  myMarker.bindPopup(`<div class="popup-box"><b>Du</b><br><small>Genau hier siehst nur du dich.<br>
+    Andere sehen deinen Pin nur in der Mitte des hellblauen Felds (~200 m).</small>
+    <button class="p-move-btn" onclick="startEdit()">📌 Position selbst setzen</button></div>`);
+}
+
+// Long press (~0.5 s) on the own pin starts edit mode; small finger jitter is tolerated
+function attachLongPress(marker) {
+  const el = marker.getElement();
+  let timer = null, x0 = 0, y0 = 0;
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  el.addEventListener('pointerdown', (e) => {
+    if (editing) return;
+    x0 = e.clientX; y0 = e.clientY;
+    timer = setTimeout(() => { timer = null; if (navigator.vibrate) navigator.vibrate(30); startEdit(); }, 550);
+  });
+  el.addEventListener('pointermove', (e) => { if (Math.hypot(e.clientX - x0, e.clientY - y0) > 10) cancel(); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => el.addEventListener(t, cancel));
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+function startEdit() {
+  if (editing || !myMarker) return;
+  editing = true;
+  editOrig = myMarker.getLatLng();
+  myMarker.closePopup();
+  myMarker.unbindPopup();
+  myMarker.dragging.enable();
+  myMarker.getElement().classList.add('blink');
+  map.getContainer().classList.add('picking');
+  document.getElementById('accHint').style.display = 'none';
+  document.getElementById('manualChip').style.display = 'none';
+  document.getElementById('editBar').style.display = 'block';
+}
+
+function endEdit() {
+  editing = false;
+  myMarker.dragging.disable();
+  myMarker.getElement().classList.remove('blink');
+  map.getContainer().classList.remove('picking');
+  document.getElementById('editBar').style.display = 'none';
+  bindMyPopup();
+}
+
+function cancelEdit() {
+  myMarker.setLatLng(editOrig);
+  drawMyCell(editOrig.lat, editOrig.lng);
+  endEdit();
+  setManual(isManual());
+}
+
+async function saveEdit() {
+  const { lat, lng } = myMarker.getLatLng();
+  endEdit();
+  setManual(true);
+  myProfile.latitude = lat;
+  myProfile.longitude = lng;
+  drawMyCell(lat, lng);
+  const { error } = await db.from('n2y_users')
+    .update({ latitude: lat, longitude: lng, last_seen: new Date().toISOString() }).eq('id', myUserId);
+  if (error) alert('Fehler beim Speichern: ' + error.message);
+  loadMatches();
+}
+
+function useGps() {
+  setManual(false);
+  refreshLocation(myUserId);
+}
+
 function refreshLocation(userId) {
-  if (!navigator.geolocation) return;
+  if (!navigator.geolocation || isManual() || editing) return;
   navigator.geolocation.getCurrentPosition(async (pos) => {
+    if (isManual() || editing) return;
     const { latitude, longitude, accuracy } = pos.coords;
     showAccuracyHint(accuracy);
     myProfile.latitude = latitude;
     myProfile.longitude = longitude;
     myMarker.setLatLng([latitude, longitude]);
     drawMyCell(latitude, longitude);
+    if (!map.getBounds().pad(-0.1).contains([latitude, longitude])) map.panTo([latitude, longitude]);
     await db.from('n2y_users').update({ latitude, longitude, last_seen: new Date().toISOString() }).eq('id', userId);
     loadMatches();
   }, () => {}, { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 });
