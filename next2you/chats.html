@@ -109,6 +109,7 @@ async function init() {
   setInterval(load, 60000);
   db.channel('n2y-inbox')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'n2y_messages' }, load)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'n2y_messages' }, (p) => { if (p.new?.deleted_at) load(); })
     .subscribe();
 }
 
