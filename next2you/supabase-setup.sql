@@ -763,3 +763,9 @@ ALTER POLICY "n2y: start conversation" ON public.n2y_conversations WITH CHECK (
 --                      OR (b.blocker_id = u.id AND b.blocked_id = auth.uid()))
 --   AND NOT EXISTS (SELECT 1 FROM public.n2y_bans x WHERE x.user_id = u.id)
 -- Vollständige Funktionsdefinitionen: siehe Migrationen in Supabase (list_migrations).
+
+-- Alte Radius-Abfragen (ersetzt durch n2y_people_in_view) kennen keine Blocks/Sperren –
+-- für Clients gesperrt (Migration n2y_revoke_legacy_nearby):
+REVOKE EXECUTE ON FUNCTION public.n2y_people_nearby(double precision, double precision, double precision, text, text, integer, integer) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.n2y_nearby_matches(double precision, double precision, double precision, text, text, integer, integer) FROM PUBLIC, anon, authenticated;
+-- n2y_blocked_between / n2y_is_banned bleiben für authenticated ausführbar (werden in RLS-Policies ausgewertet).
