@@ -6,6 +6,9 @@ function n2yPresence(db, supabaseUrl, anonKey) {
   db.auth.getSession().then(({ data }) => { token = data.session?.access_token || null; });
   db.auth.onAuthStateChange((_event, session) => { token = session?.access_token || null; });
 
+  // Accounts banned by the operator see a notice instead of the app
+  db.rpc('n2y_am_i_banned').then(({ data }) => { if (data === true) n2yShowBanned(); }, () => {});
+
   const beat = () => {
     if (document.visibilityState === 'visible') db.rpc('n2y_heartbeat').then(() => {});
   };
@@ -53,4 +56,17 @@ function n2yStatus(p) {
   if (p.status === 'active') return { cls: 'active', text: '🟢 aktiv' };
   if (p.status === 'idle') return { cls: 'idle', text: '💤 seit ' + n2yIdleLabel(p.inactive_min) + ' inaktiv' };
   return { cls: 'offline', text: '⚫ offline · zuletzt ' + n2yLastSeenLabel(p.inactive_min) };
+}
+
+function n2yShowBanned() {
+  if (document.getElementById('n2yBanned')) return;
+  const d = document.createElement('div');
+  d.id = 'n2yBanned';
+  d.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(15,20,40,0.94);color:white;display:flex;align-items:center;' +
+    'justify-content:center;padding:28px;text-align:center;font-family:inherit';
+  d.innerHTML = '<div style="max-width:360px"><div style="font-size:3rem;margin-bottom:14px">⛔</div>' +
+    '<h2 style="font-size:1.3rem;margin-bottom:10px">Konto gesperrt</h2>' +
+    '<p style="opacity:0.85;line-height:1.5;font-size:0.95rem">Dein Konto wurde wegen eines Verstoßes gegen die Regeln von Next2You gesperrt. ' +
+    'Du kannst keine Nachrichten mehr senden und bist auf der Karte nicht sichtbar.</p></div>';
+  document.body.appendChild(d);
 }

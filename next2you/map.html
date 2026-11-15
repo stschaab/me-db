@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Next2You · Karte</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="presence.js?v=2"></script>
+<script src="presence.js?v=3"></script>
+<script src="safety.js?v=1"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
@@ -66,6 +67,9 @@ input[type="range"] { accent-color: #00b4d8; }
   border: none; border-radius: 8px; font-size: 0.88rem; font-weight: 700; cursor: pointer; text-align: center;
 }
 .popup-box .p-chat-btn:hover { background: #0092b0; }
+.popup-box .p-safety { display: flex; justify-content: center; gap: 14px; margin-top: 9px; }
+.popup-box .p-safety button { background: none; border: none; padding: 2px; font-size: 0.74rem; color: #888; cursor: pointer; font-family: inherit; }
+.popup-box .p-safety button:hover { color: #c62828; text-decoration: underline; }
 #noGpsMsg { display: none; position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; padding: 12px 20px; border-radius: 12px; font-size: 0.88rem; z-index: 999; text-align: center; }
 #noGpsMsg a { color: #00b4d8; }
 #accHint { display: none; position: absolute; top: 120px; left: 50%; transform: translateX(-50%); width: min(92%, 420px); background: #fff3e0; color: #8a4b00; border: 1px solid #ffcc80; padding: 10px 36px 10px 14px; border-radius: 12px; font-size: 0.8rem; line-height: 1.4; z-index: 999; box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
@@ -351,6 +355,7 @@ function buildPersonMarker(u) {
       <div class="p-active">${u.inactive_min >= 3 ? `💤 seit ${n2yIdleLabel(u.inactive_min)} inaktiv` : '🟢 gerade aktiv'}</div>
       ${simPct > 0 ? `<div class="p-sim">⚡ ${simPct}% Interesse-Match</div>` : ''}
       <button class="p-chat-btn" onclick="startChat('${u.id}')">💬 Gespräch starten</button>
+      <div class="p-safety"><button onclick="reportPerson('${u.id}')">🚩 Melden</button><button onclick="blockPerson('${u.id}')">🚫 Blockieren</button></div>
     </div>`, { maxWidth: 240 });
   marker.on('popupopen', () => { openPersonId = u.id; });
   marker.on('popupclose', () => {
@@ -528,6 +533,24 @@ async function loadUnread() {
   const { data } = await db.rpc('n2y_my_conversations');
   const n = (data || []).reduce((sum, c) => sum + Number(c.unread || 0), 0);
   document.getElementById('chatsLink').textContent = n ? `💬 Chats (${n})` : '💬 Chats';
+}
+
+// ── Safety (safety.js): report / block from the map popup ──────────────
+function hidePerson(userId) {
+  lastMatches = lastMatches.filter(u => u.id !== userId);
+  map.closePopup();
+  renderMatches();
+}
+
+function reportPerson(userId) {
+  const u = lastMatches.find(x => x.id === userId);
+  map.closePopup();
+  n2yOpenReport(db, { userId, nickname: u?.nickname, onBlocked: () => hidePerson(userId) });
+}
+
+async function blockPerson(userId) {
+  const u = lastMatches.find(x => x.id === userId);
+  if (await n2yBlock(db, userId, u?.nickname)) hidePerson(userId);
 }
 
 function startChat(userId) {
