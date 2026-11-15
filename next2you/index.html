@@ -72,8 +72,13 @@ body.intro-active { height: 100vh; height: 100dvh; overflow: hidden; }
 .dots { display: flex; gap: 7px; }
 .dots span { width: 8px; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.3); transition: all 0.2s; }
 .dots span.on { width: 22px; background: #00b4d8; }
-.intro-nav .btn-primary { width: auto; margin-left: auto; padding: 12px 22px; font-size: 1rem; }
-.swipe-hint { color: rgba(255,255,255,0.5); font-size: 0.75rem; }
+.swipe-hint { color: rgba(255,255,255,0.7); font-size: 0.85rem; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.swipe-hint .arr { display: inline-block; animation: nudge 1.4s ease-in-out infinite; }
+@keyframes nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(6px); } }
+.arrow-btn { margin-left: auto; width: 54px; height: 54px; border-radius: 50%; border: none; background: #00b4d8; color: white; font-size: 1.6rem; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 10px rgba(0,180,216,0.4); }
+.arrow-btn:hover { background: #0092b0; }
+.slide.s4 { background: linear-gradient(160deg, #1a1a2e 0%, #0f3460 100%); }
 </style>
 </head>
 <body>
@@ -108,11 +113,16 @@ body.intro-active { height: 100vh; height: 100dvh; overflow: hidden; }
         <div class="safe"><span>🛡️</span><span><b>Triff Unbekannte nur an öffentlichen Orten</b> (z.&nbsp;B. Café) – nie bei jemandem zu Hause oder an abgelegenen Orten. <b>Besonders Frauen: Sei vorsichtig</b> und sag jemandem Bescheid, wo und mit wem du dich triffst.</span></div>
       </div>
     </section>
+    <!-- Swiping onto this last panel finishes the intro and opens the sign-up form -->
+    <section class="slide s4" aria-hidden="true">
+      <div class="s-emoji">✨</div>
+      <h2>Los <span>geht's</span></h2>
+    </section>
   </div>
   <div class="intro-nav">
     <div class="dots" id="dots"><span class="on"></span><span></span><span></span></div>
-    <span class="swipe-hint" id="swipeHint">wischen →</span>
-    <button class="btn-primary" id="introBtn" onclick="introNext()">Weiter →</button>
+    <span class="swipe-hint" id="swipeHint"><span id="swipeText">wischen</span> <span class="arr">→</span></span>
+    <button class="arrow-btn" id="introBtn" onclick="introNext()" aria-label="Weiter">→</button>
   </div>
 </div>
 
@@ -201,6 +211,7 @@ function showIntro() {
   el.addEventListener('scroll', () => {
     const i = Math.round(el.scrollLeft / el.clientWidth);
     if (i !== introIdx) { introIdx = i; renderIntroNav(); }
+    if (i >= INTRO_SLIDES) finishIntro();   // swiped past the last page
   }, { passive: true });
   document.addEventListener('keydown', onIntroKey);
   renderIntroNav();
@@ -209,18 +220,17 @@ function showIntro() {
 function renderIntroNav() {
   document.querySelectorAll('#dots span').forEach((d, i) => d.classList.toggle('on', i === introIdx));
   const last = introIdx >= INTRO_SLIDES - 1;
-  document.getElementById('introBtn').textContent = last ? "Los geht's →" : 'Weiter →';
-  document.getElementById('swipeHint').style.visibility = last ? 'hidden' : 'visible';
+  document.getElementById('swipeText').textContent = last ? 'wischen – zur Anmeldung' : 'wischen';
+  document.getElementById('introBtn').setAttribute('aria-label', last ? 'Zur Anmeldung' : 'Weiter');
 }
 
 function goToSlide(i) {
   const el = document.getElementById('slides');
-  el.scrollTo({ left: Math.max(0, Math.min(INTRO_SLIDES - 1, i)) * el.clientWidth });
+  el.scrollTo({ left: Math.max(0, Math.min(INTRO_SLIDES, i)) * el.clientWidth });
 }
 
 function introNext() {
-  if (introIdx < INTRO_SLIDES - 1) goToSlide(introIdx + 1);
-  else finishIntro();
+  goToSlide(introIdx + 1);   // from the last page this slides onto the "Los geht's" panel -> sign-up
 }
 
 function onIntroKey(e) {
@@ -229,7 +239,10 @@ function onIntroKey(e) {
 }
 
 // The anonymous account is only created now, after the intro
+let introDone = false;
 function finishIntro() {
+  if (introDone) return;
+  introDone = true;
   document.removeEventListener('keydown', onIntroKey);
   document.body.classList.remove('intro-active');
   document.getElementById('intro').style.display = 'none';
