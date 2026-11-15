@@ -19,6 +19,8 @@
   läuft gte-small (schwächer bei Deutsch); nach Setzen des Secrets alle Profile neu einbetten.
 - Nach `ALTER TABLE` per SQL: `NOTIFY pgrst, 'reload schema'`, sonst kennt die REST-API neue Spalten nicht.
 - KI-Testnutzer „… (KI)“ antworten über `n2y-bot-reply` (Logik in `bots.js`, lokal mit Node testbar).
+- `next2you/presence.js` wird mit `?v=N` eingebunden: bei jeder Änderung N in allen Seiten erhöhen, sonst mischt der
+  Browser-Cache (GitHub Pages: 10 min) neue Seiten mit altem Script (z. B. Chat hängt bei „Lade Chat…“).
 - KI-Personen entstehen automatisch (8 Stück) um echte Nutzer, wenn im Umkreis ≈ 3 km < 4 existieren
   (Trigger `n2y_spawn_bots_nearby` → Queue `n2y_bot_spawn_requests` → Edge Function `n2y-spawn-bots`, max. 200).
   „(KI)“ im Spitznamen nur für KI-Konten (`n2y_is_ai_account`); Oberfläche erkennt KI per `n2yIsAI()` (presence.js).
