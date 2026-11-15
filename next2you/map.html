@@ -56,6 +56,8 @@ input[type="range"] { accent-color: #00b4d8; }
 .popup-box .p-active { font-size: 0.75rem; color: #555; margin-bottom: 6px; }
 .idle-pin svg { opacity: 0.55; }
 .pin-idle { position: absolute; left: 24px; top: 4px; background: rgba(255,255,255,0.95); color: #666; border: 1px solid #ddd; border-radius: 8px; font-size: 10px; font-weight: 600; line-height: 1; padding: 3px 5px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+.pin-ai { position: absolute; left: -9px; top: -7px; font-size: 14px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3)); }
+.popup-box .p-ai { font-size: 0.72rem; color: #6b4fbb; background: #f1edfb; border-radius: 6px; padding: 3px 7px; margin-bottom: 8px; display: inline-block; }
 .popup-box .p-sim { font-size: 0.72rem; font-weight: 700; color: #00b4d8; margin-bottom: 10px; }
 .popup-box .p-chat-btn {
   display: block; width: 100%; padding: 9px; background: #00b4d8; color: white;
@@ -166,14 +168,15 @@ function simColor(sim) {
   return '#90cad8';
 }
 
-function makeMarkerIcon(sim, isMe, inactiveMin = 0) {
+function makeMarkerIcon(sim, isMe, inactiveMin = 0, isAI = false) {
   const color = isMe ? '#1a1a2e' : simColor(sim);
   const idle = !isMe && inactiveMin >= 3;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
     <path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 22 14 22S28 24.5 28 14C28 6.27 21.73 0 14 0z" fill="${color}"/>
     <circle cx="14" cy="14" r="6" fill="white"/>
   </svg>`;
-  const badge = idle ? `<span class="pin-idle">${n2yIdleLabel(inactiveMin)}</span>` : '';
+  const badge = (idle ? `<span class="pin-idle">${n2yIdleLabel(inactiveMin)}</span>` : '') +
+                (isAI ? '<span class="pin-ai" title="KI-Testperson">🤖</span>' : '');
   return L.divIcon({ html: svg + badge, iconSize: [28, 36], iconAnchor: [14, 36],
                      className: isMe ? 'my-pin' : (idle ? 'idle-pin' : '') });
 }
@@ -323,7 +326,7 @@ function personKey(u) {
 }
 
 function buildPersonMarker(u) {
-  const marker = L.marker([u.lat_approx, u.lng_approx], { icon: makeMarkerIcon(u.sim, false, u.inactive_min) });
+  const marker = L.marker([u.lat_approx, u.lng_approx], { icon: makeMarkerIcon(u.sim, false, u.inactive_min, n2yIsAI(u.nickname)) });
   const genderLabel = u.gender === 'm' ? 'Mann' : u.gender === 'f' ? 'Frau' : u.gender === 'd' ? 'Divers' : '';
   const ageLabel = u.age_years ? ', ' + u.age_years + ' J.' : '';
   const metaLabel = [genderLabel + ageLabel].filter(Boolean).join(' · ');
@@ -331,6 +334,7 @@ function buildPersonMarker(u) {
   marker.bindPopup(`<div class="popup-box">
       <div class="p-nick">${escHtml(u.nickname || 'Anonym')}</div>
       ${metaLabel ? `<div class="p-meta">${escHtml(metaLabel)}</div>` : ''}
+      ${n2yIsAI(u.nickname) ? `<div class="p-ai">${N2Y_AI_HINT}</div>` : ''}
       <div class="p-topics">${escHtml(u.topics_text || '')}</div>
       ${u.distance_m != null ? `<div class="p-dist">📍 ${distLabel(u.distance_m)}</div>` : ''}
       <div class="p-active">${u.inactive_min >= 3 ? `💤 seit ${n2yIdleLabel(u.inactive_min)} inaktiv` : '🟢 gerade aktiv'}</div>

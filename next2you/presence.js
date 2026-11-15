@@ -26,6 +26,10 @@ function n2yPresence(db, supabaseUrl, anonKey) {
   });
 }
 
+// AI test personas carry the suffix "(KI)"; the DB strips it from real users' nicknames (n2y_guard_ai_nickname)
+function n2yIsAI(nickname) { return /\(KI\)\s*$/.test(nickname || ''); }
+const N2Y_AI_HINT = '🤖 KI-Testperson – antwortet automatisch';
+
 function n2yIdleLabel(min) {
   if (min < 60) return min + ' min';
   const h = Math.floor(min / 60), m = min % 60;
