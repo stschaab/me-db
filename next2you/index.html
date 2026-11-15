@@ -49,10 +49,18 @@ header h1 span { color: #00b4d8; }
 .privacy-note .safe { color: #a3262b; border-top: 1px solid #dbe9f2; padding-top: 8px; margin-top: 9px; }
 /* Intro (first visit): swipe through 3 slides before the anonymous account is created */
 #intro { flex: 1; display: none; flex-direction: column; min-height: 0; }
+.slides-wrap { flex: 1; min-height: 0; position: relative; display: flex; }
+.side-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 46px; height: 46px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.85); background: rgba(0,180,216,0.85); color: white; font-size: 1.7rem; line-height: 1;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 12px rgba(0,0,0,0.35); padding-bottom: 3px; }
+.side-arrow:hover { background: #0092b0; }
+.side-arrow.next { right: 8px; }
+.side-arrow.prev { left: 8px; background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.5); }
+@media (max-width: 360px) { .slide { padding: 24px 48px; } .swipe-extra { display: none; } .intro-nav { gap: 10px; padding-left: 14px; padding-right: 14px; } .arrow-btn { width: 46px; height: 46px; font-size: 1.4rem; } .side-arrow { width: 38px; height: 38px; font-size: 1.4rem; } }
 body.intro-active { height: 100vh; height: 100dvh; overflow: hidden; }
 .slides { flex: 1; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; overscroll-behavior-x: contain; }
 .slides::-webkit-scrollbar { display: none; }
-.slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; overflow-y: auto; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center; padding: 28px 26px; color: white; }
+.slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; overflow-y: auto; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center; padding: 28px 60px; color: white; }
 .slide > * { max-width: 420px; }
 /* vertically centred, but scrollable from the top on small screens */
 .slide > :first-child { margin-top: auto; }
@@ -72,7 +80,7 @@ body.intro-active { height: 100vh; height: 100dvh; overflow: hidden; }
 .dots { display: flex; gap: 7px; }
 .dots span { width: 8px; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.3); transition: all 0.2s; }
 .dots span.on { width: 22px; background: #00b4d8; }
-.swipe-hint { color: rgba(255,255,255,0.7); font-size: 0.85rem; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.swipe-hint { color: rgba(255,255,255,0.7); font-size: 0.85rem; display: flex; align-items: center; gap: 6px; white-space: nowrap; min-width: 0; overflow: hidden; }
 .swipe-hint .arr { display: inline-block; animation: nudge 1.4s ease-in-out infinite; }
 @keyframes nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(6px); } }
 .arrow-btn { margin-left: auto; width: 54px; height: 54px; border-radius: 50%; border: none; background: #00b4d8; color: white; font-size: 1.6rem; line-height: 1; cursor: pointer;
@@ -89,6 +97,9 @@ body.intro-active { height: 100vh; height: 100dvh; overflow: hidden; }
 </header>
 
 <div id="intro">
+  <div class="slides-wrap">
+  <button class="side-arrow prev" id="prevArrow" onclick="goToSlide(introIdx - 1)" aria-label="Zurück" style="visibility:hidden">‹</button>
+  <button class="side-arrow next" id="nextArrow" onclick="introNext()" aria-label="Weiter">›</button>
   <div class="slides" id="slides">
     <section class="slide s1">
       <div class="s-emoji">🫂</div>
@@ -118,6 +129,7 @@ body.intro-active { height: 100vh; height: 100dvh; overflow: hidden; }
       <div class="s-emoji">✨</div>
       <h2>Los <span>geht's</span></h2>
     </section>
+  </div>
   </div>
   <div class="intro-nav">
     <div class="dots" id="dots"><span class="on"></span><span></span><span></span></div>
@@ -220,8 +232,10 @@ function showIntro() {
 function renderIntroNav() {
   document.querySelectorAll('#dots span').forEach((d, i) => d.classList.toggle('on', i === introIdx));
   const last = introIdx >= INTRO_SLIDES - 1;
-  document.getElementById('swipeText').textContent = last ? 'wischen – zur Anmeldung' : 'wischen';
+  document.getElementById('swipeText').innerHTML = 'wischen' + (last ? '<span class="swipe-extra"> – zur Anmeldung</span>' : '');
   document.getElementById('introBtn').setAttribute('aria-label', last ? 'Zur Anmeldung' : 'Weiter');
+  document.getElementById('nextArrow').setAttribute('aria-label', last ? 'Zur Anmeldung' : 'Weiter');
+  document.getElementById('prevArrow').style.visibility = introIdx > 0 && introIdx < INTRO_SLIDES ? 'visible' : 'hidden';
 }
 
 function goToSlide(i) {
