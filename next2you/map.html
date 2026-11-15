@@ -45,6 +45,8 @@ input[type="range"] { accent-color: #00b4d8; }
 .fslider input[type="range"] { flex: 1; min-width: 0; }
 .fslider label { min-width: 54px; }
 .radius-val { text-align: right; min-width: 52px; }
+.filter-bar .ai-toggle { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; font-weight: 600; color: #555; text-transform: none; letter-spacing: 0; margin-left: 4px; cursor: pointer; white-space: nowrap; user-select: none; }
+.filter-bar .ai-toggle input { width: 16px; height: 16px; accent-color: #00b4d8; margin: 0; cursor: pointer; }
 .match-count { font-size: 0.75rem; color: #888; margin-left: auto; white-space: nowrap; }
 /* Leaflet popup */
 .popup-box { min-width: 180px; }
@@ -109,6 +111,7 @@ input[type="range"] { accent-color: #00b4d8; }
       <option value="f">Frauen</option>
       <option value="d">Divers</option>
     </select>
+    <label class="ai-toggle"><input type="checkbox" id="hideAI" onchange="onHideAIChange()"> Ohne KI 🤖</label>
   </div>
 
   <div class="fgroup fslider">
@@ -191,6 +194,7 @@ async function init() {
     if (saved >= 0 && saved <= 100) { document.getElementById('matchSlider').value = saved; document.getElementById('matchVal').textContent = '≥ ' + saved + ' %'; }
     const ages = JSON.parse(localStorage.getItem(AGE_KEY) || 'null');
     if (Array.isArray(ages) && ages.length === 2) { document.getElementById('ageMin').value = ages[0]; document.getElementById('ageMax').value = ages[1]; }
+    document.getElementById('hideAI').checked = localStorage.getItem(HIDE_AI_KEY) === '1';
   } catch {}
   renderAge();
 
@@ -275,6 +279,13 @@ function minMatch() {
   return parseInt(document.getElementById('matchSlider').value, 10) || 0;
 }
 
+const HIDE_AI_KEY = 'n2y-hide-ai';
+function hideAI() { return document.getElementById('hideAI').checked; }
+function onHideAIChange() {
+  try { localStorage.setItem(HIDE_AI_KEY, hideAI() ? '1' : '0'); } catch {}
+  renderMatches();
+}
+
 function onMatchChange() {
   const v = minMatch();
   document.getElementById('matchVal').textContent = '≥ ' + v + ' %';
@@ -353,11 +364,13 @@ function buildPersonMarker(u) {
 // Only pins whose data changed are replaced, so open popups and fanned-out groups survive reloads
 function renderMatches() {
   const min = minMatch();
-  const shown = lastMatches.filter(u => Math.round(u.sim * 100) >= min);
+  const pool = hideAI() ? lastMatches.filter(u => !n2yIsAI(u.nickname)) : lastMatches;
+  const shown = pool.filter(u => Math.round(u.sim * 100) >= min);
   const countEl = document.getElementById('matchCount');
   if (tooFar) countEl.textContent = 'Zum Anzeigen von Leuten näher heranzoomen';
   else if (shown.length && lastMatches.length >= 100) countEl.textContent = shown.length + ' beste Treffer – reinzoomen für mehr';
   else if (shown.length) countEl.textContent = shown.length + ' im Ausschnitt' + (shown.length < lastMatches.length ? ` (von ${lastMatches.length})` : '');
+  else if (lastMatches.length && !pool.length) countEl.textContent = 'Nur KI-Personen im Ausschnitt – „Ohne KI“ abwählen?';
   else if (lastMatches.length) countEl.textContent = `Niemand mit ≥ ${min} % Match – Regler verringern?`;
   else countEl.textContent = 'Niemand im Ausschnitt – rauszoomen oder verschieben';
 
