@@ -19,5 +19,8 @@
   läuft gte-small (schwächer bei Deutsch); nach Setzen des Secrets alle Profile neu einbetten.
 - Nach `ALTER TABLE` per SQL: `NOTIFY pgrst, 'reload schema'`, sonst kennt die REST-API neue Spalten nicht.
 - KI-Testnutzer „… (KI)“ antworten über `n2y-bot-reply` (Logik in `bots.js`, lokal mit Node testbar).
+- KI-Personen entstehen automatisch (8 Stück) um echte Nutzer, wenn im Umkreis ≈ 3 km < 4 existieren
+  (Trigger `n2y_spawn_bots_nearby` → Queue `n2y_bot_spawn_requests` → Edge Function `n2y-spawn-bots`, max. 200).
+  „(KI)“ im Spitznamen nur für KI-Konten (`n2y_is_ai_account`); Oberfläche erkennt KI per `n2yIsAI()` (presence.js).
 - `execute_sql` mit `begin … rollback` nie im selben Aufruf wie dauerhafte Änderungen – das Rollback nimmt sie mit.
 - DELETE/DROP lösen eine Supabase-Rückfrage aus; wenn möglich vermeiden (CREATE OR REPLACE, neue Funktion statt DROP).

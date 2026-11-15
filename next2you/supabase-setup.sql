@@ -595,3 +595,105 @@ END $$;
 REVOKE EXECUTE ON FUNCTION public.n2y_delete_message(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.n2y_delete_message(uuid) TO authenticated;
 NOTIFY pgrst, 'reload schema';
+
+-- ---------------------------------------------------------------------------
+-- KI-Personen entstehen automatisch im Umkreis (Migrationen n2y_spawn_ai_personas_nearby,
+-- n2y_ai_account_flag). Setzt ein echter Nutzer seine Position und gibt es im Umkreis von
+-- ≈ 3 km weniger als 4 KI-Personen, landet eine Anfrage (Position auf ≈ 1 km gerundet, ohne
+-- Nutzer-ID) in n2y_bot_spawn_requests; die Edge Function n2y-spawn-bots legt dann 8 Personas
+-- („Name (KI)“, app_metadata.n2y_ai) 300 m – 2 km verteilt an (max. 200 insgesamt).
+-- n2y_heartbeat hält KI-Personen im Umkreis aktiv, solange echte Nutzer in der Nähe sind.
+-- „(KI)“/🤖 im Spitznamen ist nur KI-Konten erlaubt (n2y_guard_ai_nickname).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.n2y_bot_spawn_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  lat double precision NOT NULL,
+  lng double precision NOT NULL,
+  status text NOT NULL DEFAULT 'pending',   -- pending | processing | done | skipped | capped | failed
+  spawned int NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  processed_at timestamptz
+);
+ALTER TABLE public.n2y_bot_spawn_requests ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.n2y_bot_spawn_requests FROM anon, authenticated;
+
+-- KI-Person = in n2y_test_bots oder mit app_metadata.n2y_ai angelegt (n2y_test allein markiert
+-- auch das unsichtbare QA-Konto, das hier wie ein echter Nutzer gilt).
+CREATE OR REPLACE FUNCTION public.n2y_is_ai_account(p_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT EXISTS (SELECT 1 FROM public.n2y_test_bots WHERE user_id = p_id)
+      OR COALESCE((SELECT (raw_app_meta_data->>'n2y_ai')::boolean FROM auth.users WHERE id = p_id), false);
+$$;
+REVOKE EXECUTE ON FUNCTION public.n2y_is_ai_account(uuid) FROM PUBLIC, anon, authenticated;
+-- (n2y_is_test_account(uuid) aus der ersten Migration existiert noch, wird aber nicht mehr genutzt.)
+
+CREATE OR REPLACE FUNCTION public.n2y_spawn_bots_nearby()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $f$
+DECLARE v_lat double precision; v_lng double precision; v_req uuid;
+BEGIN
+  IF NEW.latitude IS NULL OR NEW.longitude IS NULL THEN RETURN NULL; END IF;
+  IF TG_OP = 'UPDATE' AND NEW.latitude IS NOT DISTINCT FROM OLD.latitude
+     AND NEW.longitude IS NOT DISTINCT FROM OLD.longitude THEN RETURN NULL; END IF;
+  IF public.n2y_is_ai_account(NEW.id) THEN RETURN NULL; END IF;
+
+  IF (SELECT COUNT(*) FROM public.n2y_users u JOIN public.n2y_test_bots b ON b.user_id = u.id
+      WHERE u.is_active
+        AND u.latitude  BETWEEN NEW.latitude  - 0.027 AND NEW.latitude  + 0.027
+        AND u.longitude BETWEEN NEW.longitude - 0.04  AND NEW.longitude + 0.04) >= 4 THEN
+    RETURN NULL;
+  END IF;
+
+  v_lat := ROUND(NEW.latitude / 0.009) * 0.009;
+  v_lng := ROUND(NEW.longitude / 0.013) * 0.013;
+  PERFORM pg_advisory_xact_lock(hashtext('n2y_spawn_bots'));
+  IF EXISTS (SELECT 1 FROM public.n2y_bot_spawn_requests r
+             WHERE r.created_at > now() - interval '30 minutes'
+               AND r.lat BETWEEN v_lat - 0.027 AND v_lat + 0.027
+               AND r.lng BETWEEN v_lng - 0.04  AND v_lng + 0.04) THEN
+    RETURN NULL;
+  END IF;
+
+  INSERT INTO public.n2y_bot_spawn_requests(lat, lng) VALUES (v_lat, v_lng) RETURNING id INTO v_req;
+  PERFORM net.http_post(
+    url := 'https://thgawuqcogugzurrijkp.supabase.co/functions/v1/n2y-spawn-bots',
+    headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer <ANON_KEY>'),
+    body := jsonb_build_object('request_id', v_req),
+    timeout_milliseconds := 60000);
+  RETURN NULL;
+END $f$;
+-- (Live-Version enthält den öffentlichen Anon-Key statt <ANON_KEY>.)
+REVOKE EXECUTE ON FUNCTION public.n2y_spawn_bots_nearby() FROM PUBLIC, anon, authenticated;
+CREATE OR REPLACE TRIGGER n2y_spawn_bots_nearby AFTER INSERT OR UPDATE OF latitude, longitude ON public.n2y_users
+  FOR EACH ROW EXECUTE FUNCTION public.n2y_spawn_bots_nearby();
+
+CREATE OR REPLACE FUNCTION public.n2y_guard_ai_nickname()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $f$
+BEGIN
+  IF NEW.nickname IS NOT NULL AND (NEW.nickname ~* '[(\[]\s*k\s*i\s*[)\]]' OR NEW.nickname LIKE '%🤖%')
+     AND NOT public.n2y_is_ai_account(NEW.id) THEN
+    NEW.nickname := NULLIF(btrim(regexp_replace(replace(NEW.nickname, '🤖', ''), '\s*[(\[]\s*k\s*i\s*[)\]]\s*', ' ', 'gi')), '');
+    NEW.nickname := COALESCE(NEW.nickname, 'Anonym');
+  END IF;
+  RETURN NEW;
+END $f$;
+REVOKE EXECUTE ON FUNCTION public.n2y_guard_ai_nickname() FROM PUBLIC, anon, authenticated;
+CREATE OR REPLACE TRIGGER n2y_guard_ai_nickname BEFORE INSERT OR UPDATE OF nickname ON public.n2y_users
+  FOR EACH ROW EXECUTE FUNCTION public.n2y_guard_ai_nickname();
+
+CREATE OR REPLACE FUNCTION public.n2y_heartbeat()
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $f$
+DECLARE me public.n2y_users;
+BEGIN
+  IF auth.uid() IS NULL THEN RETURN; END IF;
+  UPDATE public.n2y_users SET last_seen = GREATEST(last_seen, NOW()), offline_at = NULL
+  WHERE id = auth.uid() RETURNING * INTO me;
+  IF me.latitude IS NULL OR NOT me.is_active THEN RETURN; END IF;
+  UPDATE public.n2y_users u SET last_seen = GREATEST(u.last_seen, NOW()), offline_at = NULL
+  FROM public.n2y_test_bots b
+  WHERE b.user_id = u.id AND u.is_active AND u.last_seen < NOW() - INTERVAL '1 minute'
+    AND u.latitude  BETWEEN me.latitude  - 0.027 AND me.latitude  + 0.027
+    AND u.longitude BETWEEN me.longitude - 0.04  AND me.longitude + 0.04;
+END $f$;
+REVOKE EXECUTE ON FUNCTION public.n2y_heartbeat() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.n2y_heartbeat() TO authenticated;
+NOTIFY pgrst, 'reload schema';

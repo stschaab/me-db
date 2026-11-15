@@ -31,6 +31,7 @@ header h1 span { color: #00b4d8; }
 .chat-avatar { position: relative; width: 38px; height: 38px; border-radius: 50%; background: #00b4d8; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.95rem; flex-shrink: 0; }
 .chat-partner-name { font-weight: 700; font-size: 0.95rem; }
 .chat-partner-meta { font-size: 0.72rem; color: #888; }
+.chat-partner-ai { font-size: 0.7rem; color: #6b4fbb; margin-top: 1px; }
 .chat-partner-status { font-size: 0.72rem; margin-top: 1px; }
 .chat-partner-status.active { color: #1e9e57; } .chat-partner-status.idle { color: #b7791f; } .chat-partner-status.offline { color: #888; }
 .st-dot { position: absolute; right: -2px; bottom: -2px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid white; }
@@ -95,6 +96,7 @@ header h1 span { color: #00b4d8; }
     <div>
       <div class="chat-partner-name" id="chatPartnerName">…</div>
       <div class="chat-partner-meta" id="chatPartnerMeta"></div>
+      <div class="chat-partner-ai" id="chatPartnerAI" style="display:none"></div>
       <div class="chat-partner-status" id="chatPartnerStatus"></div>
     </div>
     <button class="location-share-btn" onclick="shareLocation()">📍 Standort teilen</button>
@@ -159,7 +161,7 @@ function renderTabs() {
     const name = c.partner_nickname || 'Anonym';
     const unread = Number(c.unread || 0);
     return `<button class="tab${c.conversation_id === activeConv ? ' active' : ''}" onclick="openConversation('${c.conversation_id}')">
-      <span class="t-av">${escHtml(name[0].toUpperCase())}${dotHtml(c.partner_id)}</span>${escHtml(name)}${unread ? `<span class="t-badge">${unread}</span>` : ''}
+      <span class="t-av">${n2yIsAI(name) ? '🤖' : escHtml(name[0].toUpperCase())}${dotHtml(c.partner_id)}</span>${escHtml(name)}${unread ? `<span class="t-badge">${unread}</span>` : ''}
     </button>`;
   }).join('');
   const active = el.querySelector('.tab.active');
@@ -211,7 +213,10 @@ function updateMore() {
 function showProfile(p) {
   const name = p?.nickname || 'Anonym';
   document.getElementById('chatPartnerName').textContent = name;
-  document.getElementById('chatAvatar').textContent = name[0].toUpperCase();
+  document.getElementById('chatAvatar').textContent = n2yIsAI(name) ? '🤖' : name[0].toUpperCase();
+  const ai = document.getElementById('chatPartnerAI');
+  ai.textContent = N2Y_AI_HINT;
+  ai.style.display = n2yIsAI(name) ? '' : 'none';
   const g = p?.gender === 'm' ? 'Mann' : p?.gender === 'f' ? 'Frau' : p?.gender === 'd' ? 'Divers' : '';
   const age = p?.age_years ? (g ? ', ' : '') + p.age_years + ' J.' : '';
   document.getElementById('chatPartnerMeta').textContent = (g + age) || 'Anonymer Nutzer';
