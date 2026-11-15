@@ -42,11 +42,38 @@ header h1 span { color: #00b4d8; }
 .hint { font-size: 0.75rem; color: #aaa; margin-top: 5px; }
 .anon-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.1); border-radius: 20px; padding: 6px 14px; font-size: 0.8rem; margin-top: 16px; }
 #statusMsg { text-align: center; padding: 20px; color: #666; font-size: 0.9rem; }
-.privacy-note { background: #f4f8fb; border: 1px solid #dbe9f2; border-radius: 12px; padding: 12px 14px; margin: 4px 0 18px; font-size: 0.82rem; line-height: 1.45; color: #444; }
+.privacy-note { background: #f4f8fb; border: 1px solid #dbe9f2; border-radius: 12px; padding: 12px 14px; margin: 0; text-align: left; font-size: 0.82rem; line-height: 1.45; color: #444; }
 .privacy-note div { display: flex; gap: 8px; }
 .privacy-note div + div { margin-top: 7px; }
 .privacy-note .warn { color: #8a5a00; }
 .privacy-note .safe { color: #a3262b; border-top: 1px solid #dbe9f2; padding-top: 8px; margin-top: 9px; }
+/* Intro (first visit): swipe through 3 slides before the anonymous account is created */
+#intro { flex: 1; display: none; flex-direction: column; min-height: 0; }
+body.intro-active { height: 100vh; height: 100dvh; overflow: hidden; }
+.slides { flex: 1; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; overscroll-behavior-x: contain; }
+.slides::-webkit-scrollbar { display: none; }
+.slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; overflow-y: auto; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center; padding: 28px 26px; color: white; }
+.slide > * { max-width: 420px; }
+/* vertically centred, but scrollable from the top on small screens */
+.slide > :first-child { margin-top: auto; }
+.slide > :last-child { margin-bottom: auto; }
+.slide.s1 { background: linear-gradient(160deg, #1a1a2e 0%, #3a1f4f 100%); }
+.slide.s2 { background: linear-gradient(160deg, #16213e 0%, #0f3460 100%); }
+.slide.s3 { background: linear-gradient(160deg, #0f3460 0%, #1a1a2e 100%); }
+.slide .s-emoji { font-size: 4rem; line-height: 1; margin-bottom: 18px; }
+.slide.s3 .s-emoji { font-size: 3rem; margin-bottom: 12px; }
+.slide h2 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 14px; }
+.slide h2 span { color: #00b4d8; }
+.slide p { font-size: 1rem; line-height: 1.55; opacity: 0.88; }
+.slide p + p { margin-top: 12px; }
+.slide .s-src { font-size: 0.72rem; opacity: 0.55; margin-top: 16px; }
+.slide .privacy-note { width: 100%; }
+.intro-nav { flex-shrink: 0; background: #1a1a2e; padding: 14px 20px; padding-bottom: max(14px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 14px; }
+.dots { display: flex; gap: 7px; }
+.dots span { width: 8px; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.3); transition: all 0.2s; }
+.dots span.on { width: 22px; background: #00b4d8; }
+.intro-nav .btn-primary { width: auto; margin-left: auto; padding: 12px 22px; font-size: 1rem; }
+.swipe-hint { color: rgba(255,255,255,0.5); font-size: 0.75rem; }
 </style>
 </head>
 <body>
@@ -56,7 +83,40 @@ header h1 span { color: #00b4d8; }
   <a class="back" href="../me-db-dashboard.html">← MeDB</a>
 </header>
 
-<div class="hero">
+<div id="intro">
+  <div class="slides" id="slides">
+    <section class="slide s1">
+      <div class="s-emoji">🫂</div>
+      <h2>Einsamkeit <span>macht krank</span></h2>
+      <p>Fehlende soziale Kontakte gehören zu den größten Risiken für die mentale Gesundheit.</p>
+      <p>Sie erhöhen nachweislich das Risiko für Depression, Herz-Kreislauf-Erkrankungen und Demenz – bis hin zu Alzheimer.</p>
+      <p class="s-src">Laut WHO ist etwa jeder sechste Mensch weltweit von Einsamkeit betroffen.</p>
+    </section>
+    <section class="slide s2">
+      <div class="s-emoji">🤝</div>
+      <h2>Gleichgesinnte <span>finden</span></h2>
+      <p>In einer zunehmend gespaltenen Gesellschaft wird es schwerer, Menschen zu finden, die die eigenen Interessen teilen und denen man wirklich vertrauen kann.</p>
+      <p>Next2You verbindet dich mit Menschen in deiner Nähe – für echte Gespräche, von Angesicht zu Angesicht.</p>
+    </section>
+    <section class="slide s3">
+      <div class="s-emoji">🛡️</div>
+      <h2>Anonym <span>&amp; sicher</span></h2>
+      <div class="privacy-note" id="privacyNote">
+        <div><span>🔒</span><span><b>Komplett anonym</b> – kein Name, keine E-Mail, kein Passwort.</span></div>
+        <div><span>📱</span><span>Dein Zugang ist <b>nur in diesem Browser</b> gespeichert.</span></div>
+        <div class="warn"><span>⚠️</span><span><b>Browserdaten löschen</b>, anderer Browser, anderes Gerät oder Inkognito-Fenster → <b>Zugang und Chatverlauf sind weg.</b></span></div>
+        <div class="safe"><span>🛡️</span><span><b>Triff Unbekannte nur an öffentlichen Orten</b> (z.&nbsp;B. Café) – nie bei jemandem zu Hause oder an abgelegenen Orten. <b>Besonders Frauen: Sei vorsichtig</b> und sag jemandem Bescheid, wo und mit wem du dich triffst.</span></div>
+      </div>
+    </section>
+  </div>
+  <div class="intro-nav">
+    <div class="dots" id="dots"><span class="on"></span><span></span><span></span></div>
+    <span class="swipe-hint" id="swipeHint">wischen →</span>
+    <button class="btn-primary" id="introBtn" onclick="introNext()">Weiter →</button>
+  </div>
+</div>
+
+<div class="hero" id="hero">
   <h2>Finde Leute <span>in deiner Nähe</span></h2>
   <p>Anonym. Echte Interessen. Spontane Treffen.</p>
   <div class="anon-badge">🔒 Kein Name. Keine E-Mail. Kein Tracking.</div>
@@ -86,13 +146,6 @@ header h1 span { color: #00b4d8; }
       <label>Alter <span style="font-weight:400;color:#aaa">(optional)</span></label>
       <input type="number" id="age" placeholder="z.B. 32" min="16" max="99">
       <div class="hint">Wird für den Altersfilter genutzt. Niemand sieht dein genaues Alter.</div>
-    </div>
-
-    <div class="privacy-note" id="privacyNote">
-      <div><span>🔒</span><span><b>Komplett anonym</b> – kein Name, keine E-Mail, kein Passwort.</span></div>
-      <div><span>📱</span><span>Dein Zugang ist <b>nur in diesem Browser</b> gespeichert.</span></div>
-      <div class="warn"><span>⚠️</span><span><b>Browserdaten löschen</b>, anderer Browser, anderes Gerät oder Inkognito-Fenster → <b>Zugang und Chatverlauf sind weg.</b></span></div>
-      <div class="safe"><span>🛡️</span><span><b>Triff Unbekannte nur an öffentlichen Orten</b> (z.&nbsp;B. Café) – nie bei jemandem zu Hause oder an abgelegenen Orten. <b>Besonders Frauen: Sei vorsichtig</b> und sag jemandem Bescheid, wo und mit wem du dich triffst.</span></div>
     </div>
 
     <button class="btn-primary" id="saveBtn" onclick="saveProfile()">Weiter →</button>
@@ -135,8 +188,63 @@ async function signIn() {
   return data.session;
 }
 
+// ── Intro (first visit only) ─────────────────────────────────────────────
+let introIdx = 0;
+const INTRO_SLIDES = 3;
+
+function showIntro() {
+  document.body.classList.add('intro-active');
+  document.getElementById('intro').style.display = 'flex';
+  document.getElementById('hero').style.display = 'none';
+  document.getElementById('statusMsg').style.display = 'none';
+  const el = document.getElementById('slides');
+  el.addEventListener('scroll', () => {
+    const i = Math.round(el.scrollLeft / el.clientWidth);
+    if (i !== introIdx) { introIdx = i; renderIntroNav(); }
+  }, { passive: true });
+  document.addEventListener('keydown', onIntroKey);
+  renderIntroNav();
+}
+
+function renderIntroNav() {
+  document.querySelectorAll('#dots span').forEach((d, i) => d.classList.toggle('on', i === introIdx));
+  const last = introIdx >= INTRO_SLIDES - 1;
+  document.getElementById('introBtn').textContent = last ? "Los geht's →" : 'Weiter →';
+  document.getElementById('swipeHint').style.visibility = last ? 'hidden' : 'visible';
+}
+
+function goToSlide(i) {
+  const el = document.getElementById('slides');
+  el.scrollTo({ left: Math.max(0, Math.min(INTRO_SLIDES - 1, i)) * el.clientWidth });
+}
+
+function introNext() {
+  if (introIdx < INTRO_SLIDES - 1) goToSlide(introIdx + 1);
+  else finishIntro();
+}
+
+function onIntroKey(e) {
+  if (e.key === 'ArrowRight') goToSlide(introIdx + 1);
+  if (e.key === 'ArrowLeft') goToSlide(introIdx - 1);
+}
+
+// The anonymous account is only created now, after the intro
+function finishIntro() {
+  document.removeEventListener('keydown', onIntroKey);
+  document.body.classList.remove('intro-active');
+  document.getElementById('intro').style.display = 'none';
+  document.getElementById('hero').style.display = '';
+  document.getElementById('statusMsg').style.display = '';
+  continueSetup(null);
+}
+
 async function init() {
-  let { data: { session } } = await db.auth.getSession();
+  const { data: { session } } = await db.auth.getSession();
+  if (!session && !loadCreds()) { showIntro(); return; }
+  continueSetup(session);
+}
+
+async function continueSetup(session) {
   if (!session) {
     try { session = await signIn(); }
     catch (e) { document.getElementById('statusMsg').textContent = 'Fehler beim Anmelden: ' + e.message; return; }
