@@ -24,5 +24,9 @@
 - KI-Personen entstehen automatisch (8 Stück) um echte Nutzer, wenn im Umkreis ≈ 3 km < 4 existieren
   (Trigger `n2y_spawn_bots_nearby` → Queue `n2y_bot_spawn_requests` → Edge Function `n2y-spawn-bots`, max. 200).
   „(KI)“ im Spitznamen nur für KI-Konten (`n2y_is_ai_account`); Oberfläche erkennt KI per `n2yIsAI()` (presence.js).
+- Melden/Blockieren/Sperren (DSA): `safety.js` (Melde-Dialog, Block), RPCs `n2y_report`, `n2y_block_user` …;
+  Meldungen sichern den Chatverlauf in `n2y_reports.evidence`. Betreiber: `select * from n2y_admin.reports;`,
+  `select n2y_admin.ban('<user_id>','Grund');` / `n2y_admin.unban(...)` (Schema `n2y_admin`, nicht per API erreichbar).
+  Intro-Seite 3 verlangt das Regel-Häkchen (`rules_accepted_at`). `safety.js` ebenfalls mit `?v=N` einbinden.
 - `execute_sql` mit `begin … rollback` nie im selben Aufruf wie dauerhafte Änderungen – das Rollback nimmt sie mit.
 - DELETE/DROP lösen eine Supabase-Rückfrage aus; wenn möglich vermeiden (CREATE OR REPLACE, neue Funktion statt DROP).

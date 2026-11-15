@@ -697,3 +697,69 @@ END $f$;
 REVOKE EXECUTE ON FUNCTION public.n2y_heartbeat() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.n2y_heartbeat() TO authenticated;
 NOTIFY pgrst, 'reload schema';
+
+-- ---------------------------------------------------------------------------
+-- Melden, Blockieren, Sperren, Regeln (Migrationen n2y_report_block_ban,
+-- n2y_report_evidence_snapshot). DSA: keine Überwachung der Chats, aber Meldeweg,
+-- schnelles Reagieren und Regeln. Betreiber-Werkzeuge im Schema n2y_admin (nicht per API
+-- erreichbar) – im Supabase-Dashboard (SQL Editor):
+--   select * from n2y_admin.reports;                        -- Meldungen inkl. gesichertem Chatverlauf
+--   select n2y_admin.ban('<user_id>', 'Grund');             -- sperren (Meldungen -> 'actioned')
+--   select n2y_admin.unban('<user_id>');                    -- entsperren
+--   select n2y_admin.close_report('<report_id>');           -- Meldung schließen
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.n2y_reports (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  reporter_id uuid NOT NULL,
+  reported_id uuid NOT NULL,
+  conversation_id uuid,
+  reason text NOT NULL CHECK (reason IN ('harassment','threat','illegal','spam','minor','other')),
+  details text CHECK (char_length(details) <= 1000),
+  status text NOT NULL DEFAULT 'open',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  reported_nickname text,
+  reporter_nickname text,
+  evidence jsonb            -- Chatverlauf zum Meldezeitpunkt (übersteht Kontolöschung/Cascade)
+);
+CREATE TABLE IF NOT EXISTS public.n2y_blocks (
+  blocker_id uuid NOT NULL,
+  blocked_id uuid NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (blocker_id, blocked_id)
+);
+CREATE TABLE IF NOT EXISTS public.n2y_bans (
+  user_id uuid PRIMARY KEY,
+  reason text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.n2y_reports ENABLE ROW LEVEL SECURITY;   -- keine Policies: nur Service-Rolle
+ALTER TABLE public.n2y_blocks  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.n2y_bans    ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.n2y_reports, public.n2y_blocks, public.n2y_bans FROM anon, authenticated;
+ALTER TABLE public.n2y_users ADD COLUMN IF NOT EXISTS rules_accepted_at timestamptz;   -- Intro-Häkchen
+
+-- Hilfsfunktionen (SECURITY DEFINER, für Policies): n2y_blocked_between(a, b), n2y_is_banned(user)
+-- Nutzer-RPCs (authenticated): n2y_report(p_reported, p_conversation, p_reason, p_details)
+--   – prüft Login, kein Selbst-Melden, Grund aus Liste, Konversation enthält beide, max. 20/Tag,
+--     speichert Spitznamen + bis zu 300 Nachrichten (bei „für alle gelöscht“ das Original) als evidence;
+--   n2y_block_user(p_user), n2y_unblock_user(p_user), n2y_my_blocks(), n2y_am_i_banned().
+-- Durchsetzung:
+ALTER POLICY "n2y: send messages" ON public.n2y_messages WITH CHECK (
+  sender_id = auth.uid()
+  AND NOT public.n2y_is_banned(auth.uid())
+  AND EXISTS (SELECT 1 FROM public.n2y_conversations c
+              WHERE c.id = n2y_messages.conversation_id
+                AND (auth.uid() = c.user1_id OR auth.uid() = c.user2_id)
+                AND NOT public.n2y_blocked_between(c.user1_id, c.user2_id))
+);
+ALTER POLICY "n2y: start conversation" ON public.n2y_conversations WITH CHECK (
+  auth.uid() = user1_id
+  AND NOT public.n2y_is_banned(auth.uid())
+  AND NOT public.n2y_blocked_between(user1_id, user2_id)
+);
+-- n2y_people_in_view blendet zusätzlich aus (in cand-WHERE):
+--   AND NOT EXISTS (SELECT 1 FROM public.n2y_blocks b
+--                   WHERE (b.blocker_id = auth.uid() AND b.blocked_id = u.id)
+--                      OR (b.blocker_id = u.id AND b.blocked_id = auth.uid()))
+--   AND NOT EXISTS (SELECT 1 FROM public.n2y_bans x WHERE x.user_id = u.id)
+-- Vollständige Funktionsdefinitionen: siehe Migrationen in Supabase (list_migrations).

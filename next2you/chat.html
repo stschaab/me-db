@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>Next2You · Chat</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="presence.js?v=2"></script>
+<script src="presence.js?v=3"></script>
+<script src="safety.js?v=1"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; overflow: hidden; }
@@ -41,7 +42,13 @@ header h1 span { color: #00b4d8; }
 .location-share-btn { margin-left: auto; padding: 7px 12px; border: 1px solid #00b4d8; border-radius: 8px; background: white; color: #00b4d8; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .location-share-btn:hover { background: #e8f8fc; }
 .del-chat-btn { padding: 7px 9px; border: 1px solid #e0e0e0; border-radius: 8px; background: white; font-size: 0.8rem; cursor: pointer; flex-shrink: 0; }
-.del-chat-btn:hover { background: #fdecec; border-color: #f3b4b4; }
+.del-chat-btn:hover { background: #f0f4f8; }
+.chat-menu { position: fixed; z-index: 60; background: white; border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.18); padding: 6px; min-width: 210px; }
+.chat-menu button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 11px 12px; border-radius: 8px; font-size: 0.9rem; font-family: inherit; color: #1a1a2e; cursor: pointer; }
+.chat-menu button:hover { background: #f0f4f8; }
+.chat-menu button.danger { color: #c62828; }
+.block-banner { display: none; background: #fff4e5; color: #7a4b00; border-top: 1px solid #f3dcb5; padding: 10px 16px; font-size: 0.85rem; align-items: center; gap: 10px; flex-shrink: 0; }
+.block-banner button { margin-left: auto; padding: 6px 12px; border-radius: 8px; border: 1px solid #d9a441; background: white; color: #7a4b00; font-weight: 600; font-size: 0.8rem; cursor: pointer; }
 .interests { margin-top: 10px; background: #f0f8fb; border-radius: 10px; padding: 8px 11px; font-size: 0.82rem; line-height: 1.4; color: #2b3a4a; cursor: pointer; }
 .interests .i-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #0092b0; margin-bottom: 2px; }
 .interests .i-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
@@ -100,7 +107,7 @@ header h1 span { color: #00b4d8; }
       <div class="chat-partner-status" id="chatPartnerStatus"></div>
     </div>
     <button class="location-share-btn" onclick="shareLocation()">📍 Standort teilen</button>
-    <button class="del-chat-btn" id="delChatBtn" title="Chat löschen" onclick="deleteChat()">🗑</button>
+    <button class="del-chat-btn" id="moreBtn" title="Mehr" aria-label="Mehr: Melden, Blockieren, Chat löschen" onclick="toggleChatMenu(event)">⋯</button>
   </div>
   <div class="interests" id="interests" style="display:none" onclick="this.classList.toggle('open'); updateMore()">
     <div class="i-label">Interessen</div>
@@ -112,6 +119,8 @@ header h1 span { color: #00b4d8; }
 <div class="messages" id="messages"><div class="info">Lade Chat…</div></div>
 
 <div class="typing" id="typing"></div>
+
+<div class="block-banner" id="blockBanner"><span id="blockText"></span><button onclick="unblockActive()">Entsperren</button></div>
 
 <div class="compose">
   <textarea id="msgInput" placeholder="Schreib eine Nachricht…" rows="1"
@@ -373,6 +382,7 @@ async function openConversation(id) {
   const input = document.getElementById('msgInput');
   input.value = drafts[id] || '';
   onInput(input);
+  renderBlockState();
 
   const messagesEl = document.getElementById('messages');
   messagesEl.innerHTML = '<div class="info">Lade Chat…</div>';
@@ -433,6 +443,7 @@ async function init() {
   n2yPresence(db, SUPABASE_URL, ANON_KEY);
   myId = session.user.id;
   setupMessageMenu();
+  blockedIds = await n2yMyBlockedIds(db);
 
   const params = new URLSearchParams(location.search);
   const withId = params.get('with');
@@ -480,12 +491,70 @@ async function sendMessage() {
 
   const { error } = await db.from('n2y_messages').insert({ conversation_id: conv, sender_id: myId, content });
   if (error) {
-    alert('Fehler: ' + error.message);
+    // RLS rejects messages between blocked users or from banned accounts
+    alert(error.code === '42501' ? 'Diese Person ist gerade nicht erreichbar.' : 'Fehler: ' + error.message);
     drafts[conv] = content;
     if (conv === activeConv) input.value = content;
   }
   document.getElementById('sendBtn').disabled = input.value.trim() === '';
   input.focus();
+}
+
+// ── Safety: report / block (safety.js) ──────────────────────────────────
+let blockedIds = new Set();
+
+function activePartner() {
+  const c = convs.find(c => c.conversation_id === activeConv);
+  return c ? { id: c.partner_id, name: c.partner_nickname || 'Anonym' } : null;
+}
+
+function closeChatMenu() { document.getElementById('chatMenu')?.remove(); }
+
+function toggleChatMenu(e) {
+  e.stopPropagation();
+  if (document.getElementById('chatMenu')) { closeChatMenu(); return; }
+  const p = activePartner();
+  if (!p) return;
+  const blocked = blockedIds.has(p.id);
+  const menu = document.createElement('div');
+  menu.id = 'chatMenu'; menu.className = 'chat-menu';
+  menu.innerHTML = `<button onclick="closeChatMenu(); reportActive()">🚩 ${escHtml(p.name)} melden</button>
+    <button onclick="closeChatMenu(); ${blocked ? 'unblockActive()' : 'blockActive()'}">${blocked ? '✅ Blockierung aufheben' : '🚫 ' + escHtml(p.name) + ' blockieren'}</button>
+    <button class="danger" onclick="closeChatMenu(); deleteChat()">🗑 Chat löschen</button>`;
+  document.body.appendChild(menu);
+  const b = e.currentTarget.getBoundingClientRect();
+  menu.style.top = (b.bottom + 6) + 'px';
+  menu.style.left = Math.max(8, Math.min(b.right - menu.offsetWidth, innerWidth - menu.offsetWidth - 8)) + 'px';
+}
+document.addEventListener('click', (e) => { if (!e.target.closest('#chatMenu')) closeChatMenu(); });
+
+function renderBlockState() {
+  const p = activePartner();
+  const blocked = !!p && blockedIds.has(p.id);
+  const banner = document.getElementById('blockBanner');
+  banner.style.display = blocked ? 'flex' : 'none';
+  if (blocked) document.getElementById('blockText').textContent = '🚫 Du hast ' + p.name + ' blockiert.';
+  const input = document.getElementById('msgInput');
+  input.disabled = blocked;
+  input.placeholder = blocked ? 'Blockiert' : 'Schreib eine Nachricht…';
+  if (blocked) document.getElementById('sendBtn').disabled = true;
+}
+
+function reportActive() {
+  const p = activePartner();
+  if (!p) return;
+  n2yOpenReport(db, { userId: p.id, nickname: p.name, conversationId: activeConv,
+    onBlocked: () => { blockedIds.add(p.id); renderBlockState(); } });
+}
+
+async function blockActive() {
+  const p = activePartner();
+  if (p && await n2yBlock(db, p.id, p.name)) { blockedIds.add(p.id); renderBlockState(); }
+}
+
+async function unblockActive() {
+  const p = activePartner();
+  if (p && await n2yUnblock(db, p.id, p.name)) { blockedIds.delete(p.id); renderBlockState(); onInput(document.getElementById('msgInput')); }
 }
 
 // Hides the chat only for me; messages stay stored (and visible to the partner)
@@ -505,6 +574,7 @@ async function deleteChat() {
   document.getElementById('tabs').innerHTML = '';
   document.querySelector('.chat-header').style.display = 'none';
   document.getElementById('msgInput').value = '';
+  document.getElementById('blockBanner').style.display = 'none';
   document.getElementById('sendBtn').disabled = true;
   document.getElementById('messages').innerHTML =
     '<div class="info">Noch keine Gespräche.<br><a href="map.html" style="color:#00b4d8">Auf der Karte jemanden anschreiben →</a></div>';
