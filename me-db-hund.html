@@ -135,6 +135,20 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   .composer textarea { width: 100%; min-height: 60px; max-height: 160px; border: 1px solid #ddd; border-radius: 12px; padding: 8px 12px; font: inherit; font-size: 0.9rem; resize: vertical; }
   .composer .row { justify-content: space-between; }
   .composer label { font-size: 0.78rem; color: #666; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  .info-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 560; display: none; align-items: center; justify-content: center; padding: 2vh 2vw; }
+  .info-bg.open { display: flex; }
+  .info { background: white; border-radius: 14px; width: 96vw; max-width: 1400px; height: 94vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.35); position: relative; }
+  .info .pic { background: #111; display: flex; align-items: center; justify-content: center; min-height: 0; }
+  .info .pic img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .info .pic .none { font-size: 6rem; }
+  .info .txt { padding: 22px 26px; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; }
+  .info h2 { font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+  .info .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px 16px; font-size: 0.88rem; }
+  .info .facts b { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: #999; font-weight: 600; }
+  .info textarea { flex: 1; min-height: 160px; width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 0.92rem; line-height: 1.45; resize: none; }
+  .info .x { position: absolute; top: 10px; right: 14px; background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 1.4rem; cursor: pointer; }
+  .info .sec { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-top: 4px; }
+  @media (max-width: 800px) { .info { grid-template-columns: 1fr; grid-template-rows: 32vh 1fr; height: 96vh; width: 100vw; } .info-bg { padding: 0; } }
   .setbtn { background: white; border: 1px solid #ccc; border-radius: 7px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; }
   .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 500; display: none; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 30px 12px; }
   .modal-bg.open { display: flex; }
@@ -295,6 +309,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   </div>
 </div>
 
+<div class="info-bg" id="info" onclick="if (event.target === this) closeInfo()"><div class="info" id="infoBox"></div></div>
+
 <div class="lightbox" id="lightbox" onclick="this.classList.remove('open')"><img id="lightboxImg" alt=""></div>
 
 <div class="toast" id="toast"></div>
@@ -322,7 +338,7 @@ const FKEY = 'medb-hund-filter';
 let dogs = [];
 let msgs = {};   // kandidat_id -> [nachrichten]
 let settings = {};
-let kpiIdx = null;
+let kpiIdx = 0;   // Standard: „Neue Kandidaten“
 
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
@@ -353,7 +369,7 @@ async function load() {
 
 function v(id) { const el = document.getElementById(id); return el.type === 'checkbox' ? el.checked : el.value; }
 
-function passes(d) {
+function passes(d, ignoreKpi) {
   const unk = v('f_unbekannt');
   const ok = (val, cond) => val == null ? unk : cond(val);
   if (v('f_stubenrein') && !ok(d.stubenrein, x => x)) return false;
@@ -370,7 +386,7 @@ function passes(d) {
   if (st && st !== '*' && d.status !== st) return false;
   const q = v('fq').trim().toLowerCase();
   if (q && ![d.name, d.rasse, d.ort, d.notizen, d.kontakt_name].join(' ').toLowerCase().includes(q)) return false;
-  if (kpiIdx != null && KPI_FNS[kpiIdx] && !KPI_FNS[kpiIdx](d)) return false;
+  if (!ignoreKpi && kpiIdx != null && KPI_FNS[kpiIdx] && !KPI_FNS[kpiIdx](d)) return false;
   return true;
 }
 
@@ -378,7 +394,7 @@ function render() {
   document.getElementById('kmv').textContent = v('f_km');
   renderKpis();
   const sort = v('sort');
-  const list = dogs.filter(passes).sort((a, b) => {
+  const list = dogs.filter(d => passes(d)).sort((a, b) => {
     const desc = ['score', 'letzter_kontakt', 'created_at'].includes(sort);
     const x = a[sort], y = b[sort];
     if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
@@ -391,23 +407,25 @@ function render() {
   el.innerHTML = '<div class="cards">' + list.map(card).join('') + '</div>';
 }
 
-function renderKpis() {
-  const active = dogs.filter(d => !STATUS[d.status]?.done);
-  const nDraft = dogs.filter(hasDraft).length;
-  const k = [
-    ['✉️ Zur Freigabe', nDraft, hasDraft],
-    ['Kandidaten', active.length, null],
-    ['Angeschrieben', dogs.filter(d => d.status === 'angeschrieben').length, d => d.status === 'angeschrieben'],
-    ['Antwort da', dogs.filter(d => d.status === 'antwort').length, d => d.status === 'antwort'],
-    ['Besuch geplant', dogs.filter(d => d.status === 'besuch_geplant').length, d => d.status === 'besuch_geplant'],
-    ['⭐ Favoriten', dogs.filter(d => d.favorit).length, d => d.favorit],
-  ];
-  document.getElementById('kpis').innerHTML = k.map(([l, n], i) =>
-    `<div class="kpi ${kpiIdx === i || (i === 1 && kpiIdx == null) ? 'on' : ''} ${i === 0 && n ? 'alert' : ''}" onclick="toggleKpi(${i})"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
-}
+// Angeschrieben = Status „angeschrieben“ oder eine Nachricht ist freigegeben/gesendet; neu = noch nicht angeschrieben
+const contacted = d => (msgs[d.id] || []).some(m => m.richtung === 'raus' && ['freigegeben', 'gesendet', 'fehler'].includes(m.status));
+const isNew = d => d.status === 'neu' && !contacted(d);
+const isWritten = d => d.status === 'angeschrieben' || (d.status === 'neu' && contacted(d));
+const KPIS = [
+  ['🆕 Neue Kandidaten', isNew],
+  ['Angeschrieben', isWritten],
+  ['Antwort da', d => d.status === 'antwort'],
+  ['Besuch geplant', d => d.status === 'besuch_geplant'],
+  ['⭐ Favoriten', d => d.favorit],
+];
+const KPI_FNS = KPIS.map(k => k[1]);
 const hasDraft = d => (msgs[d.id] || []).some(m => m.status === 'entwurf');
-const KPI_FNS = [d => hasDraft(d), null, d => d.status === 'angeschrieben', d => d.status === 'antwort', d => d.status === 'besuch_geplant', d => d.favorit];
-function toggleKpi(i) { kpiIdx = (kpiIdx === i || !KPI_FNS[i]) ? null : i; render(); }
+function renderKpis() {
+  const base = dogs.filter(d => passes(d, true));   // Zahlen folgen den gesetzten Filtern links
+  document.getElementById('kpis').innerHTML = KPIS.map(([l, f], i) =>
+    `<div class="kpi ${kpiIdx === i ? 'on' : ''}" onclick="toggleKpi(${i})"><div class="n">${base.filter(f).length}</div><div class="l">${l}</div></div>`).join('');
+}
+function toggleKpi(i) { kpiIdx = kpiIdx === i ? null : i; render(); }
 
 function age(m) {
   if (m == null) return 'Alter ?';
@@ -443,10 +461,7 @@ function card(d) {
       </div>
       ${chatButton(d)}
       ${d.kontakt_name || d.letzter_kontakt ? `<div class="contact">${esc(d.kontakt_name || '')}${d.letzter_kontakt ? ` · letzter Kontakt ${fmtDate(d.letzter_kontakt)}` : ''}</div>` : ''}
-      <details ${openDetails.has(d.id) ? 'open' : ''} ontoggle="this.open ? openDetails.add(${d.id}) : openDetails.delete(${d.id})"><summary>Notizen &amp; Kontakt</summary>
-        ${d.kontakt_info ? `<div class="contact">Kontakt: ${esc(d.kontakt_info)}</div>` : ''}
-        <textarea class="notes" placeholder="Eigene Notizen…" onchange="saveNotes(${d.id}, this.value)">${esc(d.notizen || '')}</textarea>
-      </details>
+      <button class="compose" style="font-size:0.82rem" onclick="openInfo(${d.id})">📄 Beschreibung, Notizen &amp; Kontakt</button>
     </div>
   </div>`;
 }
@@ -457,7 +472,40 @@ async function setStatus(id, status) {
   dogs.find(d => d.id === id).status = status;
   toast('Status gespeichert'); render();
 }
-const openDetails = new Set();
+let infoKid = null;
+function openInfo(kid) {
+  const d = dogs.find(x => x.id === kid); if (!d) return; infoKid = kid;
+  const traits = TRAITS.map(([k, l]) => { const val = d[k];
+    return `<span class="tr ${val === true ? 'y' : val === false ? 'n' : 'u'}">${val === true ? '✓' : val === false ? '✗' : '?'} ${l}</span>`; }).join('');
+  const f = (l, v) => v ? `<div><b>${l}</b>${v}</div>` : '';
+  document.getElementById('infoBox').innerHTML = `
+    <div class="pic">${d.bild_url ? `<img src="${esc(d.bild_url)}" referrerpolicy="no-referrer" alt="${esc(d.name || '')}">` : '<div class="none">🐕</div>'}</div>
+    <div class="txt">
+      <h2>${esc(d.name || 'Ohne Namen')} <span style="font-size:1rem;color:#888">${d.geschlecht === 'w' ? '♀' : d.geschlecht === 'm' ? '♂' : ''}</span>
+        <button title="Favorit" style="background:none;border:none;cursor:pointer;font-size:1.5rem;color:${d.favorit ? '#f9a825' : '#bbb'}" onclick="toggleFav(${d.id}).then(() => openInfo(${d.id}))">${d.favorit ? '★' : '☆'}</button></h2>
+      <div class="facts">
+        ${f('Rasse', esc(d.rasse))}${f('Alter', age(d.alter_monate))}${f('Gewicht', d.gewicht_kg != null ? d.gewicht_kg + ' kg' : '')}
+        ${f('Ort', esc([d.plz, d.ort].filter(Boolean).join(' ')) + (d.entfernung_km != null ? ` · ${Math.round(d.entfernung_km)} km` : ''))}
+        ${f('Quelle', esc(d.quelle) + (d.anzeige_datum ? ` · ${fmtDate(d.anzeige_datum)}` : ''))}${f('Passung', d.score != null ? d.score + ' %' : '')}
+        ${f('Status', esc(STATUS[d.status]?.l || d.status))}${f('Kontakt', esc([d.kontakt_name, d.kontakt_info].filter(Boolean).join(' · ')))}
+      </div>
+      <div class="traits">${traits}</div>
+      ${d.naechster_schritt ? `<div class="next">➡ ${esc(d.naechster_schritt)}</div>` : ''}
+      <div class="row">
+        ${d.anzeige_url ? `<a class="link" style="font-size:0.9rem" href="${esc(d.anzeige_url)}" target="_blank" rel="noopener">Originalanzeige öffnen ↗</a>` : ''}
+        <button class="compose" style="font-size:0.9rem" onclick="closeInfo(); openChat(${d.id})">💬 Nachrichten</button>
+      </div>
+      <div class="sec">Beschreibung &amp; Notizen</div>
+      <textarea id="infoNotes" placeholder="Beschreibung aus der Anzeige, eigene Notizen…" onchange="saveNotes(${d.id}, this.value)">${esc(d.notizen || '')}</textarea>
+    </div>
+    <button class="x" onclick="closeInfo()" aria-label="Schließen">×</button>`;
+  document.getElementById('info').classList.add('open');
+}
+function closeInfo() {
+  const ta = document.getElementById('infoNotes'), d = dogs.find(x => x.id === infoKid);
+  if (ta && d && ta.value !== (d.notizen || '')) saveNotes(d.id, ta.value);
+  infoKid = null; document.getElementById('info').classList.remove('open');
+}
 
 // Verlauf: gesendete/empfangene Nachrichten aus hund_nachrichten + Alt-Einträge aus verlauf (jsonb), neueste zuerst
 function history(d) {
@@ -650,7 +698,7 @@ function openSettings() {
   document.getElementById('settings').classList.add('open');
 }
 function zoom(u) { document.getElementById('lightboxImg').src = u; document.getElementById('lightbox').classList.add('open'); }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeChat(); closeSettings(); document.getElementById('lightbox').classList.remove('open'); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeInfo(); closeChat(); closeSettings(); document.getElementById('lightbox').classList.remove('open'); } });
 function closeSettings() { document.getElementById('settings').classList.remove('open'); }
 let lastField = null;
 document.addEventListener('focusin', e => { if (e.target.id === 's_text' || e.target.id === 's_betreff') lastField = e.target; });
@@ -728,7 +776,7 @@ function resetFilters() {
   try { localStorage.removeItem(FKEY); } catch (e) {}
   document.getElementById('fq').value = '';
   for (const id of FIDS) { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = id === 'f_unbekannt'; else el.value = id === 'f_km' ? 80 : id === 'sort' ? 'score' : ''; }
-  kpiIdx = null; render();
+  kpiIdx = 0; render();
 }
 
 function fmtDate(s) { const d = new Date(s); return isNaN(d) ? s : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' }); }
