@@ -92,6 +92,17 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   .msg.rein { border-color: #66bb6a; }
   .msg .d { font-size: 0.7rem; color: #aaa; }
   textarea.notes { width: 100%; min-height: 54px; border: 1px solid #ddd; border-radius: 6px; padding: 6px; font: inherit; font-size: 0.8rem; margin-top: 6px; }
+  .draft { background: #fffde7; border: 1px solid #ffe082; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; }
+  .draft .h { font-weight: 700; color: #8d6e00; margin-bottom: 4px; display: flex; justify-content: space-between; gap: 6px; }
+  .draft input, .draft textarea { width: 100%; border: 1px solid #e0d39a; border-radius: 6px; padding: 5px 7px; font: inherit; font-size: 0.8rem; margin-bottom: 5px; background: white; }
+  .draft textarea { min-height: 150px; }
+  .draft .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .b { border: none; border-radius: 6px; padding: 6px 10px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+  .b.go { background: #2e7d32; color: white; } .b.sv { background: white; border: 1px solid #ccc; } .b.x { background: none; color: #c62828; }
+  .pending { background: #e3f2fd; color: #0d47a1; border-radius: 8px; padding: 6px 10px; font-size: 0.78rem; }
+  .pending.err { background: #ffebee; color: #b71c1c; }
+  .compose { font-size: 0.78rem; color: #1976d2; background: none; border: none; cursor: pointer; padding: 0; text-align: left; }
+  .kpi.alert { background: #fffde7; }
   .empty { padding: 40px 20px; color: #aaa; text-align: center; background: white; border-radius: 10px; }
   .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 8px; font-size: 0.88rem; color: white; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
   .toast.show { opacity: 1; } .toast.ok { background: #2e7d32; } .toast.err { background: #c62828; }
@@ -218,6 +229,7 @@ const TRAITS = [
 ];
 const FKEY = 'medb-hund-filter';
 let dogs = [];
+let msgs = {};   // kandidat_id -> [nachrichten]
 let kpiIdx = null;
 
 db.auth.getSession().then(({ data }) => {
@@ -234,6 +246,9 @@ async function load() {
   const { data, error } = await db.from('hund_kandidaten').select('*');
   if (error) { document.getElementById('list').innerHTML = `<div class="empty" style="color:#e65100">Fehler: ${esc(error.message)}</div>`; return; }
   dogs = data || [];
+  const r2 = await db.from('hund_nachrichten').select('*').order('created_at');
+  msgs = {};
+  if (!r2.error) for (const m of r2.data || []) (msgs[m.kandidat_id] ||= []).push(m);
   const qs = [...new Set(dogs.map(d => d.quelle).filter(Boolean))].sort();
   const sel = document.getElementById('f_quelle'), cur = sel.value;
   sel.innerHTML = '<option value="">Alle</option>' + qs.map(q => `<option>${esc(q)}</option>`).join('');
@@ -283,7 +298,9 @@ function render() {
 
 function renderKpis() {
   const active = dogs.filter(d => !STATUS[d.status]?.done);
+  const nDraft = dogs.filter(hasDraft).length;
   const k = [
+    ['✉️ Zur Freigabe', nDraft, hasDraft],
     ['Kandidaten', active.length, null],
     ['Angeschrieben', dogs.filter(d => d.status === 'angeschrieben').length, d => d.status === 'angeschrieben'],
     ['Antwort da', dogs.filter(d => d.status === 'antwort').length, d => d.status === 'antwort'],
@@ -291,9 +308,10 @@ function renderKpis() {
     ['Favoriten', dogs.filter(d => d.status === 'favorit').length, d => d.status === 'favorit'],
   ];
   document.getElementById('kpis').innerHTML = k.map(([l, n], i) =>
-    `<div class="kpi ${kpiIdx === i ? 'on' : ''}" onclick="toggleKpi(${i})"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+    `<div class="kpi ${kpiIdx === i ? 'on' : ''} ${i === 0 && n ? 'alert' : ''}" onclick="toggleKpi(${i})"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
 }
-const KPI_FNS = [null, d => d.status === 'angeschrieben', d => d.status === 'antwort', d => d.status === 'besuch_geplant', d => d.status === 'favorit'];
+const hasDraft = d => (msgs[d.id] || []).some(m => m.status === 'entwurf');
+const KPI_FNS = [d => hasDraft(d), null, d => d.status === 'angeschrieben', d => d.status === 'antwort', d => d.status === 'besuch_geplant', d => d.status === 'favorit'];
 function toggleKpi(i) { kpiIdx = (kpiIdx === i || !KPI_FNS[i]) ? null : i; render(); }
 
 function age(m) {
@@ -310,7 +328,6 @@ function card(d) {
     return `<span class="tr ${val === true ? 'y' : val === false ? 'n' : 'u'}">${val === true ? '✓' : val === false ? '✗' : '?'} ${l}</span>`;
   }).join('');
   const over = (d.gewicht_kg > 20 || d.alter_monate > 36);
-  const verlauf = Array.isArray(d.verlauf) ? d.verlauf : [];
   const opts = Object.entries(STATUS).map(([k, x]) => `<option value="${k}" ${k === d.status ? 'selected' : ''}>${x.l}</option>`).join('');
   return `<div class="dog" style="${STATUS[d.status]?.done ? 'opacity:0.6' : ''}">
     <div class="img" style="${d.bild_url ? `background-image:url('${esc(d.bild_url)}')` : ''}">${d.bild_url ? '' : '🐕'}
@@ -328,9 +345,10 @@ function card(d) {
         <select class="st" style="color:${s.c}" onchange="setStatus(${d.id}, this.value)">${opts}</select>
         ${d.anzeige_url ? `<a class="link" href="${esc(d.anzeige_url)}" target="_blank" rel="noopener">Zur Anzeige ↗</a>` : ''}
       </div>
+      ${msgBlock(d)}
       ${d.kontakt_name || d.letzter_kontakt ? `<div class="contact">${esc(d.kontakt_name || '')}${d.letzter_kontakt ? ` · letzter Kontakt ${fmtDate(d.letzter_kontakt)}` : ''}</div>` : ''}
-      <details><summary>Notizen &amp; Verlauf (${verlauf.length})</summary>
-        ${verlauf.slice().reverse().map(m => `<div class="msg ${m.richtung === 'rein' ? 'rein' : 'raus'}"><div class="d">${m.richtung === 'rein' ? '⬅ von Halter' : '➡ an Halter'}${m.kanal ? ' · ' + esc(m.kanal) : ''}${m.datum ? ' · ' + fmtDate(m.datum) : ''}</div>${esc(m.text || '')}</div>`).join('')}
+      <details ${openDetails.has(d.id) ? 'open' : ''} ontoggle="this.open ? openDetails.add(${d.id}) : openDetails.delete(${d.id})"><summary>Notizen &amp; Verlauf (${history(d).length})</summary>
+        ${history(d).map(m => `<div class="msg ${m.richtung === 'rein' ? 'rein' : 'raus'}"><div class="d">${m.richtung === 'rein' ? '⬅ von Halter' : '➡ an Halter'}${m.kanal ? ' · ' + esc(m.kanal) : ''}${m.datum ? ' · ' + fmtDate(m.datum) : ''}</div>${m.betreff ? `<b>${esc(m.betreff)}</b>\n` : ''}${esc(m.text || '')}</div>`).join('')}
         ${d.kontakt_info ? `<div class="contact">Kontakt: ${esc(d.kontakt_info)}</div>` : ''}
         <textarea class="notes" placeholder="Eigene Notizen…" onchange="saveNotes(${d.id}, this.value)">${esc(d.notizen || '')}</textarea>
       </details>
@@ -344,6 +362,69 @@ async function setStatus(id, status) {
   dogs.find(d => d.id === id).status = status;
   toast('Status gespeichert'); render();
 }
+const openDetails = new Set();
+
+// Verlauf: gesendete/empfangene Nachrichten aus hund_nachrichten + Alt-Einträge aus verlauf (jsonb), neueste zuerst
+function history(d) {
+  const a = (msgs[d.id] || []).filter(m => m.status === 'gesendet' || m.status === 'empfangen')
+    .map(m => ({ richtung: m.richtung, kanal: m.kanal, datum: m.gesendet_am || m.created_at, betreff: m.betreff, text: m.text }));
+  const b = (Array.isArray(d.verlauf) ? d.verlauf : []);
+  return [...a, ...b].sort((x, y) => String(y.datum || '').localeCompare(String(x.datum || '')));
+}
+
+function msgBlock(d) {
+  const list = msgs[d.id] || [];
+  const drafts = list.filter(m => m.status === 'entwurf');
+  const queued = list.filter(m => m.status === 'freigegeben');
+  const failed = list.filter(m => m.status === 'fehler');
+  let h = '';
+  for (const m of drafts) h += `<div class="draft">
+      <div class="h"><span>✉️ Entwurf ${m.erstellt_von === 'claude' ? 'von Claude' : ''} · ${esc(m.kanal)}</span><span style="font-weight:400">${esc(m.empfaenger || '')}</span></div>
+      ${m.kanal === 'E-Mail' ? `<input id="mb${m.id}" value="${esc(m.betreff || '')}" placeholder="Betreff">` : ''}
+      <textarea id="mt${m.id}">${esc(m.text)}</textarea>
+      <div class="btns">
+        <button class="b go" onclick="approve(${m.id})">Freigeben &amp; senden</button>
+        <button class="b sv" onclick="saveDraft(${m.id})">Speichern</button>
+        <button class="b x" onclick="discard(${m.id})">Verwerfen</button>
+      </div></div>`;
+  for (const m of queued) h += `<div class="pending">⏳ Freigegeben ${fmtDate(m.freigegeben_am)}, wird über ${esc(m.kanal)} gesendet…
+      <button class="compose" style="margin-left:6px" onclick="unapprove(${m.id})">zurückholen</button></div>`;
+  for (const m of failed) h += `<div class="pending err">⚠ Senden fehlgeschlagen (${esc(m.kanal)}): ${esc(m.fehler || 'unbekannt')}
+      <button class="compose" style="margin-left:6px" onclick="unapprove(${m.id})">als Entwurf bearbeiten</button></div>`;
+  if (!drafts.length && !STATUS[d.status]?.done) h += `<button class="compose" onclick="compose(${d.id})">✏️ Nachricht an Halter schreiben</button>`;
+  return h;
+}
+
+async function updMsg(id, patch, ok) {
+  const { error } = await db.from('hund_nachrichten').update(patch).eq('id', id);
+  if (error) return toast('Fehler: ' + error.message, true);
+  for (const l of Object.values(msgs)) { const m = l.find(x => x.id === id); if (m) Object.assign(m, patch); }
+  toast(ok); render();
+}
+function draftPatch(id) {
+  const p = { text: document.getElementById('mt' + id).value };
+  const b = document.getElementById('mb' + id); if (b) p.betreff = b.value;
+  return p;
+}
+function saveDraft(id) { updMsg(id, draftPatch(id), 'Entwurf gespeichert'); }
+function approve(id) {
+  const p = draftPatch(id);
+  if (!p.text.trim()) return toast('Nachricht ist leer', true);
+  updMsg(id, { ...p, status: 'freigegeben', freigegeben_am: new Date().toISOString(), fehler: null }, 'Freigegeben, wird gesendet');
+}
+function unapprove(id) { updMsg(id, { status: 'entwurf', freigegeben_am: null }, 'Zurück im Entwurf'); }
+function discard(id) { if (confirm('Entwurf verwerfen?')) updMsg(id, { status: 'verworfen' }, 'Verworfen'); }
+async function compose(kid) {
+  const d = dogs.find(x => x.id === kid);
+  const prev = (msgs[kid] || []).filter(m => m.richtung === 'raus' && m.status === 'gesendet').pop();
+  const row = { kandidat_id: kid, erstellt_von: 'stefan', kanal: prev?.kanal || (d.quelle === 'Kleinanzeigen' ? 'Kleinanzeigen' : 'E-Mail'),
+    empfaenger: prev?.empfaenger || d.kontakt_info || null, betreff: prev?.betreff ? (prev.betreff.startsWith('Re:') ? prev.betreff : 'Re: ' + prev.betreff) : (d.name ? `Ihr Hund ${d.name}` : null), text: '' };
+  const { data, error } = await db.from('hund_nachrichten').insert(row).select().single();
+  if (error) return toast('Fehler: ' + error.message, true);
+  (msgs[kid] ||= []).push(data); render();
+  document.getElementById('mt' + data.id)?.focus();
+}
+
 async function saveNotes(id, notizen) {
   const { error } = await db.from('hund_kandidaten').update({ notizen }).eq('id', id);
   if (error) return toast('Fehler: ' + error.message, true);
