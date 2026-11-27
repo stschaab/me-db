@@ -552,6 +552,7 @@ async function sendFromComposer(asDraft) {
     await db.from('hund_kandidaten').update(patch).eq('id', d.id); Object.assign(d, patch);
     document.getElementById('chatIncoming').checked = false;
   }
+  await refreshDog(d.id);
   ta.value = '';
   toast(incoming ? 'Antwort eingetragen' : asDraft ? 'Als Entwurf gespeichert' : 'Freigegeben, wird gesendet');
   render(); renderChat(true);
@@ -577,10 +578,16 @@ function errMsg(e) {
     ? 'Keine Verbindung zu Supabase. Bitte Internet/VPN oder Werbeblocker prüfen und nochmal versuchen – der Text bleibt erhalten.'
     : 'Fehler: ' + e.message;
 }
+async function refreshDog(kid) {
+  const { data } = await db.from('hund_kandidaten').select('*').eq('id', kid).maybeSingle();
+  if (data) { const i = dogs.findIndex(x => x.id === kid); if (i >= 0) dogs[i] = data; }
+}
 async function updMsg(id, patch, ok) {
   const { error } = await withRetry(() => db.from('hund_nachrichten').update(patch).eq('id', id));
   if (error) { console.error('updMsg', error); return toast(errMsg(error), true); }
-  for (const l of Object.values(msgs)) { const m = l.find(x => x.id === id); if (m) Object.assign(m, patch); }
+  let kid = null;
+  for (const l of Object.values(msgs)) { const m = l.find(x => x.id === id); if (m) { Object.assign(m, patch); kid = m.kandidat_id; } }
+  if (patch.status && kid != null) await refreshDog(kid);   // Trigger hund_nachrichten_sync passt „Nächster Schritt“/Status an
   toast(ok); render(); renderChat();
 }
 function draftPatch(id) {

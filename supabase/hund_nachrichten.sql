@@ -39,3 +39,8 @@ create trigger hund_nachrichten_touch before update on public.hund_nachrichten
   for each row execute function public.hund_kandidaten_touch();
 
 notify pgrst, 'reload schema';
+
+-- Trigger: Nachrichtenstatus → hund_kandidaten (naechster_schritt, status, letzter_kontakt)
+-- entwurf → „Entwurf wartet auf Freigabe“, freigegeben → „Freigegeben, wird über <Kanal> gesendet“,
+-- gesendet → „Gesendet, Antwort abwarten“ (+ neu→angeschrieben), fehler, empfangen (+ →antwort), verworfen.
+-- Quelle: Migration hund_nachrichten_sync_kandidat (Funktion public.hund_nachrichten_sync).
