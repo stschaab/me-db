@@ -67,7 +67,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   .toolbar select { padding: 6px 8px; border: 1px solid #ddd; border-radius: 7px; font-size: 0.84rem; }
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
   .dog { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; display: flex; flex-direction: column; }
-  .dog .img { height: 170px; background: #eee center/cover no-repeat; position: relative; display: flex; align-items: center; justify-content: center; font-size: 3rem; color: #ccc; }
+  .dog .img { height: 230px; background: #f0f0f0; position: relative; display: flex; align-items: center; justify-content: center; font-size: 3rem; color: #ccc; overflow: hidden; cursor: zoom-in; }
+  .dog .img img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; }
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 600; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
+  .lightbox.open { display: flex; } .lightbox img { max-width: 96vw; max-height: 94vh; object-fit: contain; }
   .dog .score { position: absolute; top: 8px; right: 8px; background: rgba(26,26,46,0.85); color: white; font-size: 0.75rem; font-weight: 700; padding: 3px 8px; border-radius: 10px; }
   .dog .src { position: absolute; top: 8px; left: 8px; background: rgba(255,255,255,0.92); font-size: 0.7rem; font-weight: 600; padding: 3px 8px; border-radius: 10px; color: #333; }
   .dog .body { padding: 12px 14px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
@@ -103,6 +106,32 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   .pending.err { background: #ffebee; color: #b71c1c; }
   .compose { font-size: 0.78rem; color: #1976d2; background: none; border: none; cursor: pointer; padding: 0; text-align: left; }
   .kpi.alert { background: #fffde7; }
+  .chatbtn { display: flex; align-items: center; gap: 8px; background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 8px 12px; font-size: 0.84rem; font-weight: 600; cursor: pointer; width: 100%; justify-content: center; }
+  .chatbtn .bd { background: #ffd54f; color: #1a1a2e; border-radius: 10px; padding: 1px 8px; font-size: 0.72rem; }
+  .chatbtn .bd.new { background: #66bb6a; color: white; }
+  .chat-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 550; display: none; justify-content: flex-end; }
+  .chat-bg.open { display: flex; }
+  .chat { background: #f0f2f5; width: 100%; max-width: 560px; height: 100%; display: flex; flex-direction: column; box-shadow: -6px 0 30px rgba(0,0,0,0.25); }
+  .chat-head { background: #1a1a2e; color: white; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+  .chat-head img, .chat-head .av { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: #2d2d4e; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+  .chat-head .t { flex: 1; min-width: 0; } .chat-head .t b { display: block; font-size: 0.98rem; }
+  .chat-head .t span { font-size: 0.74rem; color: #aab; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-head button { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 0 6px; }
+  .messages { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 14px 8px; display: flex; flex-direction: column; gap: 8px; }
+  .cm { max-width: 82%; padding: 9px 13px; border-radius: 18px; font-size: 0.88rem; line-height: 1.4; word-wrap: break-word; white-space: pre-wrap; }
+  .cm.mine { align-self: flex-end; background: #00b4d8; color: white; border-bottom-right-radius: 4px; }
+  .cm.theirs { align-self: flex-start; background: white; color: #1a1a2e; border-bottom-left-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .cm.queued { opacity: 0.75; } .cm.err { background: #ffcdd2; color: #b71c1c; }
+  .cm .time { font-size: 0.65rem; opacity: 0.7; margin-top: 3px; text-align: right; }
+  .cm.theirs .time { text-align: left; }
+  .cm .sbj { font-weight: 700; display: block; margin-bottom: 2px; }
+  .cm .act2 { background: none; border: none; color: inherit; text-decoration: underline; cursor: pointer; font-size: 0.7rem; padding: 0; margin-left: 6px; }
+  .day-sep { text-align: center; font-size: 0.7rem; color: #999; padding: 6px 0; }
+  .chat .draft { align-self: stretch; margin-top: 4px; }
+  .composer { background: white; border-top: 1px solid #ddd; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .composer textarea { width: 100%; min-height: 60px; max-height: 160px; border: 1px solid #ddd; border-radius: 12px; padding: 8px 12px; font: inherit; font-size: 0.9rem; resize: vertical; }
+  .composer .row { justify-content: space-between; }
+  .composer label { font-size: 0.78rem; color: #666; display: flex; align-items: center; gap: 5px; cursor: pointer; }
   .setbtn { background: white; border: 1px solid #ccc; border-radius: 7px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; }
   .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 500; display: none; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 30px 12px; }
   .modal-bg.open { display: flex; }
@@ -234,13 +263,36 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <label>Betreff</label><input id="s_betreff">
     <label>Anschreiben</label><textarea id="s_text"></textarea>
     <div class="ph-help">Platzhalter (anklicken zum Einfügen): <code>{Name}</code> Hundename · <code>{Rasse}</code> · <code>{ihn/sie}</code> · <code>{er/sie}</code> (nach Geschlecht) ·
-      <code>{Anrede}</code> („Hallo („Guten Tag,“ bzw. „Liebe/r …,“ wenn der Kontaktname bekannt ist)lt;Kontaktname(„Guten Tag,“ bzw. „Liebe/r …,“ wenn der Kontaktname bekannt ist)gt;,“ wenn bekannt, sonst „Guten Tag,“) · <code>{Absender}</code> · <code>{Telefon}</code> · <code>{E-Mail}</code></div>
+      <code>{Anrede}</code> („Hallo &lt;Kontaktname&gt;,“ wenn bekannt, sonst „Guten Tag,“)lt;Kontaktname(„Guten Tag,“ bzw. „Liebe/r …,“ wenn der Kontaktname bekannt ist)gt;,“ wenn bekannt, sonst „Guten Tag,“) · <code>{Absender}</code> · <code>{Telefon}</code> · <code>{E-Mail}</code></div>
     <div class="foot">
       <button class="b sv" onclick="closeSettings()">Abbrechen</button>
       <button class="b go" onclick="saveSettings()">Speichern</button>
     </div>
   </div>
 </div>
+
+<div class="chat-bg" id="chat" onclick="if (event.target === this) closeChat()">
+  <div class="chat">
+    <div class="chat-head" id="chatHead"></div>
+    <div class="messages" id="chatMsgs"></div>
+    <div class="composer">
+      <textarea id="chatText" placeholder="Nachricht an den Halter…"></textarea>
+      <div class="row">
+        <div class="row">
+          <select id="chatKanal" class="st" style="font-weight:400"><option>E-Mail</option><option>Kleinanzeigen</option><option>WhatsApp</option><option>Formular</option><option>Telefon</option></select>
+          <label title="Antwort, die du z. B. telefonisch oder per WhatsApp bekommen hast, im Verlauf festhalten"><input type="checkbox" id="chatIncoming"> Antwort vom Halter eintragen</label>
+        </div>
+        <div class="row">
+          <button class="b sv" onclick="templateToComposer()" title="Standard-Anschreiben einfügen">📝 Vorlage</button>
+          <button class="b sv" onclick="sendFromComposer(true)">Entwurf</button>
+          <button class="b go" onclick="sendFromComposer(false)">Senden ➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('open')"><img id="lightboxImg" alt=""></div>
 
 <div class="toast" id="toast"></div>
 
@@ -371,7 +423,7 @@ function card(d) {
   const over = (d.gewicht_kg > 20 || d.alter_monate > 36);
   const opts = Object.entries(STATUS).map(([k, x]) => `<option value="${k}" ${k === d.status ? 'selected' : ''}>${x.l}</option>`).join('');
   return `<div class="dog" style="${STATUS[d.status]?.done ? 'opacity:0.6' : ''}">
-    <div class="img" style="${d.bild_url ? `background-image:url('${esc(d.bild_url)}')` : ''}">${d.bild_url ? '' : '🐕'}
+    <div class="img" ${d.bild_url ? `onclick="zoom('${esc(d.bild_url)}')"` : ''}>${d.bild_url ? `<img src="${esc(d.bild_url)}" alt="${esc(d.name || '')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith('🐕')">` : '🐕'}
       ${d.quelle ? `<span class="src">${esc(d.quelle)}</span>` : ''}
       ${d.score != null ? `<span class="score">${d.score}%</span>` : ''}
     </div>
@@ -386,10 +438,9 @@ function card(d) {
         <select class="st" style="color:${s.c}" onchange="setStatus(${d.id}, this.value)">${opts}</select>
         ${d.anzeige_url ? `<a class="link" href="${esc(d.anzeige_url)}" target="_blank" rel="noopener">Zur Anzeige ↗</a>` : ''}
       </div>
-      ${msgBlock(d)}
+      ${chatButton(d)}
       ${d.kontakt_name || d.letzter_kontakt ? `<div class="contact">${esc(d.kontakt_name || '')}${d.letzter_kontakt ? ` · letzter Kontakt ${fmtDate(d.letzter_kontakt)}` : ''}</div>` : ''}
-      <details ${openDetails.has(d.id) ? 'open' : ''} ontoggle="this.open ? openDetails.add(${d.id}) : openDetails.delete(${d.id})"><summary>Notizen &amp; Verlauf (${history(d).length})</summary>
-        ${history(d).map(m => `<div class="msg ${m.richtung === 'rein' ? 'rein' : 'raus'}"><div class="d">${m.richtung === 'rein' ? '⬅ von Halter' : '➡ an Halter'}${m.kanal ? ' · ' + esc(m.kanal) : ''}${m.datum ? ' · ' + fmtDate(m.datum) : ''}</div>${m.betreff ? `<b>${esc(m.betreff)}</b>\n` : ''}${esc(m.text || '')}</div>`).join('')}
+      <details ${openDetails.has(d.id) ? 'open' : ''} ontoggle="this.open ? openDetails.add(${d.id}) : openDetails.delete(${d.id})"><summary>Notizen &amp; Kontakt</summary>
         ${d.kontakt_info ? `<div class="contact">Kontakt: ${esc(d.kontakt_info)}</div>` : ''}
         <textarea class="notes" placeholder="Eigene Notizen…" onchange="saveNotes(${d.id}, this.value)">${esc(d.notizen || '')}</textarea>
       </details>
@@ -413,13 +464,53 @@ function history(d) {
   return [...a, ...b].sort((x, y) => String(y.datum || '').localeCompare(String(x.datum || '')));
 }
 
-function msgBlock(d) {
+function chatButton(d) {
   const list = msgs[d.id] || [];
-  const drafts = list.filter(m => m.status === 'entwurf');
-  const queued = list.filter(m => m.status === 'freigegeben');
-  const failed = list.filter(m => m.status === 'fehler');
-  let h = '';
-  for (const m of drafts) h += `<div class="draft">
+  const nDraft = list.filter(m => m.status === 'entwurf').length;
+  const last = list.filter(m => m.status === 'gesendet' || m.status === 'empfangen').pop();
+  const fail = list.some(m => m.status === 'fehler');
+  const n = history(d).length;
+  if (!n && !nDraft && STATUS[d.status]?.done) return '';
+  return `<button class="chatbtn" onclick="openChat(${d.id})">💬 ${n ? `Nachrichten (${n})` : 'Nachricht schreiben'}
+    ${nDraft ? `<span class="bd">✉️ ${nDraft} Entwurf</span>` : ''}${fail ? '<span class="bd" style="background:#ef5350;color:white">⚠ Fehler</span>' : ''}
+    ${last && last.richtung === 'rein' ? '<span class="bd new">Antwort</span>' : ''}</button>`;
+}
+
+let chatKid = null;
+function openChat(kid) { chatKid = kid; renderChat(true); document.getElementById('chat').classList.add('open'); }
+function closeChat() { chatKid = null; document.getElementById('chat').classList.remove('open'); }
+function dayLabel(s) {
+  const d = new Date(s), t = new Date(); const y = new Date(); y.setDate(t.getDate() - 1);
+  if (d.toDateString() === t.toDateString()) return 'Heute';
+  if (d.toDateString() === y.toDateString()) return 'Gestern';
+  return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+function hm(s) { return new Date(s).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }
+function renderChat(scroll) {
+  if (chatKid == null) return;
+  const d = dogs.find(x => x.id === chatKid); if (!d) return closeChat();
+  const list = msgs[d.id] || [];
+  const kanal = (list.filter(m => m.richtung === 'raus').pop() || {}).kanal || (d.quelle === 'Kleinanzeigen' ? 'Kleinanzeigen' : 'E-Mail');
+  document.getElementById('chatHead').innerHTML = `${d.bild_url ? `<img src="${esc(d.bild_url)}" referrerpolicy="no-referrer" alt="">` : '<div class="av">🐕</div>'}
+    <div class="t"><b>${esc(d.name || 'Hund')} · ${esc(d.kontakt_name || 'Halter')}</b><span>${esc(kanal)}${d.kontakt_info ? ' · ' + esc(d.kontakt_info) : ''}</span></div>
+    ${d.anzeige_url ? `<a href="${esc(d.anzeige_url)}" target="_blank" rel="noopener" style="color:#7ec8e3;font-size:0.8rem">Anzeige ↗</a>` : ''}
+    <button onclick="closeChat()" aria-label="Schließen">×</button>`;
+  // Timeline: gesendet/empfangen/freigegeben/fehler + Alt-Verlauf, chronologisch
+  const items = [
+    ...list.filter(m => ['gesendet', 'empfangen', 'freigegeben', 'fehler'].includes(m.status)).map(m => ({ ...m, t: m.gesendet_am || m.freigegeben_am || m.created_at })),
+    ...(Array.isArray(d.verlauf) ? d.verlauf : []).map(v => ({ richtung: v.richtung, kanal: v.kanal, text: v.text, status: v.richtung === 'rein' ? 'empfangen' : 'gesendet', t: v.datum })),
+  ].sort((a, b) => String(a.t || '').localeCompare(String(b.t || '')));
+  let h = '', lastDay = '';
+  for (const m of items) {
+    const day = m.t ? dayLabel(m.t) : '';
+    if (day && day !== lastDay) { h += `<div class="day-sep">${day}</div>`; lastDay = day; }
+    const mine = m.richtung !== 'rein';
+    const st = m.status === 'freigegeben' ? ` · ⏳ wird gesendet <button class="act2" onclick="unapprove(${m.id})">zurückholen</button>`
+      : m.status === 'fehler' ? ` · ⚠ ${esc(m.fehler || 'Fehler')} <button class="act2" onclick="unapprove(${m.id})">bearbeiten</button>`
+      : mine ? ' · ✓ gesendet' : '';
+    h += `<div class="cm ${mine ? 'mine' : 'theirs'} ${m.status === 'freigegeben' ? 'queued' : ''} ${m.status === 'fehler' ? 'err' : ''}">${m.betreff && m.kanal === 'E-Mail' ? `<span class="sbj">${esc(m.betreff)}</span>` : ''}${esc(m.text || '')}<div class="time">${m.kanal ? esc(m.kanal) + ' · ' : ''}${m.t ? hm(m.t) : ''}${st}</div></div>`;
+  }
+  for (const m of list.filter(m => m.status === 'entwurf')) h += `<div class="draft">
       <div class="h"><span>✉️ Entwurf ${m.erstellt_von === 'claude' ? 'von Claude' : ''} · ${esc(m.kanal)}</span><span style="font-weight:400">${esc(m.empfaenger || '')}</span></div>
       ${m.kanal === 'E-Mail' ? `<input id="mb${m.id}" value="${esc(m.betreff || '')}" placeholder="Betreff">` : ''}
       <textarea id="mt${m.id}">${esc(m.text)}</textarea>
@@ -430,19 +521,52 @@ function msgBlock(d) {
         <button class="b sv" title="Text aus dem Standard-Anschreiben neu erzeugen" onclick="fromTemplate(${m.id})">↺ Vorlage</button>
         <button class="b x" onclick="discard(${m.id})">Verwerfen</button>
       </div></div>`;
-  for (const m of queued) h += `<div class="pending">⏳ Freigegeben ${fmtDate(m.freigegeben_am)}, wird über ${esc(m.kanal)} gesendet…
-      <button class="compose" style="margin-left:6px" onclick="unapprove(${m.id})">zurückholen</button></div>`;
-  for (const m of failed) h += `<div class="pending err">⚠ Senden fehlgeschlagen (${esc(m.kanal)}): ${esc(m.fehler || 'unbekannt')}
-      <button class="compose" style="margin-left:6px" onclick="unapprove(${m.id})">als Entwurf bearbeiten</button></div>`;
-  if (!drafts.length && !STATUS[d.status]?.done) h += `<button class="compose" onclick="compose(${d.id})">✏️ Nachricht an Halter schreiben</button>`;
-  return h;
+  if (!h) h = '<div class="day-sep">Noch keine Nachrichten. Unten schreiben oder „Standard-Anschreiben“ nutzen.</div>';
+  const box = document.getElementById('chatMsgs');
+  const keep = !scroll ? box.scrollTop : null;
+  box.innerHTML = h;
+  box.scrollTop = keep ?? box.scrollHeight;
+  document.getElementById('chatKanal').value = kanal;
+}
+async function sendFromComposer(asDraft) {
+  const d = dogs.find(x => x.id === chatKid);
+  const ta = document.getElementById('chatText'), text = ta.value.trim();
+  const incoming = document.getElementById('chatIncoming').checked;
+  if (!text) return toast('Bitte Text eingeben', true);
+  const kanal = document.getElementById('chatKanal').value;
+  const list = msgs[d.id] || [];
+  const prev = list.filter(m => m.richtung === 'raus' && m.betreff).pop();
+  const row = incoming
+    ? { kandidat_id: d.id, richtung: 'rein', kanal, text, status: 'empfangen', erstellt_von: 'halter' }
+    : { kandidat_id: d.id, richtung: 'raus', kanal, text, erstellt_von: 'stefan',
+        empfaenger: (list.filter(m => m.richtung === 'raus').pop() || {}).empfaenger || d.kontakt_info || null,
+        betreff: prev ? (prev.betreff.startsWith('Re:') ? prev.betreff : 'Re: ' + prev.betreff) : applyTemplate(settings.vorlage_betreff || 'Anfrage zu {Name}', d),
+        status: asDraft ? 'entwurf' : 'freigegeben', freigegeben_am: asDraft ? null : new Date().toISOString() };
+  if (!incoming && !asDraft) { const ph = text.match(PLACEHOLDER); if (ph) return toast('Bitte erst den Platzhalter ausfüllen: ' + ph[0], true); }
+  const { data, error } = await db.from('hund_nachrichten').insert(row).select().single();
+  if (error) return toast('Fehler: ' + error.message, true);
+  (msgs[d.id] ||= []).push(data);
+  if (incoming) {
+    const patch = { letzter_kontakt: new Date().toISOString() };
+    if (!['besuch_geplant', 'besucht', 'favorit'].includes(d.status)) patch.status = 'antwort';
+    await db.from('hund_kandidaten').update(patch).eq('id', d.id); Object.assign(d, patch);
+    document.getElementById('chatIncoming').checked = false;
+  }
+  ta.value = '';
+  toast(incoming ? 'Antwort eingetragen' : asDraft ? 'Als Entwurf gespeichert' : 'Freigegeben, wird gesendet');
+  render(); renderChat(true);
+}
+async function templateToComposer() {
+  const d = dogs.find(x => x.id === chatKid);
+  if (!settings.vorlage_text) return toast('Noch kein Standard-Anschreiben hinterlegt (⚙️)', true);
+  document.getElementById('chatText').value = applyTemplate(settings.vorlage_text, d);
 }
 
 async function updMsg(id, patch, ok) {
   const { error } = await db.from('hund_nachrichten').update(patch).eq('id', id);
   if (error) return toast('Fehler: ' + error.message, true);
   for (const l of Object.values(msgs)) { const m = l.find(x => x.id === id); if (m) Object.assign(m, patch); }
-  toast(ok); render();
+  toast(ok); render(); renderChat();
 }
 function draftPatch(id) {
   const p = { text: document.getElementById('mt' + id).value };
@@ -496,6 +620,8 @@ function openSettings() {
   document.getElementById('s_text').value = settings.vorlage_text || '';
   document.getElementById('settings').classList.add('open');
 }
+function zoom(u) { document.getElementById('lightboxImg').src = u; document.getElementById('lightbox').classList.add('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeChat(); closeSettings(); document.getElementById('lightbox').classList.remove('open'); } });
 function closeSettings() { document.getElementById('settings').classList.remove('open'); }
 let lastField = null;
 document.addEventListener('focusin', e => { if (e.target.id === 's_text' || e.target.id === 's_betreff') lastField = e.target; });
