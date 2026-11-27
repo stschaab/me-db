@@ -543,8 +543,8 @@ async function sendFromComposer(asDraft) {
         betreff: prev ? (prev.betreff.startsWith('Re:') ? prev.betreff : 'Re: ' + prev.betreff) : applyTemplate(settings.vorlage_betreff || 'Anfrage zu {Name}', d),
         status: asDraft ? 'entwurf' : 'freigegeben', freigegeben_am: asDraft ? null : new Date().toISOString() };
   if (!incoming && !asDraft) { const ph = text.match(PLACEHOLDER); if (ph) return toast('Bitte erst den Platzhalter ausfüllen: ' + ph[0], true); }
-  const { data, error } = await db.from('hund_nachrichten').insert(row).select().single();
-  if (error) return toast('Fehler: ' + error.message, true);
+  const { data, error } = await withRetry(() => db.from('hund_nachrichten').insert(row).select().single());
+  if (error) { console.error('send', error); return toast(errMsg(error), true); }
   (msgs[d.id] ||= []).push(data);
   if (incoming) {
     const patch = { letzter_kontakt: new Date().toISOString() };
@@ -562,9 +562,24 @@ async function templateToComposer() {
   document.getElementById('chatText').value = applyTemplate(settings.vorlage_text, d);
 }
 
+// Netzwerkfehler („Failed to fetch“) einmal automatisch wiederholen, sonst verständlich melden
+async function withRetry(fn) {
+  let r = await fn();
+  if (r.error && /fetch|network|load failed/i.test(r.error.message || '')) {
+    await new Promise(res => setTimeout(res, 1200));
+    try { await db.auth.getSession(); } catch (e) {}
+    r = await fn();
+  }
+  return r;
+}
+function errMsg(e) {
+  return /fetch|network|load failed/i.test(e.message || '')
+    ? 'Keine Verbindung zu Supabase. Bitte Internet/VPN oder Werbeblocker prüfen und nochmal versuchen – der Text bleibt erhalten.'
+    : 'Fehler: ' + e.message;
+}
 async function updMsg(id, patch, ok) {
-  const { error } = await db.from('hund_nachrichten').update(patch).eq('id', id);
-  if (error) return toast('Fehler: ' + error.message, true);
+  const { error } = await withRetry(() => db.from('hund_nachrichten').update(patch).eq('id', id));
+  if (error) { console.error('updMsg', error); return toast(errMsg(error), true); }
   for (const l of Object.values(msgs)) { const m = l.find(x => x.id === id); if (m) Object.assign(m, patch); }
   toast(ok); render(); renderChat();
 }
@@ -695,7 +710,7 @@ function fmtDate(s) { const d = new Date(s); return isNaN(d) ? s : d.toLocaleDat
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function toast(msg, isErr = false) {
   const t = document.getElementById('toast'); t.textContent = msg;
-  t.className = 'toast show ' + (isErr ? 'err' : 'ok'); setTimeout(() => t.className = 'toast', 2500);
+  t.className = 'toast show ' + (isErr ? 'err' : 'ok'); clearTimeout(toast.t); toast.t = setTimeout(() => t.className = 'toast', isErr ? 7000 : 2500);
 }
 </script>
 </body>
