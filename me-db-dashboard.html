@@ -568,7 +568,9 @@ async function loadHundStat() {
     const active = (data||[]).filter(d => !done.includes(d.status));
     const offen = (data||[]).filter(d => d.status === 'antwort').length;
     const besuch = (data||[]).filter(d => d.status === 'besuch_geplant').length;
-    const sub = [offen ? offen + ' Antwort' + (offen > 1 ? 'en' : '') + ' offen' : '', besuch ? besuch + ' Besuch' + (besuch > 1 ? 'e' : '') + ' geplant' : ''].filter(Boolean).join(' · ');
+    const nm = await db.from('hund_nachrichten').select('kandidat_id').eq('status', 'entwurf');
+    const entw = nm.error ? 0 : new Set((nm.data||[]).map(m => m.kandidat_id)).size;
+    const sub = [entw ? '✉️ ' + entw + ' zur Freigabe' : '', offen ? offen + ' Antwort' + (offen > 1 ? 'en' : '') + ' offen' : '', besuch ? besuch + ' Besuch' + (besuch > 1 ? 'e' : '') + ' geplant' : ''].filter(Boolean).join(' · ');
     document.getElementById('hundStat').innerHTML = `
       <div class="stat"><span class="n">${active.length}</span><span class="u">Kandidaten</span></div>
       ${sub ? `<div class="trend-label">${sub}</div>` : ''}`;
