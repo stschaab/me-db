@@ -444,8 +444,9 @@ function renderKpis() {
   document.getElementById('kpis').innerHTML =
     `<div class="kpi ${stuck ? 'stuck' : ''}" onclick="openOutbox()" title="Freigegebene Nachrichten, die noch nicht gesendet sind">
       <div class="n">${ob.length}</div><div class="l">📤 Outbox${stuck ? ` · ${stuck} hängt` : ''}</div></div>` +
-    KPIS.map(([l, f], i) =>
-    `<div class="kpi ${kpiIdx === i ? 'on' : ''}" onclick="toggleKpi(${i})"><div class="n">${base.filter(f).length}</div><div class="l">${l}</div></div>`).join('');
+    KPIS.map(([l, f], i) => { const n = base.filter(f).length;
+      // „Antwort da“ rot, sobald Antworten vorliegen
+      return `<div class="kpi ${kpiIdx === i ? 'on' : ''} ${l === 'Antwort da' && n ? 'stuck' : ''}" onclick="toggleKpi(${i})"><div class="n">${n}</div><div class="l">${l}</div></div>`; }).join('');
 }
 // ---- Outbox: freigegeben (wartet auf Versand) oder fehler; „hängt“ = Fehler oder > 15 min freigegeben ----
 const STUCK_MIN = 15;
