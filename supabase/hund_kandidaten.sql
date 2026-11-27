@@ -55,3 +55,6 @@ create trigger hund_kandidaten_touch before update on public.hund_kandidaten
   for each row execute function public.hund_kandidaten_touch();
 
 notify pgrst, 'reload schema';
+
+-- 2026-11-27: Favorit unabhängig vom Status (Stern auf der Karte); Status 'favorit' wird nicht mehr verwendet
+alter table public.hund_kandidaten add column if not exists favorit boolean not null default false;
