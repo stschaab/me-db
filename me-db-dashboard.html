@@ -134,6 +134,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-bodyscan.html">Body Scan</a>
     <a href="me-db-outfit.html">Modeberater</a>
     <a href="me-db-abos.html">Subscriptions</a>
+    <a href="me-db-hund.html">🐕 Neuer Hund</a>
     <a href="me-db-supplements.html">Supplements</a>
     <a href="me-db-nutrient-vergleich.html">Nährstoff-Vergleich</a>
 
@@ -260,6 +261,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <div id="abosStat">…</div>
     </a>
 
+    <a class="tile" href="me-db-hund.html">
+      <div class="icon">🐕</div>
+      <div class="title">Neuer Hund</div>
+      <div class="desc">Hundesuche: Kandidaten, Kriterien &amp; Kontakt mit Haltern</div>
+      <div id="hundStat">…</div>
+    </a>
+
     <a class="tile" href="me-db-vorsorge.html">
       <div class="icon">🗂️</div>
       <div class="title">Emergency Folder</div>
@@ -338,7 +346,7 @@ let sessionToken = ANON_KEY;
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   sessionToken = data.session.access_token;
-  loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); loadBodyscanStat(); loadOutfitStat(); loadTagebuchStat(); loadEisStat(); loadHangmanStat();
+  loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); loadBodyscanStat(); loadOutfitStat(); loadTagebuchStat(); loadEisStat(); loadHangmanStat(); loadHundStat();
 });
 
 async function logout() {
@@ -549,6 +557,23 @@ async function loadAbosStat() {
       <div class="abos-sub">${active.length} active${checkCount ? ' · ' + checkCount + ' to review' : ''}</div>`;
   } catch (e) {
     document.getElementById('abosStat').innerHTML = '';
+  }
+}
+
+async function loadHundStat() {
+  try {
+    const { data, error } = await db.from('hund_kandidaten').select('status');
+    if (error) throw error;
+    const done = ['abgesagt','vergeben','passt_nicht'];
+    const active = (data||[]).filter(d => !done.includes(d.status));
+    const offen = (data||[]).filter(d => d.status === 'antwort').length;
+    const besuch = (data||[]).filter(d => d.status === 'besuch_geplant').length;
+    const sub = [offen ? offen + ' Antwort' + (offen > 1 ? 'en' : '') + ' offen' : '', besuch ? besuch + ' Besuch' + (besuch > 1 ? 'e' : '') + ' geplant' : ''].filter(Boolean).join(' · ');
+    document.getElementById('hundStat').innerHTML = `
+      <div class="stat"><span class="n">${active.length}</span><span class="u">Kandidaten</span></div>
+      ${sub ? `<div class="trend-label">${sub}</div>` : ''}`;
+  } catch (e) {
+    document.getElementById('hundStat').innerHTML = '';
   }
 }
 
