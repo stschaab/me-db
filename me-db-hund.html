@@ -103,6 +103,20 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   .pending.err { background: #ffebee; color: #b71c1c; }
   .compose { font-size: 0.78rem; color: #1976d2; background: none; border: none; cursor: pointer; padding: 0; text-align: left; }
   .kpi.alert { background: #fffde7; }
+  .setbtn { background: white; border: 1px solid #ccc; border-radius: 7px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 500; display: none; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 30px 12px; }
+  .modal-bg.open { display: flex; }
+  .modal { background: white; border-radius: 12px; padding: 20px; width: 100%; max-width: 720px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+  .modal h3 { font-size: 1.1rem; margin-bottom: 4px; }
+  .modal label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin: 12px 0 4px; }
+  .modal input, .modal textarea { width: 100%; border: 1px solid #ddd; border-radius: 7px; padding: 8px 10px; font: inherit; font-size: 0.88rem; }
+  .modal textarea { min-height: 300px; line-height: 1.4; }
+  .modal .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .modal .grid3 label { margin-top: 12px; }
+  .ph-help { font-size: 0.76rem; color: #777; margin-top: 6px; line-height: 1.5; }
+  .ph-help code { background: #f0f0f0; padding: 1px 5px; border-radius: 4px; cursor: pointer; }
+  .modal .foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  @media (max-width: 600px) { .modal .grid3 { grid-template-columns: 1fr; } }
   .empty { padding: 40px 20px; color: #aaa; text-align: center; background: white; border-radius: 10px; }
   .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 8px; font-size: 0.88rem; color: white; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
   .toast.show { opacity: 1; } .toast.ok { background: #2e7d32; } .toast.err { background: #c62828; }
@@ -192,6 +206,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
           <button class="ftoggle" onclick="document.getElementById('filters').classList.toggle('open')">☰ Filter</button>
           <span class="count" id="count"></span>
         </div>
+        <div class="row">
+        <button class="setbtn" onclick="openSettings()">⚙️ Kontaktdaten &amp; Vorlage</button>
         <select id="sort">
           <option value="score">Sortierung: Passung</option>
           <option value="entfernung_km">Entfernung</option>
@@ -199,9 +215,30 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
           <option value="letzter_kontakt">Letzter Kontakt</option>
           <option value="created_at">Neueste zuerst</option>
         </select>
+        </div>
       </div>
       <div id="list"><div class="empty">Lade…</div></div>
     </main>
+  </div>
+</div>
+
+<div class="modal-bg" id="settings" onclick="if (event.target === this) closeSettings()">
+  <div class="modal">
+    <h3>⚙️ Kontaktdaten &amp; Standard-Anschreiben</h3>
+    <div class="sub" style="margin:0">Gilt für alle neuen Anfragen. Beim Speichern werden Platzhalter in offenen Entwürfen automatisch ausgefüllt.</div>
+    <div class="grid3">
+      <div><label>Absender</label><input id="s_absender" placeholder="Stefan Schaab"></div>
+      <div><label>Telefon</label><input id="s_telefon" placeholder="0171 …"></div>
+      <div><label>E-Mail</label><input id="s_email" placeholder="…@gmail.com"></div>
+    </div>
+    <label>Betreff</label><input id="s_betreff">
+    <label>Anschreiben</label><textarea id="s_text"></textarea>
+    <div class="ph-help">Platzhalter (anklicken zum Einfügen): <code>{Name}</code> Hundename · <code>{Rasse}</code> · <code>{ihn/sie}</code> · <code>{er/sie}</code> (nach Geschlecht) ·
+      <code>{Anrede}</code> („Hallo („Guten Tag,“ bzw. „Liebe/r …,“ wenn der Kontaktname bekannt ist)lt;Kontaktname(„Guten Tag,“ bzw. „Liebe/r …,“ wenn der Kontaktname bekannt ist)gt;,“ wenn bekannt, sonst „Guten Tag,“) · <code>{Absender}</code> · <code>{Telefon}</code> · <code>{E-Mail}</code></div>
+    <div class="foot">
+      <button class="b sv" onclick="closeSettings()">Abbrechen</button>
+      <button class="b go" onclick="saveSettings()">Speichern</button>
+    </div>
   </div>
 </div>
 
@@ -230,6 +267,7 @@ const TRAITS = [
 const FKEY = 'medb-hund-filter';
 let dogs = [];
 let msgs = {};   // kandidat_id -> [nachrichten]
+let settings = {};
 let kpiIdx = null;
 
 db.auth.getSession().then(({ data }) => {
@@ -249,6 +287,9 @@ async function load() {
   const r2 = await db.from('hund_nachrichten').select('*').order('created_at');
   msgs = {};
   if (!r2.error) for (const m of r2.data || []) (msgs[m.kandidat_id] ||= []).push(m);
+  const r3 = await db.from('hund_einstellungen').select('*').eq('id', 1).maybeSingle();
+  settings = r3.data || {};
+  await fillDrafts();
   const qs = [...new Set(dogs.map(d => d.quelle).filter(Boolean))].sort();
   const sel = document.getElementById('f_quelle'), cur = sel.value;
   sel.innerHTML = '<option value="">Alle</option>' + qs.map(q => `<option>${esc(q)}</option>`).join('');
@@ -382,10 +423,11 @@ function msgBlock(d) {
       <div class="h"><span>✉️ Entwurf ${m.erstellt_von === 'claude' ? 'von Claude' : ''} · ${esc(m.kanal)}</span><span style="font-weight:400">${esc(m.empfaenger || '')}</span></div>
       ${m.kanal === 'E-Mail' ? `<input id="mb${m.id}" value="${esc(m.betreff || '')}" placeholder="Betreff">` : ''}
       <textarea id="mt${m.id}">${esc(m.text)}</textarea>
-      ${PLACEHOLDER.test((m.betreff || '') + '\n' + m.text) ? `<div style="color:#c62828;font-weight:600;margin-bottom:5px">⚠ Enthält einen Platzhalter in [ECKIGEN KLAMMERN], bitte ausfüllen.</div>` : ''}
+      ${PLACEHOLDER.test((m.betreff || '') + '\n' + m.text) ? `<div style="color:#c62828;font-weight:600;margin-bottom:5px">⚠ Enthält einen offenen Platzhalter, bitte ausfüllen (Telefonnummer einmalig unter ⚙️ Kontaktdaten hinterlegen).</div>` : ''}
       <div class="btns">
         <button class="b go" onclick="approve(${m.id})">Freigeben &amp; senden</button>
         <button class="b sv" onclick="saveDraft(${m.id})">Speichern</button>
+        <button class="b sv" title="Text aus dem Standard-Anschreiben neu erzeugen" onclick="fromTemplate(${m.id})">↺ Vorlage</button>
         <button class="b x" onclick="discard(${m.id})">Verwerfen</button>
       </div></div>`;
   for (const m of queued) h += `<div class="pending">⏳ Freigegeben ${fmtDate(m.freigegeben_am)}, wird über ${esc(m.kanal)} gesendet…
@@ -408,22 +450,92 @@ function draftPatch(id) {
   return p;
 }
 // Platzhalter wie „[BITTE TELEFONNUMMER EINTRAGEN]“ blockieren die Freigabe
-const PLACEHOLDER = /\[[A-ZÄÖÜ][A-ZÄÖÜß .\/-]{3,}\]/;
+const PLACEHOLDER = /\[[A-ZÄÖÜ][A-ZÄÖÜß .\/-]{3,}\]|\{(Name|Rasse|ihn\/sie|er\/sie|Anrede|Absender|Telefon|E-Mail)\}/;
 function saveDraft(id) { updMsg(id, draftPatch(id), 'Entwurf gespeichert'); }
 function approve(id) {
   const p = draftPatch(id);
   if (!p.text.trim()) return toast('Nachricht ist leer', true);
   const ph = ((p.betreff || '') + '\n' + p.text).match(PLACEHOLDER);
-  if (ph) return toast('Bitte erst den Platzhalter ausfüllen: ' + ph[0], true);
+  if (ph) return toast('Bitte erst den Platzhalter ausfüllen: ' + ph[0] + (/TELEFON|Telefon/.test(ph[0]) ? ' (Telefon unter ⚙️ hinterlegen)' : ''), true);
   updMsg(id, { ...p, status: 'freigegeben', freigegeben_am: new Date().toISOString(), fehler: null }, 'Freigegeben, wird gesendet');
 }
 function unapprove(id) { updMsg(id, { status: 'entwurf', freigegeben_am: null }, 'Zurück im Entwurf'); }
 function discard(id) { if (confirm('Entwurf verwerfen?')) updMsg(id, { status: 'verworfen' }, 'Verworfen'); }
+// ---- Kontaktdaten & Vorlage ----
+function applyTemplate(t, d) {
+  const w = d.geschlecht === 'w', m = d.geschlecht === 'm';
+  const anrede = d.kontakt_name && !/[()]/.test(d.kontakt_name) && d.kontakt_name.split(' ').length <= 3 ? `Hallo ${d.kontakt_name},` : 'Guten Tag,';
+  const map = { Name: d.name || 'Ihrem Hund', Rasse: d.rasse || '', 'ihn/sie': w ? 'sie' : m ? 'ihn' : 'ihn/sie', 'er/sie': w ? 'sie' : m ? 'er' : 'er/sie',
+    Anrede: anrede, Absender: settings.absender_name || '', Telefon: settings.telefon || '{Telefon}', 'E-Mail': settings.email || '' };
+  return String(t || '').replace(/\{(Name|Rasse|ihn\/sie|er\/sie|Anrede|Absender|Telefon|E-Mail)\}/g, (x, k) => map[k] ?? x);
+}
+// Telefon/Absender/E-Mail in offenen Entwürfen einsetzen (auch das alte „[BITTE TELEFONNUMMER EINTRAGEN]“)
+function fillText(t) {
+  if (!t) return t;
+  if (settings.telefon) t = t.replace(/\[BITTE TELEFONNUMMER EINTRAGEN\]|\[NUMMER\]|\{Telefon\}/g, settings.telefon);
+  if (settings.absender_name) t = t.replace(/\{Absender\}/g, settings.absender_name);
+  if (settings.email) t = t.replace(/\{E-Mail\}/g, settings.email);
+  return t;
+}
+async function fillDrafts() {
+  let n = 0;
+  for (const list of Object.values(msgs)) for (const m of list) {
+    if (m.status !== 'entwurf') continue;
+    const text = fillText(m.text), betreff = fillText(m.betreff);
+    if (text === m.text && betreff === m.betreff) continue;
+    const { error } = await db.from('hund_nachrichten').update({ text, betreff }).eq('id', m.id);
+    if (!error) { m.text = text; m.betreff = betreff; n++; }
+  }
+  return n;
+}
+function openSettings() {
+  document.getElementById('s_absender').value = settings.absender_name || '';
+  document.getElementById('s_telefon').value = settings.telefon || '';
+  document.getElementById('s_email').value = settings.email || '';
+  document.getElementById('s_betreff').value = settings.vorlage_betreff || '';
+  document.getElementById('s_text').value = settings.vorlage_text || '';
+  document.getElementById('settings').classList.add('open');
+}
+function closeSettings() { document.getElementById('settings').classList.remove('open'); }
+let lastField = null;
+document.addEventListener('focusin', e => { if (e.target.id === 's_text' || e.target.id === 's_betreff') lastField = e.target; });
+document.addEventListener('click', e => {
+  if (e.target.tagName !== 'CODE' || !e.target.closest('.ph-help')) return;
+  const f = lastField || document.getElementById('s_text'), t = e.target.textContent;
+  const a = f.selectionStart ?? f.value.length;
+  f.value = f.value.slice(0, a) + t + f.value.slice(f.selectionEnd ?? a);
+  f.focus(); f.selectionStart = f.selectionEnd = a + t.length;
+});
+async function saveSettings() {
+  const row = { id: 1,
+    absender_name: document.getElementById('s_absender').value.trim() || null,
+    telefon: document.getElementById('s_telefon').value.trim() || null,
+    email: document.getElementById('s_email').value.trim() || null,
+    vorlage_betreff: document.getElementById('s_betreff').value,
+    vorlage_text: document.getElementById('s_text').value };
+  const { error } = await db.from('hund_einstellungen').upsert(row);
+  if (error) return toast('Fehler: ' + error.message, true);
+  settings = row; closeSettings();
+  const n = await fillDrafts();
+  toast(n ? `Gespeichert · ${n} Entwürfe ausgefüllt` : 'Gespeichert'); render();
+}
+async function fromTemplate(id) {
+  const m = Object.values(msgs).flat().find(x => x.id === id);
+  const d = dogs.find(x => x.id === m.kandidat_id);
+  if (!settings.vorlage_text) return toast('Noch kein Standard-Anschreiben hinterlegt (⚙️)', true);
+  if (!confirm('Entwurf durch das Standard-Anschreiben ersetzen?')) return;
+  const patch = { text: applyTemplate(settings.vorlage_text, d) };
+  if (m.kanal === 'E-Mail') patch.betreff = applyTemplate(settings.vorlage_betreff, d);
+  updMsg(id, patch, 'Aus Vorlage neu erzeugt');
+}
+
 async function compose(kid) {
   const d = dogs.find(x => x.id === kid);
   const prev = (msgs[kid] || []).filter(m => m.richtung === 'raus' && m.status === 'gesendet').pop();
   const row = { kandidat_id: kid, erstellt_von: 'stefan', kanal: prev?.kanal || (d.quelle === 'Kleinanzeigen' ? 'Kleinanzeigen' : 'E-Mail'),
-    empfaenger: prev?.empfaenger || d.kontakt_info || null, betreff: prev?.betreff ? (prev.betreff.startsWith('Re:') ? prev.betreff : 'Re: ' + prev.betreff) : (d.name ? `Ihr Hund ${d.name}` : null), text: '' };
+    empfaenger: prev?.empfaenger || d.kontakt_info || null,
+    betreff: prev?.betreff ? (prev.betreff.startsWith('Re:') ? prev.betreff : 'Re: ' + prev.betreff) : applyTemplate(settings.vorlage_betreff || 'Anfrage zu {Name}', d),
+    text: prev ? `\n\nViele Grüße\n${settings.absender_name || ''}` : applyTemplate(settings.vorlage_text || '', d) };
   const { data, error } = await db.from('hund_nachrichten').insert(row).select().single();
   if (error) return toast('Fehler: ' + error.message, true);
   (msgs[kid] ||= []).push(data); render();
