@@ -153,6 +153,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   .info .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px 16px; font-size: 0.88rem; }
   .info .facts b { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: #999; font-weight: 600; }
   .info textarea { flex: 1; min-height: 160px; width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 0.92rem; line-height: 1.45; resize: none; }
+  .info .desc { flex: 1 1 auto; min-height: 120px; overflow-y: auto; white-space: pre-wrap; font-size: 0.92rem; line-height: 1.5; background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 10px 12px; }
   .info .x { position: absolute; top: 10px; right: 14px; background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 1.4rem; cursor: pointer; }
   .info .sec { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-top: 4px; }
   @media (max-width: 800px) { .info { grid-template-columns: 1fr; grid-template-rows: 32vh 1fr; height: 96vh; width: 100vw; } .info-bg { padding: 0; } }
@@ -402,7 +403,7 @@ function passes(d, ignoreKpi) {
   if (st === '' && STATUS[d.status]?.done) return false;
   if (st && st !== '*' && d.status !== st) return false;
   const q = v('fq').trim().toLowerCase();
-  if (q && ![d.name, d.rasse, d.ort, d.notizen, d.kontakt_name].join(' ').toLowerCase().includes(q)) return false;
+  if (q && ![d.name, d.rasse, d.ort, d.notizen, d.beschreibung, d.kontakt_name].join(' ').toLowerCase().includes(q)) return false;
   if (!ignoreKpi && kpiIdx != null && KPI_FNS[kpiIdx] && !KPI_FNS[kpiIdx](d)) return false;
   return true;
 }
@@ -547,8 +548,9 @@ function openInfo(kid) {
         ${d.anzeige_url ? `<a class="link" style="font-size:0.9rem" href="${esc(d.anzeige_url)}" target="_blank" rel="noopener">Originalanzeige öffnen ↗</a>` : ''}
         <button class="compose" style="font-size:0.9rem" onclick="closeInfo(); openChat(${d.id})">💬 Nachrichten</button>
       </div>
-      <div class="sec">Beschreibung &amp; Notizen</div>
-      <textarea id="infoNotes" placeholder="Beschreibung aus der Anzeige, eigene Notizen…" onchange="saveNotes(${d.id}, this.value)">${esc(d.notizen || '')}</textarea>
+      ${d.beschreibung ? `<div class="sec">Anzeigentext</div><div class="desc">${esc(d.beschreibung)}</div>` : ''}
+      <div class="sec">Eigene Notizen</div>
+      <textarea id="infoNotes" style="${d.beschreibung ? 'flex:0 0 auto;min-height:110px' : ''}" placeholder="Eigene Notizen…" onchange="saveNotes(${d.id}, this.value)">${esc(d.notizen || '')}</textarea>
     </div>
     <button class="x" onclick="closeInfo()" aria-label="Schließen">×</button>`;
   document.getElementById('info').classList.add('open');
