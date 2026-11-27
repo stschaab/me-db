@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Neuer Hund</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .logout-btn:hover { text-decoration: underline; }
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+/* === Hamburger-Navigation (immer aktiv) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 0.95rem; flex-wrap: wrap; }
+  .container { padding: 0 14px; margin: 18px auto; }
+  .tiles { grid-template-columns: 1fr !important; }
+  .grid { grid-template-columns: repeat(2, 1fr) !important; }
+  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+  input, select, textarea, button { font-size: 16px !important; }
+  .addbar { flex-direction: column; align-items: stretch; }
+  .addbar input, .addbar select, .addbar button { width: 100%; }
+}
+
+  .container { max-width: 1200px; margin: 28px auto; padding: 0 24px; }
+  .sub { font-size: 0.85rem; color: #888; margin: -4px 0 18px; }
+  h2.page { font-size: 1.3rem; margin-bottom: 8px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .kpi { background: white; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; border: 2px solid transparent; }
+  .kpi.on { border-color: #1a1a2e; }
+  .kpi .n { font-size: 1.5rem; font-weight: 700; }
+  .kpi .l { font-size: 0.72rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+  .layout { display: grid; grid-template-columns: 250px 1fr; gap: 18px; align-items: start; }
+  .filters { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); position: sticky; top: 90px; }
+  .filters h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin: 14px 0 8px; }
+  .filters h3:first-child { margin-top: 0; }
+  .chk { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; padding: 4px 0; cursor: pointer; }
+  .chk input { width: 16px; height: 16px; }
+  .filters select, .filters input[type=search] { width: 100%; padding: 7px 9px; border: 1px solid #ddd; border-radius: 7px; font-size: 0.86rem; }
+  .filters input[type=range] { width: 100%; }
+  .hint { font-size: 0.72rem; color: #aaa; margin-top: 2px; }
+  .reset { margin-top: 14px; background: none; border: 1px solid #ccc; border-radius: 7px; padding: 6px 10px; font-size: 0.8rem; cursor: pointer; width: 100%; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px; flex-wrap: wrap; }
+  .count { font-size: 0.85rem; color: #888; }
+  .toolbar select { padding: 6px 8px; border: 1px solid #ddd; border-radius: 7px; font-size: 0.84rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+  .dog { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; display: flex; flex-direction: column; }
+  .dog .img { height: 170px; background: #eee center/cover no-repeat; position: relative; display: flex; align-items: center; justify-content: center; font-size: 3rem; color: #ccc; }
+  .dog .score { position: absolute; top: 8px; right: 8px; background: rgba(26,26,46,0.85); color: white; font-size: 0.75rem; font-weight: 700; padding: 3px 8px; border-radius: 10px; }
+  .dog .src { position: absolute; top: 8px; left: 8px; background: rgba(255,255,255,0.92); font-size: 0.7rem; font-weight: 600; padding: 3px 8px; border-radius: 10px; color: #333; }
+  .dog .body { padding: 12px 14px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .dog .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .dog .nm { font-weight: 700; font-size: 1rem; }
+  .dog .meta { font-size: 0.8rem; color: #777; }
+  .traits { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tr { font-size: 0.7rem; padding: 2px 7px; border-radius: 9px; border: 1px solid; white-space: nowrap; }
+  .tr.y { color: #2e7d32; border-color: #a5d6a7; background: #f1f8e9; }
+  .tr.n { color: #c62828; border-color: #ef9a9a; background: #ffebee; }
+  .tr.u { color: #999; border-color: #ddd; background: #fafafa; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .st { font-size: 0.8rem; padding: 4px 6px; border-radius: 7px; border: 1px solid #ddd; font-weight: 600; }
+  .link { font-size: 0.8rem; color: #1976d2; text-decoration: none; }
+  .link:hover { text-decoration: underline; }
+  .next { font-size: 0.8rem; color: #555; background: #fff8e1; padding: 5px 8px; border-radius: 6px; }
+  .contact { font-size: 0.76rem; color: #999; }
+  details { font-size: 0.8rem; }
+  details summary { cursor: pointer; color: #666; }
+  .msg { border-left: 3px solid #ddd; padding: 4px 8px; margin: 6px 0; white-space: pre-wrap; }
+  .msg.raus { border-color: #7ec8e3; }
+  .msg.rein { border-color: #66bb6a; }
+  .msg .d { font-size: 0.7rem; color: #aaa; }
+  textarea.notes { width: 100%; min-height: 54px; border: 1px solid #ddd; border-radius: 6px; padding: 6px; font: inherit; font-size: 0.8rem; margin-top: 6px; }
+  .empty { padding: 40px 20px; color: #aaa; text-align: center; background: white; border-radius: 10px; }
+  .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 8px; font-size: 0.88rem; color: white; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; } .toast.ok { background: #2e7d32; } .toast.err { background: #c62828; }
+  .ftoggle { display: none; }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    .filters { position: static; display: none; }
+    .filters.open { display: block; }
+    .ftoggle { display: inline-block; background: white; border: 1px solid #ccc; border-radius: 7px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">Neuer Hund</span></h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Activities</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Reports</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Values</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-abos.html">Subscriptions</a>
+    <a href="me-db-hund.html">🐕 Neuer Hund</a>
+    <a href="me-db-supplements.html">Supplements</a>
+    <a href="me-db-ag-me.html">AG-Me Mix</a>
+    <a href="me-db-tagebuch.html">Tagebuch</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <a href="next2you/index.html" style="border-top: 1px solid #3d3d5e; margin-top: 4px; padding-top: 16px !important; color: #00b4d8;">📍 Next2You</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
+  <h2 class="page">🐕 Neuer Hund</h2>
+  <div class="sub">Kandidaten aus Tasso, Kleinanzeigen, Tierheimen &amp; Co. im Umkreis von Erlangen-Tennenlohe, mit Status der Kontaktaufnahme.</div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="layout">
+    <aside class="filters" id="filters">
+      <h3>Suche</h3>
+      <input type="search" id="fq" placeholder="Name, Rasse, Ort…">
+      <h3>Kriterien</h3>
+      <label class="chk"><input type="checkbox" id="f_stubenrein"> Stubenrein</label>
+      <label class="chk"><input type="checkbox" id="f_gewicht"> max. 20 kg</label>
+      <label class="chk"><input type="checkbox" id="f_alter"> max. 3 Jahre</label>
+      <label class="chk"><input type="checkbox" id="f_hunde"> Verträglich mit Hunden</label>
+      <label class="chk"><input type="checkbox" id="f_fremde"> Verträglich mit Fremden</label>
+      <label class="chk"><input type="checkbox" id="f_bellt"> Bellt wenig</label>
+      <label class="chk"><input type="checkbox" id="f_kinder"> Kinderlieb</label>
+      <label class="chk"><input type="checkbox" id="f_unbekannt" checked> „unbekannt“ zulassen</label>
+      <div class="hint">Aus: nur Hunde, bei denen die Eigenschaft bestätigt ist.</div>
+      <h3>Entfernung</h3>
+      <input type="range" id="f_km" min="10" max="80" step="5" value="80">
+      <div class="hint">bis <b id="kmv">80</b> km ab Tennenlohe</div>
+      <h3>Quelle</h3>
+      <select id="f_quelle"><option value="">Alle</option></select>
+      <h3>Status</h3>
+      <select id="f_status"><option value="">Alle aktiven</option><option value="*">Alle inkl. abgeschlossen</option></select>
+      <button class="reset" onclick="resetFilters()">Filter zurücksetzen</button>
+    </aside>
+
+    <main>
+      <div class="toolbar">
+        <div class="row">
+          <button class="ftoggle" onclick="document.getElementById('filters').classList.toggle('open')">☰ Filter</button>
+          <span class="count" id="count"></span>
+        </div>
+        <select id="sort">
+          <option value="score">Sortierung: Passung</option>
+          <option value="entfernung_km">Entfernung</option>
+          <option value="alter_monate">Alter</option>
+          <option value="letzter_kontakt">Letzter Kontakt</option>
+          <option value="created_at">Neueste zuerst</option>
+        </select>
+      </div>
+      <div id="list"><div class="empty">Lade…</div></div>
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+const STATUS = {
+  neu:            { l: 'Neu',             c: '#757575' },
+  angeschrieben:  { l: 'Angeschrieben',   c: '#1976d2' },
+  antwort:        { l: 'Antwort da',      c: '#ef6c00' },
+  besuch_geplant: { l: 'Besuch geplant',  c: '#6a1b9a' },
+  besucht:        { l: 'Besucht',         c: '#00838f' },
+  favorit:        { l: '⭐ Favorit',       c: '#2e7d32' },
+  abgesagt:       { l: 'Abgesagt',        c: '#9e9e9e', done: true },
+  vergeben:       { l: 'Vergeben',        c: '#9e9e9e', done: true },
+  passt_nicht:    { l: 'Passt nicht',     c: '#9e9e9e', done: true },
+};
+const TRAITS = [
+  ['stubenrein', 'stubenrein'], ['vertraeglich_hunde', 'mit Hunden'], ['vertraeglich_fremde', 'mit Fremden'],
+  ['bellt_wenig', 'bellt wenig'], ['kinderlieb', 'kinderlieb'], ['kastriert', 'kastriert'],
+];
+const FKEY = 'medb-hund-filter';
+let dogs = [];
+let kpiIdx = null;
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  for (const [k, s] of Object.entries(STATUS)) document.getElementById('f_status').insertAdjacentHTML('beforeend', `<option value="${k}">${s.l}</option>`);
+  restoreFilters();
+  document.querySelectorAll('.filters input, .filters select, #sort').forEach(el => el.addEventListener('input', () => { saveFilters(); render(); }));
+  load();
+});
+
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+
+async function load() {
+  const { data, error } = await db.from('hund_kandidaten').select('*');
+  if (error) { document.getElementById('list').innerHTML = `<div class="empty" style="color:#e65100">Fehler: ${esc(error.message)}</div>`; return; }
+  dogs = data || [];
+  const qs = [...new Set(dogs.map(d => d.quelle).filter(Boolean))].sort();
+  const sel = document.getElementById('f_quelle'), cur = sel.value;
+  sel.innerHTML = '<option value="">Alle</option>' + qs.map(q => `<option>${esc(q)}</option>`).join('');
+  sel.value = cur;
+  render();
+}
+
+function v(id) { const el = document.getElementById(id); return el.type === 'checkbox' ? el.checked : el.value; }
+
+function passes(d) {
+  const unk = v('f_unbekannt');
+  const ok = (val, cond) => val == null ? unk : cond(val);
+  if (v('f_stubenrein') && !ok(d.stubenrein, x => x)) return false;
+  if (v('f_hunde') && !ok(d.vertraeglich_hunde, x => x)) return false;
+  if (v('f_fremde') && !ok(d.vertraeglich_fremde, x => x)) return false;
+  if (v('f_bellt') && !ok(d.bellt_wenig, x => x)) return false;
+  if (v('f_kinder') && !ok(d.kinderlieb, x => x)) return false;
+  if (v('f_gewicht') && !ok(d.gewicht_kg, x => x <= 20)) return false;
+  if (v('f_alter') && !ok(d.alter_monate, x => x <= 36)) return false;
+  if (d.entfernung_km != null && d.entfernung_km > +v('f_km')) return false;
+  if (v('f_quelle') && d.quelle !== v('f_quelle')) return false;
+  const st = v('f_status');
+  if (st === '' && STATUS[d.status]?.done) return false;
+  if (st && st !== '*' && d.status !== st) return false;
+  const q = v('fq').trim().toLowerCase();
+  if (q && ![d.name, d.rasse, d.ort, d.notizen, d.kontakt_name].join(' ').toLowerCase().includes(q)) return false;
+  if (kpiIdx != null && KPI_FNS[kpiIdx] && !KPI_FNS[kpiIdx](d)) return false;
+  return true;
+}
+
+function render() {
+  document.getElementById('kmv').textContent = v('f_km');
+  renderKpis();
+  const sort = v('sort');
+  const list = dogs.filter(passes).sort((a, b) => {
+    const desc = ['score', 'letzter_kontakt', 'created_at'].includes(sort);
+    const x = a[sort], y = b[sort];
+    if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
+    return (x < y ? -1 : x > y ? 1 : 0) * (desc ? -1 : 1);
+  });
+  document.getElementById('count').textContent = `${list.length} von ${dogs.length} Hunden`;
+  const el = document.getElementById('list');
+  if (!dogs.length) { el.innerHTML = '<div class="empty">Noch keine Kandidaten. Die Suche trägt hier laufend neue Hunde ein.</div>'; return; }
+  if (!list.length) { el.innerHTML = '<div class="empty">Kein Hund passt zu den Filtern.</div>'; return; }
+  el.innerHTML = '<div class="cards">' + list.map(card).join('') + '</div>';
+}
+
+function renderKpis() {
+  const active = dogs.filter(d => !STATUS[d.status]?.done);
+  const k = [
+    ['Kandidaten', active.length, null],
+    ['Angeschrieben', dogs.filter(d => d.status === 'angeschrieben').length, d => d.status === 'angeschrieben'],
+    ['Antwort da', dogs.filter(d => d.status === 'antwort').length, d => d.status === 'antwort'],
+    ['Besuch geplant', dogs.filter(d => d.status === 'besuch_geplant').length, d => d.status === 'besuch_geplant'],
+    ['Favoriten', dogs.filter(d => d.status === 'favorit').length, d => d.status === 'favorit'],
+  ];
+  document.getElementById('kpis').innerHTML = k.map(([l, n], i) =>
+    `<div class="kpi ${kpiIdx === i ? 'on' : ''}" onclick="toggleKpi(${i})"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+}
+const KPI_FNS = [null, d => d.status === 'angeschrieben', d => d.status === 'antwort', d => d.status === 'besuch_geplant', d => d.status === 'favorit'];
+function toggleKpi(i) { kpiIdx = (kpiIdx === i || !KPI_FNS[i]) ? null : i; render(); }
+
+function age(m) {
+  if (m == null) return 'Alter ?';
+  if (m < 12) return `${m} Mon.`;
+  const y = Math.floor(m / 12), r = m % 12;
+  return r ? `${y} J. ${r} M.` : `${y} J.`;
+}
+
+function card(d) {
+  const s = STATUS[d.status] || { l: d.status, c: '#777' };
+  const traits = TRAITS.map(([k, l]) => {
+    const val = d[k];
+    return `<span class="tr ${val === true ? 'y' : val === false ? 'n' : 'u'}">${val === true ? '✓' : val === false ? '✗' : '?'} ${l}</span>`;
+  }).join('');
+  const over = (d.gewicht_kg > 20 || d.alter_monate > 36);
+  const verlauf = Array.isArray(d.verlauf) ? d.verlauf : [];
+  const opts = Object.entries(STATUS).map(([k, x]) => `<option value="${k}" ${k === d.status ? 'selected' : ''}>${x.l}</option>`).join('');
+  return `<div class="dog" style="${STATUS[d.status]?.done ? 'opacity:0.6' : ''}">
+    <div class="img" style="${d.bild_url ? `background-image:url('${esc(d.bild_url)}')` : ''}">${d.bild_url ? '' : '🐕'}
+      ${d.quelle ? `<span class="src">${esc(d.quelle)}</span>` : ''}
+      ${d.score != null ? `<span class="score">${d.score}%</span>` : ''}
+    </div>
+    <div class="body">
+      <div class="head"><span class="nm">${esc(d.name || 'Ohne Namen')}</span>
+        <span class="meta" style="font-size:1rem">${d.geschlecht === 'w' ? '♀' : d.geschlecht === 'm' ? '♂' : ''}</span></div>
+      <div class="meta">${esc(d.rasse || 'Rasse ?')} · ${age(d.alter_monate)} · ${d.gewicht_kg != null ? d.gewicht_kg + ' kg' : '? kg'}${over ? ' <b style="color:#c62828">⚠</b>' : ''}</div>
+      <div class="meta">📍 ${esc([d.plz, d.ort].filter(Boolean).join(' ') || '?')}${d.entfernung_km != null ? ` · ${Math.round(d.entfernung_km)} km` : ''}${d.anzeige_datum ? ` · inseriert ${fmtDate(d.anzeige_datum)}` : ''}</div>
+      <div class="traits">${traits}</div>
+      ${d.naechster_schritt ? `<div class="next">➡ ${esc(d.naechster_schritt)}</div>` : ''}
+      <div class="row">
+        <select class="st" style="color:${s.c}" onchange="setStatus(${d.id}, this.value)">${opts}</select>
+        ${d.anzeige_url ? `<a class="link" href="${esc(d.anzeige_url)}" target="_blank" rel="noopener">Zur Anzeige ↗</a>` : ''}
+      </div>
+      ${d.kontakt_name || d.letzter_kontakt ? `<div class="contact">${esc(d.kontakt_name || '')}${d.letzter_kontakt ? ` · letzter Kontakt ${fmtDate(d.letzter_kontakt)}` : ''}</div>` : ''}
+      <details><summary>Notizen &amp; Verlauf (${verlauf.length})</summary>
+        ${verlauf.slice().reverse().map(m => `<div class="msg ${m.richtung === 'rein' ? 'rein' : 'raus'}"><div class="d">${m.richtung === 'rein' ? '⬅ von Halter' : '➡ an Halter'}${m.kanal ? ' · ' + esc(m.kanal) : ''}${m.datum ? ' · ' + fmtDate(m.datum) : ''}</div>${esc(m.text || '')}</div>`).join('')}
+        ${d.kontakt_info ? `<div class="contact">Kontakt: ${esc(d.kontakt_info)}</div>` : ''}
+        <textarea class="notes" placeholder="Eigene Notizen…" onchange="saveNotes(${d.id}, this.value)">${esc(d.notizen || '')}</textarea>
+      </details>
+    </div>
+  </div>`;
+}
+
+async function setStatus(id, status) {
+  const { error } = await db.from('hund_kandidaten').update({ status }).eq('id', id);
+  if (error) return toast('Fehler: ' + error.message, true);
+  dogs.find(d => d.id === id).status = status;
+  toast('Status gespeichert'); render();
+}
+async function saveNotes(id, notizen) {
+  const { error } = await db.from('hund_kandidaten').update({ notizen }).eq('id', id);
+  if (error) return toast('Fehler: ' + error.message, true);
+  dogs.find(d => d.id === id).notizen = notizen;
+  toast('Notiz gespeichert');
+}
+
+const FIDS = ['fq','f_stubenrein','f_gewicht','f_alter','f_hunde','f_fremde','f_bellt','f_kinder','f_unbekannt','f_km','f_quelle','f_status','sort'];
+function saveFilters() {
+  try { localStorage.setItem(FKEY, JSON.stringify(Object.fromEntries(FIDS.map(id => [id, v(id)])))); } catch (e) {}
+}
+function restoreFilters() {
+  let s = null; try { s = JSON.parse(localStorage.getItem(FKEY)); } catch (e) {}
+  if (!s) return;
+  for (const id of FIDS) { const el = document.getElementById(id); if (!(id in s)) continue; if (el.type === 'checkbox') el.checked = s[id]; else el.value = s[id]; }
+}
+function resetFilters() {
+  try { localStorage.removeItem(FKEY); } catch (e) {}
+  for (const id of FIDS) { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = id === 'f_unbekannt'; else el.value = id === 'f_km' ? 80 : id === 'sort' ? 'score' : ''; }
+  kpiIdx = null; render();
+}
+
+function fmtDate(s) { const d = new Date(s); return isNaN(d) ? s : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' }); }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function toast(msg, isErr = false) {
+  const t = document.getElementById('toast'); t.textContent = msg;
+  t.className = 'toast show ' + (isErr ? 'err' : 'ok'); setTimeout(() => t.className = 'toast', 2500);
+}
+</script>
+</body>
+</html>
