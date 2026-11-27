@@ -282,7 +282,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
       <textarea id="chatText" placeholder="Nachricht an den Halter…"></textarea>
       <div class="row">
         <div class="row">
-          <select id="chatKanal" class="st" style="font-weight:400"><option>E-Mail</option><option>Kleinanzeigen</option><option>WhatsApp</option><option>Formular</option><option>Telefon</option></select>
+          <select id="chatKanal" class="st" autocomplete="off" style="font-weight:400"><option>E-Mail</option><option>Kleinanzeigen</option><option>WhatsApp</option><option>Formular</option><option>Telefon</option></select>
           <label title="Antwort, die du z. B. telefonisch oder per WhatsApp bekommen hast, im Verlauf festhalten"><input type="checkbox" id="chatIncoming"> Antwort vom Halter eintragen</label>
         </div>
         <div class="row">
@@ -438,7 +438,7 @@ function card(d) {
       <div class="traits">${traits}</div>
       ${d.naechster_schritt ? `<div class="next">➡ ${esc(d.naechster_schritt)}</div>` : ''}
       <div class="row">
-        <select class="st" style="color:${s.c}" onchange="setStatus(${d.id}, this.value)">${opts}</select>
+        <select class="st" autocomplete="off" style="color:${s.c}" onchange="setStatus(${d.id}, this.value)">${opts}</select>
         ${d.anzeige_url ? `<a class="link" href="${esc(d.anzeige_url)}" target="_blank" rel="noopener">Zur Anzeige ↗</a>` : ''}
       </div>
       ${chatButton(d)}
