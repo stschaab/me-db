@@ -382,6 +382,7 @@ function msgBlock(d) {
       <div class="h"><span>✉️ Entwurf ${m.erstellt_von === 'claude' ? 'von Claude' : ''} · ${esc(m.kanal)}</span><span style="font-weight:400">${esc(m.empfaenger || '')}</span></div>
       ${m.kanal === 'E-Mail' ? `<input id="mb${m.id}" value="${esc(m.betreff || '')}" placeholder="Betreff">` : ''}
       <textarea id="mt${m.id}">${esc(m.text)}</textarea>
+      ${PLACEHOLDER.test((m.betreff || '') + '\n' + m.text) ? `<div style="color:#c62828;font-weight:600;margin-bottom:5px">⚠ Enthält einen Platzhalter in [ECKIGEN KLAMMERN], bitte ausfüllen.</div>` : ''}
       <div class="btns">
         <button class="b go" onclick="approve(${m.id})">Freigeben &amp; senden</button>
         <button class="b sv" onclick="saveDraft(${m.id})">Speichern</button>
@@ -406,10 +407,14 @@ function draftPatch(id) {
   const b = document.getElementById('mb' + id); if (b) p.betreff = b.value;
   return p;
 }
+// Platzhalter wie „[BITTE TELEFONNUMMER EINTRAGEN]“ blockieren die Freigabe
+const PLACEHOLDER = /\[[A-ZÄÖÜ][A-ZÄÖÜß .\/-]{3,}\]/;
 function saveDraft(id) { updMsg(id, draftPatch(id), 'Entwurf gespeichert'); }
 function approve(id) {
   const p = draftPatch(id);
   if (!p.text.trim()) return toast('Nachricht ist leer', true);
+  const ph = ((p.betreff || '') + '\n' + p.text).match(PLACEHOLDER);
+  if (ph) return toast('Bitte erst den Platzhalter ausfüllen: ' + ph[0], true);
   updMsg(id, { ...p, status: 'freigegeben', freigegeben_am: new Date().toISOString(), fehler: null }, 'Freigegeben, wird gesendet');
 }
 function unapprove(id) { updMsg(id, { status: 'entwurf', freigegeben_am: null }, 'Zurück im Entwurf'); }
