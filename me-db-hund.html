@@ -118,7 +118,8 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   .kpi.alert { background: #fffde7; }
   .chatbtn { display: flex; align-items: center; gap: 8px; background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 8px 12px; font-size: 0.84rem; font-weight: 600; cursor: pointer; width: 100%; justify-content: center; }
   .chatbtn .bd { background: #ffd54f; color: #1a1a2e; border-radius: 10px; padding: 1px 8px; font-size: 0.72rem; }
-  .chatbtn .bd.new { background: #66bb6a; color: white; }
+  .chatbtn .bd.new { background: #e53935; color: white; }
+  .dog.reply { box-shadow: 0 0 0 2px #e53935, 0 1px 3px rgba(0,0,0,0.08); }
   .chat-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 550; display: none; justify-content: flex-end; }
   .chat-bg.open { display: flex; }
   .chat { background: #f0f2f5; width: 100%; max-width: 560px; height: 100%; display: flex; flex-direction: column; box-shadow: -6px 0 30px rgba(0,0,0,0.25); }
@@ -444,8 +445,9 @@ function renderKpis() {
   document.getElementById('kpis').innerHTML =
     `<div class="kpi ${stuck ? 'stuck' : ''}" onclick="openOutbox()" title="Freigegebene Nachrichten, die noch nicht gesendet sind">
       <div class="n">${ob.length}</div><div class="l">📤 Outbox${stuck ? ` · ${stuck} hängt` : ''}</div></div>` +
-    KPIS.map(([l, f], i) =>
-    `<div class="kpi ${kpiIdx === i ? 'on' : ''}" onclick="toggleKpi(${i})"><div class="n">${base.filter(f).length}</div><div class="l">${l}</div></div>`).join('');
+    KPIS.map(([l, f], i) => { const n = base.filter(f).length;
+      // „Antwort da“ rot, sobald Antworten vorliegen
+      return `<div class="kpi ${kpiIdx === i ? 'on' : ''} ${l === 'Antwort da' && n ? 'stuck' : ''}" onclick="toggleKpi(${i})"><div class="n">${n}</div><div class="l">${l}</div></div>`; }).join('');
 }
 // ---- Outbox: freigegeben (wartet auf Versand) oder fehler; „hängt“ = Fehler oder > 15 min freigegeben ----
 const STUCK_MIN = 15;
@@ -495,7 +497,7 @@ function card(d) {
   }).join('');
   const over = (d.gewicht_kg > 20 || d.alter_monate > 36);
   const opts = Object.entries(STATUS).map(([k, x]) => `<option value="${k}" ${k === d.status ? 'selected' : ''}>${x.l}</option>`).join('');
-  return `<div class="dog" style="${STATUS[d.status]?.done ? 'opacity:0.6' : ''}">
+  return `<div class="dog ${d.status === 'antwort' ? 'reply' : ''}" style="${STATUS[d.status]?.done ? 'opacity:0.6' : ''}">
     <div class="img" ${d.bild_url ? `onclick="zoom('${esc(d.bild_url)}')"` : ''}>${d.bild_url ? `<img src="${esc(d.bild_url)}" alt="${esc(d.name || '')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith('🐕')">` : '🐕'}
       ${d.quelle ? `<span class="src">${esc(d.quelle)}</span>` : ''}
       ${d.score != null ? `<span class="score" title="Passung zu euren Kriterien">${d.score}%</span>` : ''}
@@ -581,7 +583,7 @@ function chatButton(d) {
     ? `<button class="chatbtn" style="background:#2e7d32;margin-bottom:6px" onclick="composeStd(${d.id})">📝 Standard-Anschreiben erstellen</button>` : '';
   return std + `<button class="chatbtn" onclick="openChat(${d.id})">💬 ${n ? `Nachrichten (${n})` : 'Nachricht schreiben'}
     ${nDraft ? `<span class="bd">✉️ ${nDraft} Entwurf</span>` : ''}${fail ? '<span class="bd" style="background:#ef5350;color:white">⚠ Fehler</span>' : ''}
-    ${last && last.richtung === 'rein' ? '<span class="bd new">Antwort</span>' : ''}</button>`;
+    ${last && last.richtung === 'rein' ? '<span class="bd new">Antwort da</span>' : ''}</button>`;
 }
 
 let chatKid = null;
