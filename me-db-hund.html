@@ -403,7 +403,7 @@ function renderKpis() {
     ['⭐ Favoriten', dogs.filter(d => d.favorit).length, d => d.favorit],
   ];
   document.getElementById('kpis').innerHTML = k.map(([l, n], i) =>
-    `<div class="kpi ${kpiIdx === i ? 'on' : ''} ${i === 0 && n ? 'alert' : ''}" onclick="toggleKpi(${i})"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+    `<div class="kpi ${kpiIdx === i || (i === 1 && kpiIdx == null) ? 'on' : ''} ${i === 0 && n ? 'alert' : ''}" onclick="toggleKpi(${i})"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
 }
 const hasDraft = d => (msgs[d.id] || []).some(m => m.status === 'entwurf');
 const KPI_FNS = [d => hasDraft(d), null, d => d.status === 'angeschrieben', d => d.status === 'antwort', d => d.status === 'besuch_geplant', d => d.favorit];
