@@ -71,7 +71,10 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   .dog .img img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; }
   .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 600; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
   .lightbox.open { display: flex; } .lightbox img { max-width: 96vw; max-height: 94vh; object-fit: contain; }
-  .dog .score { position: absolute; top: 8px; right: 8px; background: rgba(26,26,46,0.85); color: white; font-size: 0.75rem; font-weight: 700; padding: 3px 8px; border-radius: 10px; }
+  .dog .star { position: absolute; top: 6px; right: 8px; background: rgba(255,255,255,0.92); border: none; border-radius: 50%; width: 34px; height: 34px; font-size: 1.25rem; line-height: 34px; text-align: center; cursor: pointer; color: #bbb; box-shadow: 0 1px 4px rgba(0,0,0,0.2); padding: 0; z-index: 2; }
+  .dog .star.on { color: #f9a825; }
+  .dog .star:hover { transform: scale(1.1); }
+  .dog .score { position: absolute; bottom: 8px; right: 8px; background: rgba(26,26,46,0.85); color: white; font-size: 0.75rem; font-weight: 700; padding: 3px 8px; border-radius: 10px; }
   .dog .src { position: absolute; top: 8px; left: 8px; background: rgba(255,255,255,0.92); font-size: 0.7rem; font-weight: 600; padding: 3px 8px; border-radius: 10px; color: #333; }
   .dog .body { padding: 12px 14px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
   .dog .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -307,7 +310,6 @@ const STATUS = {
   antwort:        { l: 'Antwort da',      c: '#ef6c00' },
   besuch_geplant: { l: 'Besuch geplant',  c: '#6a1b9a' },
   besucht:        { l: 'Besucht',         c: '#00838f' },
-  favorit:        { l: '⭐ Favorit',       c: '#2e7d32' },
   abgesagt:       { l: 'Abgesagt',        c: '#9e9e9e', done: true },
   vergeben:       { l: 'Vergeben',        c: '#9e9e9e', done: true },
   passt_nicht:    { l: 'Passt nicht',     c: '#9e9e9e', done: true },
@@ -398,13 +400,13 @@ function renderKpis() {
     ['Angeschrieben', dogs.filter(d => d.status === 'angeschrieben').length, d => d.status === 'angeschrieben'],
     ['Antwort da', dogs.filter(d => d.status === 'antwort').length, d => d.status === 'antwort'],
     ['Besuch geplant', dogs.filter(d => d.status === 'besuch_geplant').length, d => d.status === 'besuch_geplant'],
-    ['Favoriten', dogs.filter(d => d.status === 'favorit').length, d => d.status === 'favorit'],
+    ['⭐ Favoriten', dogs.filter(d => d.favorit).length, d => d.favorit],
   ];
   document.getElementById('kpis').innerHTML = k.map(([l, n], i) =>
     `<div class="kpi ${kpiIdx === i ? 'on' : ''} ${i === 0 && n ? 'alert' : ''}" onclick="toggleKpi(${i})"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
 }
 const hasDraft = d => (msgs[d.id] || []).some(m => m.status === 'entwurf');
-const KPI_FNS = [d => hasDraft(d), null, d => d.status === 'angeschrieben', d => d.status === 'antwort', d => d.status === 'besuch_geplant', d => d.status === 'favorit'];
+const KPI_FNS = [d => hasDraft(d), null, d => d.status === 'angeschrieben', d => d.status === 'antwort', d => d.status === 'besuch_geplant', d => d.favorit];
 function toggleKpi(i) { kpiIdx = (kpiIdx === i || !KPI_FNS[i]) ? null : i; render(); }
 
 function age(m) {
@@ -425,7 +427,8 @@ function card(d) {
   return `<div class="dog" style="${STATUS[d.status]?.done ? 'opacity:0.6' : ''}">
     <div class="img" ${d.bild_url ? `onclick="zoom('${esc(d.bild_url)}')"` : ''}>${d.bild_url ? `<img src="${esc(d.bild_url)}" alt="${esc(d.name || '')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith('🐕')">` : '🐕'}
       ${d.quelle ? `<span class="src">${esc(d.quelle)}</span>` : ''}
-      ${d.score != null ? `<span class="score">${d.score}%</span>` : ''}
+      ${d.score != null ? `<span class="score" title="Passung zu euren Kriterien">${d.score}%</span>` : ''}
+      <button class="star ${d.favorit ? 'on' : ''}" title="${d.favorit ? 'Favorit entfernen' : 'Als Favorit markieren'}" onclick="event.stopPropagation(); toggleFav(${d.id})">${d.favorit ? '★' : '☆'}</button>
     </div>
     <div class="body">
       <div class="head"><span class="nm">${esc(d.name || 'Ohne Namen')}</span>
@@ -471,7 +474,10 @@ function chatButton(d) {
   const fail = list.some(m => m.status === 'fehler');
   const n = history(d).length;
   if (!n && !nDraft && STATUS[d.status]?.done) return '';
-  return `<button class="chatbtn" onclick="openChat(${d.id})">💬 ${n ? `Nachrichten (${n})` : 'Nachricht schreiben'}
+  const contacted = list.some(m => m.richtung === 'raus' && m.status !== 'verworfen');
+  const std = !contacted && !STATUS[d.status]?.done
+    ? `<button class="chatbtn" style="background:#2e7d32;margin-bottom:6px" onclick="composeStd(${d.id})">📝 Standard-Anschreiben erstellen</button>` : '';
+  return std + `<button class="chatbtn" onclick="openChat(${d.id})">💬 ${n ? `Nachrichten (${n})` : 'Nachricht schreiben'}
     ${nDraft ? `<span class="bd">✉️ ${nDraft} Entwurf</span>` : ''}${fail ? '<span class="bd" style="background:#ef5350;color:white">⚠ Fehler</span>' : ''}
     ${last && last.richtung === 'rein' ? '<span class="bd new">Antwort</span>' : ''}</button>`;
 }
@@ -521,7 +527,7 @@ function renderChat(scroll) {
         <button class="b sv" title="Text aus dem Standard-Anschreiben neu erzeugen" onclick="fromTemplate(${m.id})">↺ Vorlage</button>
         <button class="b x" onclick="discard(${m.id})">Verwerfen</button>
       </div></div>`;
-  if (!h) h = '<div class="day-sep">Noch keine Nachrichten. Unten schreiben oder „Standard-Anschreiben“ nutzen.</div>';
+  if (!h) h = `<div class="day-sep">Noch keine Nachrichten.<br><br><button class="b go" onclick="composeStd(${d.id})">📝 Standard-Anschreiben als Entwurf erstellen</button></div>`;
   const box = document.getElementById('chatMsgs');
   const keep = !scroll ? box.scrollTop : null;
   box.innerHTML = h;
@@ -548,7 +554,7 @@ async function sendFromComposer(asDraft) {
   (msgs[d.id] ||= []).push(data);
   if (incoming) {
     const patch = { letzter_kontakt: new Date().toISOString() };
-    if (!['besuch_geplant', 'besucht', 'favorit'].includes(d.status)) patch.status = 'antwort';
+    if (!['besuch_geplant', 'besucht'].includes(d.status)) patch.status = 'antwort';
     await db.from('hund_kandidaten').update(patch).eq('id', d.id); Object.assign(d, patch);
     document.getElementById('chatIncoming').checked = false;
   }
@@ -580,7 +586,7 @@ function errMsg(e) {
 }
 async function refreshDog(kid) {
   const { data } = await db.from('hund_kandidaten').select('*').eq('id', kid).maybeSingle();
-  if (data) { const i = dogs.findIndex(x => x.id === kid); if (i >= 0) dogs[i] = data; }
+  if (data && data.id === kid) { const i = dogs.findIndex(x => x.id === kid); if (i >= 0) dogs[i] = data; }
 }
 async function updMsg(id, patch, ok) {
   const { error } = await withRetry(() => db.from('hund_nachrichten').update(patch).eq('id', id));
@@ -610,7 +616,8 @@ function discard(id) { if (confirm('Entwurf verwerfen?')) updMsg(id, { status: '
 // ---- Kontaktdaten & Vorlage ----
 function applyTemplate(t, d) {
   const w = d.geschlecht === 'w', m = d.geschlecht === 'm';
-  const anrede = d.kontakt_name && !/[()]/.test(d.kontakt_name) && d.kontakt_name.split(' ').length <= 3 ? `Hallo ${d.kontakt_name},` : 'Guten Tag,';
+  const kn = (d.kontakt_name || '').trim();
+  const anrede = kn && !/[()\/]|privat|verein|e\.\s?v|tierheim|tierschutz|team|hilfe|vermittl|\d/i.test(kn) && kn.split(/\s+/).length <= 3 ? `Hallo ${kn},` : 'Guten Tag,';
   const map = { Name: d.name || 'Ihrem Hund', Rasse: d.rasse || '', 'ihn/sie': w ? 'sie' : m ? 'ihn' : 'ihn/sie', 'er/sie': w ? 'sie' : m ? 'er' : 'er/sie',
     Anrede: anrede, Absender: settings.absender_name || '', Telefon: settings.telefon || '{Telefon}', 'E-Mail': settings.email || '' };
   return String(t || '').replace(/\{(Name|Rasse|ihn\/sie|er\/sie|Anrede|Absender|Telefon|E-Mail)\}/g, (x, k) => map[k] ?? x);
@@ -677,6 +684,17 @@ async function fromTemplate(id) {
   updMsg(id, patch, 'Aus Vorlage neu erzeugt');
 }
 
+async function toggleFav(id) {
+  const d = dogs.find(x => x.id === id); const favorit = !d.favorit;
+  const { error } = await withRetry(() => db.from('hund_kandidaten').update({ favorit }).eq('id', id));
+  if (error) return toast(errMsg(error), true);
+  d.favorit = favorit; toast(favorit ? '⭐ Favorit' : 'Kein Favorit mehr'); render();
+}
+async function composeStd(kid) {
+  if (!settings.vorlage_text) return toast('Noch kein Standard-Anschreiben hinterlegt (⚙️)', true);
+  await compose(kid); openChat(kid);
+}
+
 async function compose(kid) {
   const d = dogs.find(x => x.id === kid);
   const prev = (msgs[kid] || []).filter(m => m.richtung === 'raus' && m.status === 'gesendet').pop();
@@ -684,9 +702,9 @@ async function compose(kid) {
     empfaenger: prev?.empfaenger || d.kontakt_info || null,
     betreff: prev?.betreff ? (prev.betreff.startsWith('Re:') ? prev.betreff : 'Re: ' + prev.betreff) : applyTemplate(settings.vorlage_betreff || 'Anfrage zu {Name}', d),
     text: prev ? `\n\nViele Grüße\n${settings.absender_name || ''}` : applyTemplate(settings.vorlage_text || '', d) };
-  const { data, error } = await db.from('hund_nachrichten').insert(row).select().single();
-  if (error) return toast('Fehler: ' + error.message, true);
-  (msgs[kid] ||= []).push(data); render();
+  const { data, error } = await withRetry(() => db.from('hund_nachrichten').insert(row).select().single());
+  if (error) return toast(errMsg(error), true);
+  (msgs[kid] ||= []).push(data); await refreshDog(kid); render();
   document.getElementById('mt' + data.id)?.focus();
 }
 
