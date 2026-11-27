@@ -50,6 +50,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 18px; }
   .kpi { background: white; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; border: 2px solid transparent; }
   .kpi.on { border-color: #1a1a2e; }
+  .kpi.stuck { background: #ffebee; border-color: #e53935; color: #b71c1c; }
+  .ob { border: 1px solid #e0e0e0; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .ob.st { border-color: #e53935; background: #ffebee; }
+  .ob .obh { font-size: 0.86rem; display: flex; gap: 6px; flex-wrap: wrap; justify-content: space-between; }
+  .ob.st .obh span { color: #c62828; font-weight: 700; }
+  .ob .obh span { color: #777; font-size: 0.8rem; }
+  .ob .obt { font-size: 0.8rem; color: #555; white-space: pre-wrap; margin: 6px 0; max-height: 80px; overflow: hidden; }
   .kpi .n { font-size: 1.5rem; font-weight: 700; }
   .kpi .l { font-size: 0.72rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
   .layout { display: grid; grid-template-columns: 250px 1fr; gap: 18px; align-items: start; }
@@ -309,6 +316,15 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   </div>
 </div>
 
+<div class="modal-bg" id="outbox" onclick="if (event.target === this) closeOutbox()">
+  <div class="modal">
+    <h3>📤 Outbox</h3>
+    <div class="sub" style="margin:0 0 12px">Freigegeben, aber noch nicht verschickt. Rot = hängt (Fehler oder länger als 15 Minuten).</div>
+    <div id="outboxList"></div>
+    <div class="foot"><button class="b sv" onclick="load().then(renderOutbox)">↻ Aktualisieren</button><button class="b go" onclick="closeOutbox()">Schließen</button></div>
+  </div>
+</div>
+
 <div class="info-bg" id="info" onclick="if (event.target === this) closeInfo()"><div class="info" id="infoBox"></div></div>
 
 <div class="lightbox" id="lightbox" onclick="this.classList.remove('open')"><img id="lightboxImg" alt=""></div>
@@ -350,6 +366,7 @@ db.auth.getSession().then(({ data }) => {
 
 async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
 
+setInterval(() => { if (!document.hidden && chatKid == null && infoKid == null) load(); }, 60000);
 async function load() {
   const { data, error } = await db.from('hund_kandidaten').select('*');
   if (error) { document.getElementById('list').innerHTML = `<div class="empty" style="color:#e65100">Fehler: ${esc(error.message)}</div>`; return; }
@@ -422,8 +439,43 @@ const KPI_FNS = KPIS.map(k => k[1]);
 const hasDraft = d => (msgs[d.id] || []).some(m => m.status === 'entwurf');
 function renderKpis() {
   const base = dogs.filter(d => passes(d, true));   // Zahlen folgen den gesetzten Filtern links
-  document.getElementById('kpis').innerHTML = KPIS.map(([l, f], i) =>
+  const ob = outbox(), stuck = ob.filter(isStuck).length;
+  document.getElementById('kpis').innerHTML =
+    `<div class="kpi ${stuck ? 'stuck' : ''}" onclick="openOutbox()" title="Freigegebene Nachrichten, die noch nicht gesendet sind">
+      <div class="n">${ob.length}</div><div class="l">📤 Outbox${stuck ? ` · ${stuck} hängt` : ''}</div></div>` +
+    KPIS.map(([l, f], i) =>
     `<div class="kpi ${kpiIdx === i ? 'on' : ''}" onclick="toggleKpi(${i})"><div class="n">${base.filter(f).length}</div><div class="l">${l}</div></div>`).join('');
+}
+// ---- Outbox: freigegeben (wartet auf Versand) oder fehler; „hängt“ = Fehler oder > 15 min freigegeben ----
+const STUCK_MIN = 15;
+function outbox() {
+  return Object.values(msgs).flat().filter(m => m.richtung === 'raus' && (m.status === 'freigegeben' || m.status === 'fehler'))
+    .sort((a, b) => String(a.freigegeben_am || a.created_at).localeCompare(String(b.freigegeben_am || b.created_at)));
+}
+function isStuck(m) { return m.status === 'fehler' || (Date.now() - new Date(m.freigegeben_am || m.created_at)) > STUCK_MIN * 60000; }
+function ago(t) {
+  const min = Math.round((Date.now() - new Date(t)) / 60000);
+  if (min < 1) return 'gerade eben'; if (min < 60) return `vor ${min} min`;
+  const h = Math.round(min / 60); return h < 24 ? `vor ${h} Std.` : `vor ${Math.round(h / 24)} Tagen`;
+}
+function openOutbox() { renderOutbox(); document.getElementById('outbox').classList.add('open'); }
+function closeOutbox() { document.getElementById('outbox').classList.remove('open'); }
+function renderOutbox() {
+  const ob = outbox();
+  const el = document.getElementById('outboxList');
+  if (!ob.length) { el.innerHTML = '<div class="empty" style="box-shadow:none">Outbox ist leer, alle freigegebenen Nachrichten sind verschickt. ✓</div>'; return; }
+  el.innerHTML = ob.map(m => {
+    const d = dogs.find(x => x.id === m.kandidat_id) || {};
+    const first = !(msgs[m.kandidat_id] || []).some(x => x.richtung === 'raus' && x.status === 'gesendet' && x.id !== m.id);
+    const st = isStuck(m);
+    return `<div class="ob ${st ? 'st' : ''}">
+      <div class="obh"><div><b>${esc(d.name || 'Hund')}</b> · ${esc(m.kanal)} · ${first ? 'Erstanfrage' : 'Folgenachricht'}</div>
+        <span>${m.status === 'fehler' ? '⚠ Fehler: ' + esc(m.fehler || 'unbekannt') : (st ? '⏰ hängt, ' : '⏳ ') + 'freigegeben ' + ago(m.freigegeben_am || m.created_at)}</span></div>
+      <div class="obt">${esc((m.text || '').slice(0, 220))}${(m.text || '').length > 220 ? '…' : ''}</div>
+      <div class="btns"><button class="b sv" onclick="closeOutbox(); openChat(${m.kandidat_id})">💬 Chat öffnen</button>
+        <button class="b x" onclick="unapprove(${m.id}).then(renderOutbox)">Zurück in Entwurf</button></div>
+    </div>`;
+  }).join('') + `<div class="hint" style="margin-top:8px">Nachrichten werden von Claude verschickt. Über Kleinanzeigen, WhatsApp oder Formulare geht das nur, solange dein Rechner an ist. Steht eine Nachricht länger als ${STUCK_MIN} Minuten hier, wird sie rot markiert.</div>`;
 }
 function toggleKpi(i) { kpiIdx = kpiIdx === i ? null : i; render(); }
 
@@ -659,7 +711,7 @@ function approve(id) {
   if (ph) return toast('Bitte erst den Platzhalter ausfüllen: ' + ph[0] + (/TELEFON|Telefon/.test(ph[0]) ? ' (Telefon unter ⚙️ hinterlegen)' : ''), true);
   updMsg(id, { ...p, status: 'freigegeben', freigegeben_am: new Date().toISOString(), fehler: null }, 'Freigegeben, wird gesendet');
 }
-function unapprove(id) { updMsg(id, { status: 'entwurf', freigegeben_am: null }, 'Zurück im Entwurf'); }
+function unapprove(id) { return updMsg(id, { status: 'entwurf', freigegeben_am: null }, 'Zurück im Entwurf'); }
 function discard(id) { if (confirm('Entwurf verwerfen?')) updMsg(id, { status: 'verworfen' }, 'Verworfen'); }
 // ---- Kontaktdaten & Vorlage ----
 function applyTemplate(t, d) {
@@ -698,7 +750,7 @@ function openSettings() {
   document.getElementById('settings').classList.add('open');
 }
 function zoom(u) { document.getElementById('lightboxImg').src = u; document.getElementById('lightbox').classList.add('open'); }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeInfo(); closeChat(); closeSettings(); document.getElementById('lightbox').classList.remove('open'); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeOutbox(); closeInfo(); closeChat(); closeSettings(); document.getElementById('lightbox').classList.remove('open'); } });
 function closeSettings() { document.getElementById('settings').classList.remove('open'); }
 let lastField = null;
 document.addEventListener('focusin', e => { if (e.target.id === 's_text' || e.target.id === 's_betreff') lastField = e.target; });
