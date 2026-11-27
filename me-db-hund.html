@@ -208,7 +208,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   <div class="layout">
     <aside class="filters" id="filters">
       <h3>Suche</h3>
-      <input type="search" id="fq" placeholder="Name, Rasse, Ort…">
+      <input type="search" id="fq" placeholder="Name, Rasse, Ort…" autocomplete="off" name="hund-suche">
       <h3>Kriterien</h3>
       <label class="chk"><input type="checkbox" id="f_stubenrein"> Stubenrein</label>
       <label class="chk"><input type="checkbox" id="f_gewicht"> max. 20 kg</label>
@@ -256,11 +256,11 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <h3>⚙️ Kontaktdaten &amp; Standard-Anschreiben</h3>
     <div class="sub" style="margin:0">Gilt für alle neuen Anfragen. Beim Speichern werden Platzhalter in offenen Entwürfen automatisch ausgefüllt.</div>
     <div class="grid3">
-      <div><label>Absender</label><input id="s_absender" placeholder="Stefan Schaab"></div>
-      <div><label>Telefon</label><input id="s_telefon" placeholder="0171 …"></div>
-      <div><label>E-Mail</label><input id="s_email" placeholder="…@gmail.com"></div>
+      <div><label>Absender</label><input id="s_absender" autocomplete="name" placeholder="Stefan Schaab"></div>
+      <div><label>Telefon</label><input id="s_telefon" autocomplete="tel" placeholder="0171 …"></div>
+      <div><label>E-Mail</label><input id="s_email" autocomplete="email" placeholder="…@gmail.com"></div>
     </div>
-    <label>Betreff</label><input id="s_betreff">
+    <label>Betreff</label><input id="s_betreff" autocomplete="off">
     <label>Anschreiben</label><textarea id="s_text"></textarea>
     <div class="ph-help">Platzhalter (anklicken zum Einfügen): <code>{Name}</code> Hundename · <code>{Rasse}</code> · <code>{ihn/sie}</code> · <code>{er/sie}</code> (nach Geschlecht) ·
       <code>{Anrede}</code> („Hallo &lt;Kontaktname&gt;,“ wenn bekannt, sonst „Guten Tag,“)lt;Kontaktname(„Guten Tag,“ bzw. „Liebe/r …,“ wenn der Kontaktname bekannt ist)gt;,“ wenn bekannt, sonst „Guten Tag,“) · <code>{Absender}</code> · <code>{Telefon}</code> · <code>{E-Mail}</code></div>
@@ -385,7 +385,7 @@ function render() {
   document.getElementById('count').textContent = `${list.length} von ${dogs.length} Hunden`;
   const el = document.getElementById('list');
   if (!dogs.length) { el.innerHTML = '<div class="empty">Noch keine Kandidaten. Die Suche trägt hier laufend neue Hunde ein.</div>'; return; }
-  if (!list.length) { el.innerHTML = '<div class="empty">Kein Hund passt zu den Filtern.</div>'; return; }
+  if (!list.length) { el.innerHTML = '<div class="empty">Kein Hund passt zu den Filtern.<br><br><button class="b go" onclick="resetFilters()">Filter zurücksetzen</button></div>'; return; }
   el.innerHTML = '<div class="cards">' + list.map(card).join('') + '</div>';
 }
 
@@ -675,7 +675,7 @@ async function saveNotes(id, notizen) {
   toast('Notiz gespeichert');
 }
 
-const FIDS = ['fq','f_stubenrein','f_gewicht','f_alter','f_hunde','f_fremde','f_bellt','f_kinder','f_unbekannt','f_km','f_quelle','f_status','sort'];
+const FIDS = ['f_stubenrein','f_gewicht','f_alter','f_hunde','f_fremde','f_bellt','f_kinder','f_unbekannt','f_km','f_quelle','f_status','sort'];
 function saveFilters() {
   try { localStorage.setItem(FKEY, JSON.stringify(Object.fromEntries(FIDS.map(id => [id, v(id)])))); } catch (e) {}
 }
@@ -686,6 +686,7 @@ function restoreFilters() {
 }
 function resetFilters() {
   try { localStorage.removeItem(FKEY); } catch (e) {}
+  document.getElementById('fq').value = '';
   for (const id of FIDS) { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = id === 'f_unbekannt'; else el.value = id === 'f_km' ? 80 : id === 'sort' ? 'score' : ''; }
   kpiIdx = null; render();
 }
