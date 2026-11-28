@@ -98,6 +98,15 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
   .link:hover { text-decoration: underline; }
   .next { font-size: 0.8rem; color: #555; background: #fff8e1; padding: 5px 8px; border-radius: 6px; }
   .contact { font-size: 0.76rem; color: #999; }
+  .contact.full { font-size: 0.82rem; color: #444; background: #f3f6fa; padding: 5px 8px; border-radius: 6px; }
+  .contact a, .aktion a { color: #1565c0; font-weight: 600; text-decoration: none; white-space: nowrap; }
+  .kpi.act { border: 2px solid #fb8c00; background: #fff3e0; }
+  .kpi.act.on { border-color: #1a1a2e; }
+  .aktion { background: #fff3e0; border: 2px solid #fb8c00; border-radius: 8px; padding: 7px 9px; font-size: 0.84rem; color: #4e342e; white-space: pre-wrap; }
+  .aktion .h { font-weight: 700; color: #e65100; display: flex; justify-content: space-between; align-items: center; gap: 8px; white-space: normal; }
+  .aktion .h label { font-weight: 600; font-size: 0.78rem; color: #555; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+  .aktion .wa { color: #2e7d32 !important; }
+  .dog.act { box-shadow: 0 0 0 2px #fb8c00; }
   details { font-size: 0.8rem; }
   details summary { cursor: pointer; color: #666; }
   .msg { border-left: 3px solid #ddd; padding: 4px 8px; margin: 6px 0; white-space: pre-wrap; }
@@ -434,6 +443,7 @@ const isOut = d => !!STATUS[d.status]?.done;   // vergeben, abgesagt, passt nich
 const isWritten = d => d.status === 'angeschrieben' || (d.status === 'neu' && contacted(d));
 const KPIS = [
   ['🆕 Neue Kandidaten', isNew],
+  ['⚡ Aktion für dich', d => hasAction(d)],
   ['Angeschrieben', isWritten],
   ['Antwort da', d => d.status === 'antwort'],
   ['Besuch geplant', d => d.status === 'besuch_geplant'],
@@ -450,7 +460,7 @@ function renderKpis() {
       <div class="n">${ob.length}</div><div class="l">📤 Outbox${stuck ? ` · ${stuck} hängt` : ''}</div></div>` +
     KPIS.map(([l, f], i) => { const n = base.filter(d => f(d) && (f === isOut || v('f_status') !== '' || !isOut(d))).length;
       // „Antwort da“ rot, sobald Antworten vorliegen
-      return `<div class="kpi ${kpiIdx === i ? 'on' : ''} ${l === 'Antwort da' && n ? 'stuck' : ''}" onclick="toggleKpi(${i})"><div class="n">${n}</div><div class="l">${l}</div></div>`; }).join('');
+      return `<div class="kpi ${kpiIdx === i ? 'on' : ''} ${l === 'Antwort da' && n ? 'stuck' : ''} ${l === '⚡ Aktion für dich' && n ? 'act' : ''}" onclick="toggleKpi(${i})"><div class="n">${n}</div><div class="l">${l}</div></div>`; }).join('');
 }
 // ---- Outbox: freigegeben (wartet auf Versand) oder fehler; „hängt“ = Fehler oder > 15 min freigegeben ----
 const STUCK_MIN = 15;
@@ -492,6 +502,20 @@ function age(m) {
   return r ? `${y} J. ${r} M.` : `${y} J.`;
 }
 
+// Telefonnummern (→ tel: + WhatsApp) und E-Mails in bereits escaptem Text verlinken
+function linkify(html) {
+  return html.replace(/(?:\+49 ?|0049 ?|0)[1-9][\d \/-]{5,}\d/g, m => {
+    const digits = m.replace(/[^\d+]/g, '');
+    const intl = digits.replace(/^\+49|^0049|^0/, '49');
+    const mobile = /^491[5-7]/.test(intl);
+    return `<a href="tel:+${intl}">📞 ${m}</a>${mobile ? ` <a class="wa" href="https://wa.me/${intl}" target="_blank" rel="noopener">WhatsApp</a>` : ''}`;
+  }).replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, m => `<a href="mailto:${m}">${m}</a>`);
+}
+const hasAction = d => d.aktion && !d.aktion_erledigt;
+function aktionBox(d) {
+  if (!hasAction(d)) return '';
+  return `<div class="aktion"><div class="h">⚡ Aktion für dich<label><input type="checkbox" onchange="aktionDone(${d.id})"> erledigt</label></div>${linkify(esc(d.aktion))}</div>`;
+}
 function card(d) {
   const s = STATUS[d.status] || { l: d.status, c: '#777' };
   const traits = TRAITS.map(([k, l]) => {
@@ -500,7 +524,7 @@ function card(d) {
   }).join('');
   const over = (d.gewicht_kg > 20 || d.alter_monate > 36);
   const opts = Object.entries(STATUS).map(([k, x]) => `<option value="${k}" ${k === d.status ? 'selected' : ''}>${x.l}</option>`).join('');
-  return `<div class="dog ${d.status === 'antwort' ? 'reply' : ''}" style="${STATUS[d.status]?.done ? 'opacity:0.6' : ''}">
+  return `<div class="dog ${d.status === 'antwort' ? 'reply' : ''} ${hasAction(d) ? 'act' : ''}" style="${STATUS[d.status]?.done ? 'opacity:0.6' : ''}">
     <div class="img" ${d.bild_url ? `onclick="zoom('${esc(d.bild_url)}')"` : ''}>${d.bild_url ? `<img src="${esc(d.bild_url)}" alt="${esc(d.name || '')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith('🐕')">` : '🐕'}
       ${d.quelle ? `<span class="src">${esc(d.quelle)}</span>` : ''}
       ${d.score != null ? `<span class="score" title="Passung zu euren Kriterien">${d.score}%</span>` : ''}
@@ -512,13 +536,15 @@ function card(d) {
       <div class="meta">${esc(d.rasse || 'Rasse ?')} · ${age(d.alter_monate)} · ${d.gewicht_kg != null ? d.gewicht_kg + ' kg' : '? kg'}${over ? ' <b style="color:#c62828">⚠</b>' : ''}</div>
       <div class="meta">📍 ${esc([d.plz, d.ort].filter(Boolean).join(' ') || '?')}${d.entfernung_km != null ? ` · ${Math.round(d.entfernung_km)} km` : ''}${d.anzeige_datum ? ` · inseriert ${fmtDate(d.anzeige_datum)}` : ''}</div>
       <div class="traits">${traits}</div>
+      ${aktionBox(d)}
       ${d.naechster_schritt ? `<div class="next">➡ ${esc(d.naechster_schritt)}</div>` : ''}
+      ${d.kontakt_name || d.kontakt_info ? `<div class="contact full">👤 ${esc(d.kontakt_name || 'Halter')}${d.kontakt_info ? ' · ' + linkify(esc(d.kontakt_info)) : ''}</div>` : ''}
       <div class="row">
         <select class="st" autocomplete="off" style="color:${s.c}" onchange="setStatus(${d.id}, this.value)">${opts}</select>
         ${d.anzeige_url ? `<a class="link" href="${esc(d.anzeige_url)}" target="_blank" rel="noopener">Zur Anzeige ↗</a>` : ''}
       </div>
       ${chatButton(d)}
-      ${d.kontakt_name || d.letzter_kontakt ? `<div class="contact">${esc(d.kontakt_name || '')}${d.letzter_kontakt ? ` · letzter Kontakt ${fmtDate(d.letzter_kontakt)}` : ''}</div>` : ''}
+      ${d.letzter_kontakt ? `<div class="contact">letzter Kontakt ${fmtDate(d.letzter_kontakt)}</div>` : ''}
       <button class="compose" style="font-size:0.82rem" onclick="openInfo(${d.id})">📄 Beschreibung, Notizen &amp; Kontakt</button>
     </div>
   </div>`;
@@ -545,9 +571,10 @@ function openInfo(kid) {
         ${f('Rasse', esc(d.rasse))}${f('Alter', age(d.alter_monate))}${f('Gewicht', d.gewicht_kg != null ? d.gewicht_kg + ' kg' : '')}
         ${f('Ort', esc([d.plz, d.ort].filter(Boolean).join(' ')) + (d.entfernung_km != null ? ` · ${Math.round(d.entfernung_km)} km` : ''))}
         ${f('Quelle', esc(d.quelle) + (d.anzeige_datum ? ` · ${fmtDate(d.anzeige_datum)}` : ''))}${f('Passung', d.score != null ? d.score + ' %' : '')}
-        ${f('Status', esc(STATUS[d.status]?.l || d.status))}${f('Kontakt', esc([d.kontakt_name, d.kontakt_info].filter(Boolean).join(' · ')))}
+        ${f('Status', esc(STATUS[d.status]?.l || d.status))}${f('Kontakt', linkify(esc([d.kontakt_name, d.kontakt_info].filter(Boolean).join(' · '))))}
       </div>
       <div class="traits">${traits}</div>
+      ${aktionBox(d)}
       ${d.naechster_schritt ? `<div class="next">➡ ${esc(d.naechster_schritt)}</div>` : ''}
       <div class="row">
         ${d.anzeige_url ? `<a class="link" style="font-size:0.9rem" href="${esc(d.anzeige_url)}" target="_blank" rel="noopener">Originalanzeige öffnen ↗</a>` : ''}
@@ -791,6 +818,12 @@ async function fromTemplate(id) {
   updMsg(id, patch, 'Aus Vorlage neu erzeugt');
 }
 
+async function aktionDone(id) {
+  const d = dogs.find(x => x.id === id);
+  const { error } = await withRetry(() => db.from('hund_kandidaten').update({ aktion_erledigt: true }).eq('id', id));
+  if (error) { toast(errMsg(error), true); return render(); }
+  d.aktion_erledigt = true; toast('✓ Aktion erledigt'); render(); if (infoKid === id) openInfo(id);
+}
 async function toggleFav(id) {
   const d = dogs.find(x => x.id === id); const favorit = !d.favorit;
   const { error } = await withRetry(() => db.from('hund_kandidaten').update({ favorit }).eq('id', id));
