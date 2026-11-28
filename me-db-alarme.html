@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeDB &middot; Alarme</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  nav a { color: #7ec8e3; font-size: 0.85rem; text-decoration: none; margin-left: 20px; }
+  nav a:hover { text-decoration: underline; }
+  .logout-btn { color: #7ec8e3; font-size: 0.85rem; background: none; border: none; cursor: pointer; margin-left: 20px; padding: 0; }
+  .container { max-width: 820px; margin: 28px auto; padding: 0 24px 60px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .kpi { background: white; border-radius: 10px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); cursor: pointer; border: 2px solid transparent; text-align: center; }
+  .kpi.active { border-color: #1a1a2e; }
+  .kpi .n { font-size: 1.6rem; font-weight: 700; }
+  .kpi .l { font-size: 0.75rem; color: #777; margin-top: 2px; }
+  .kpi.crit .n { color: #c62828; } .kpi.warn .n { color: #e65100; } .kpi.info .n { color: #1565c0; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .toolbar select, .toolbar button { border: 1px solid #ddd; border-radius: 7px; padding: 7px 10px; font-size: 0.82rem; background: white; cursor: pointer; }
+  .toolbar .info { margin-left: auto; font-size: 0.75rem; color: #999; }
+  .alarm { background: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 8px; border-left: 5px solid #90caf9; display: flex; gap: 12px; align-items: flex-start; }
+  .alarm.crit { border-left-color: #c62828; background: #fff5f5; }
+  .alarm.warn { border-left-color: #fb8c00; }
+  .alarm.done { opacity: 0.55; }
+  .alarm .ic { font-size: 1.3rem; line-height: 1; }
+  .alarm .main { flex: 1; min-width: 0; }
+  .alarm .t { font-weight: 600; font-size: 0.95rem; word-break: break-word; }
+  .alarm .d { font-size: 0.84rem; color: #555; margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+  .alarm .m { font-size: 0.72rem; color: #999; margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .src { background: #eef; color: #335; border-radius: 10px; padding: 1px 8px; font-weight: 600; }
+  .alarm .acts { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+  .alarm .acts a, .alarm .acts button { font-size: 0.78rem; border: 1px solid #ddd; background: white; border-radius: 7px; padding: 5px 10px; cursor: pointer; text-decoration: none; color: #1565c0; text-align: center; white-space: nowrap; }
+  .empty { text-align: center; padding: 50px; color: #888; background: white; border-radius: 10px; }
+  .help { margin-top: 24px; font-size: 0.8rem; color: #777; background: white; border-radius: 10px; padding: 14px 16px; }
+  .help code { background: #f2f2f2; padding: 1px 5px; border-radius: 4px; font-size: 0.78rem; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; padding: 11px 20px; border-radius: 8px; font-size: 0.88rem; opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+/* navdrop */
+nav { display: flex; align-items: center; flex-wrap: wrap; }
+.navdrop { position: relative; margin-left: 16px; }
+.navdrop-label { color: #7ec8e3; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.navdrop-label:hover { text-decoration: underline; }
+.navdrop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1a1a2e; border: 1px solid #2d2d4e; border-radius: 8px; padding: 6px 0; min-width: 150px; z-index: 300; box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.navdrop:hover .navdrop-menu { display: block; }
+.navdrop-menu a { display: block; margin: 0 !important; padding: 8px 16px; white-space: nowrap; }
+.navdrop-menu a:hover { background: #2d2d4e; text-decoration: none; }
+/* === Hamburger-Navigation (immer aktiv) === */
+.hamburger { display: block; background: none; border: none; color: white; font-size: 1.7rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
+header { flex-wrap: wrap; }
+nav { display: none; width: 100%; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 0; }
+nav.open { display: flex; }
+nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; padding: 13px 10px !important; font-size: 1rem !important; box-sizing: border-box; border-bottom: 1px solid #2d2d4e; text-align: left; }
+.navdrop { width: 100%; margin-left: 0 !important; }
+.navdrop-menu { display: block !important; position: static !important; box-shadow: none; background: #15152a; border: none; border-radius: 0; padding: 0; min-width: 0; }
+.navdrop-menu a { padding: 12px 10px 12px 24px !important; }
+@media (max-width: 768px) {
+  header { padding: 14px 16px; }
+  header h1 { font-size: 0.95rem; flex-wrap: wrap; }
+  .container { padding: 0 14px 60px; margin: 18px auto; }
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .alarm { flex-wrap: wrap; }
+  .alarm .acts { flex-direction: row; width: 100%; padding-left: 32px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 style="display:flex;align-items:center;gap:0"><a href="me-db-dashboard.html" style="color:#fff;text-decoration:none">MeDB</a><span style="color:#5c5c78;margin:0 4px">&rsaquo;</span><span style="color:#fff">🚨 Alarme</span></h1>
+  <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+  <nav>
+    <a href="me-db-dashboard.html">Dashboard</a>
+    <a href="me-db-lab-dashboard.html">Lab</a>
+    <div class="navdrop"><span class="navdrop-label">Data &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-measurements.html">Measurements</a>
+      <a href="me-db-trend.html">Trend</a>
+      <a href="me-db-parameters.html">Parameters</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Sports &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-sports.html">Sports Dashboard</a>
+      <a href="me-db-strava.html">Strava</a>
+      <a href="me-db-activities.html">Activities</a>
+    </div></div>
+    <div class="navdrop"><span class="navdrop-label">Import &#9662;</span><div class="navdrop-menu">
+      <a href="me-db-import.html">Reports</a>
+      <a href="me-db-bucket.html">Bucket</a>
+      <a href="me-db-werte-review.html">Values</a>
+    </div></div>
+    <a href="me-db-chat.html">AI Chat</a>
+    <a href="me-db-tasks.html">Tasks</a>
+    <a href="me-db-einkaufsliste.html">Shopping</a>
+    <a href="me-db-hrv.html">HRV</a>
+    <a href="me-db-abos.html">Subscriptions</a>
+    <a href="me-db-hund.html">🐕 Neuer Hund</a>
+    <a href="me-db-alarme.html">🚨 Alarme</a>
+    <a href="me-db-supplements.html">Supplements</a>
+    <a href="me-db-ag-me.html">AG-Me Mix</a>
+    <a href="me-db-tagebuch.html">Tagebuch</a>
+    <a href="me-db-vorsorge.html">Emergency Folder</a>
+    <a href="me-db-voice.html">🎤 Voice</a>
+    <a href="me-db-architecture.html">Architecture</a>
+    <a href="me-db-users.html">Users</a>
+    <a href="next2you/index.html" style="border-top: 1px solid #3d3d5e; margin-top: 4px; padding-top: 16px !important; color: #00b4d8;">📍 Next2You</a>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </nav>
+</header>
+
+<div class="container">
+  <div class="kpis" id="kpis"></div>
+  <div class="toolbar">
+    <select id="fSource" onchange="render()"><option value="">Alle Apps</option></select>
+    <select id="fView" onchange="load()">
+      <option value="open">Offen</option>
+      <option value="acked">Quittiert</option>
+      <option value="history">Verlauf (30 Tage)</option>
+    </select>
+    <button onclick="check()">↻ Jetzt prüfen</button>
+    <span class="info" id="info"></span>
+  </div>
+  <div id="list"><div class="empty">Laden…</div></div>
+
+  <div class="help">
+    <b>Woher kommen die Alarme?</b> Eingebaute Prüfregeln (<code>alarm_check()</code>, alle 15 min per pg_cron und beim Öffnen dieser Seite):
+    Computer Vision liefert keine automatischen Ablesungen mehr, unplausible Ablesungen, Sprinkler-Fehler, veraltete DWD-/PV-/Strava-Daten,
+    Neuer Hund (neue Kandidaten, Antworten, Aktionen, hängende Outbox, Entwürfe), überfällige Tasks.
+    Auto-Alarme verschwinden von selbst, sobald die Ursache behoben ist.<br><br>
+    Eigene Alarme aus jeder App/jedem Worker: <code>db.rpc('raise_alarm', { p_key, p_source, p_severity: 'info'|'warn'|'crit', p_title, p_detail, p_link })</code>,
+    aufheben mit <code>db.rpc('resolve_alarm', { p_key })</code>.
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://thgawuqcogugzurrijkp.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoZ2F3dXFjb2d1Z3p1cnJpamtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MTI1MTIsImV4cCI6MjA5NjM4ODUxMn0.IK7vJwPdmZ7OFCMq1QfI5wTM4B6IBw-04AJoJun-s8w';
+const db = supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+const SEV = { crit: { ic: '🔴', l: 'Kritisch', o: 0 }, warn: { ic: '🟠', l: 'Warnung', o: 1 }, info: { ic: '🔵', l: 'Info', o: 2 } };
+const SRC = { 'computer-vision': '👁️ Computer Vision', hund: '🐕 Neuer Hund', sprinkler: '💧 Sprinkler', pv: '☀️ PV', strava: '🏃 Strava', tasks: '✅ Tasks' };
+let alarms = [], sevFilter = '';
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const srcName = s => SRC[s] || s;
+function ago(t) {
+  const m = Math.round((Date.now() - new Date(t)) / 60000);
+  if (m < 1) return 'gerade eben'; if (m < 60) return 'vor ' + m + ' min';
+  if (m < 1440) return 'vor ' + Math.round(m / 60) + ' h'; return 'vor ' + Math.round(m / 1440) + ' d';
+}
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
+
+db.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = 'me-db-login.html'; return; }
+  check();
+  setInterval(load, 60000);
+});
+
+async function check() {
+  document.getElementById('info').textContent = 'prüfe…';
+  const { error } = await db.rpc('alarm_check');
+  if (error) toast('Prüfung fehlgeschlagen: ' + error.message);
+  await load();
+}
+
+async function load() {
+  const view = document.getElementById('fView').value;
+  let q = db.from('alarms').select('*');
+  if (view === 'open') q = q.is('resolved_at', null).is('acked_at', null);
+  else if (view === 'acked') q = q.is('resolved_at', null).not('acked_at', 'is', null);
+  else q = q.gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString()).order('created_at', { ascending: false }).limit(300);
+  const { data, error } = await q;
+  if (error) { document.getElementById('list').innerHTML = '<div class="empty">Fehler: ' + esc(error.message) + '</div>'; return; }
+  alarms = data || [];
+  if (view !== 'history') alarms.sort((a, b) => SEV[a.severity].o - SEV[b.severity].o || new Date(b.created_at) - new Date(a.created_at));
+  const sel = document.getElementById('fSource'), cur = sel.value;
+  const srcs = [...new Set(alarms.map(a => a.source))].sort();
+  sel.innerHTML = '<option value="">Alle Apps</option>' + srcs.map(s => `<option value="${esc(s)}">${esc(srcName(s))}</option>`).join('');
+  sel.value = srcs.includes(cur) ? cur : '';
+  document.getElementById('info').textContent = 'aktualisiert ' + new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  render();
+}
+
+function setSev(s) { sevFilter = sevFilter === s ? '' : s; render(); }
+
+function render() {
+  const src = document.getElementById('fSource').value;
+  const bySrc = alarms.filter(a => !src || a.source === src);
+  const cnt = s => bySrc.filter(a => a.severity === s).length;
+  document.getElementById('kpis').innerHTML =
+    `<div class="kpi ${sevFilter === '' ? 'active' : ''}" onclick="setSev('')"><div class="n">${bySrc.length}</div><div class="l">Alle</div></div>` +
+    ['crit', 'warn', 'info'].map(s => `<div class="kpi ${s} ${sevFilter === s ? 'active' : ''}" onclick="setSev('${s}')"><div class="n">${cnt(s)}</div><div class="l">${SEV[s].ic} ${SEV[s].l}</div></div>`).join('');
+  const list = bySrc.filter(a => !sevFilter || a.severity === sevFilter);
+  const view = document.getElementById('fView').value;
+  if (!list.length) {
+    document.getElementById('list').innerHTML = `<div class="empty">${view === 'open' ? '✅ Keine offenen Alarme – alles läuft.' : 'Keine Einträge.'}</div>`;
+    return;
+  }
+  document.getElementById('list').innerHTML = list.map(a => {
+    const done = !!a.resolved_at;
+    const acts = [
+      a.link ? `<a href="${esc(a.link)}">Öffnen →</a>` : '',
+      !done && !a.acked_at ? `<button onclick="ack(${a.id}, true)">✓ Quittieren</button>` : '',
+      !done && a.acked_at ? `<button onclick="ack(${a.id}, false)">↩ Wieder offen</button>` : '',
+      !done && !a.auto ? `<button onclick="resolve(${a.id})">Erledigt</button>` : ''
+    ].join('');
+    return `<div class="alarm ${a.severity} ${done ? 'done' : ''}">
+      <div class="ic">${SEV[a.severity]?.ic || '⚪'}</div>
+      <div class="main">
+        <div class="t">${esc(a.title)}</div>
+        ${a.detail ? `<div class="d">${esc(a.detail)}</div>` : ''}
+        <div class="m"><span class="src">${esc(srcName(a.source))}</span>
+          <span title="${new Date(a.created_at).toLocaleString('de-DE')}">seit ${ago(a.created_at)}</span>
+          ${done ? `<span>· erledigt ${ago(a.resolved_at)}</span>` : ''}
+          ${a.acked_at && !done ? `<span>· quittiert ${ago(a.acked_at)}</span>` : ''}</div>
+      </div>
+      <div class="acts">${acts}</div>
+    </div>`;
+  }).join('');
+}
+
+async function ack(id, on) {
+  const { error } = await db.from('alarms').update({ acked_at: on ? new Date().toISOString() : null }).eq('id', id);
+  if (error) { toast('Fehler: ' + error.message); return; }
+  toast(on ? 'Quittiert' : 'Wieder offen'); load();
+}
+async function resolve(id) {
+  const { error } = await db.from('alarms').update({ resolved_at: new Date().toISOString() }).eq('id', id);
+  if (error) { toast('Fehler: ' + error.message); return; }
+  toast('Erledigt'); load();
+}
+async function logout() { await db.auth.signOut(); window.location.href = 'me-db-login.html'; }
+</script>
+</body>
+</html>
