@@ -401,7 +401,8 @@ function passes(d, ignoreKpi) {
   if (d.entfernung_km != null && d.entfernung_km > +v('f_km')) return false;
   if (v('f_quelle') && d.quelle !== v('f_quelle')) return false;
   const st = v('f_status');
-  if (st === '' && STATUS[d.status]?.done) return false;
+  // Erledigte (vergeben/abgesagt/passt nicht) nur in „Aussortiert“; ignoreKpi: renderKpis filtert selbst
+  if (st === '' && isOut(d) && !ignoreKpi && KPI_FNS[kpiIdx] !== isOut) return false;
   if (st && st !== '*' && d.status !== st) return false;
   const q = v('fq').trim().toLowerCase();
   if (q && ![d.name, d.rasse, d.ort, d.notizen, d.beschreibung, d.kontakt_name].join(' ').toLowerCase().includes(q)) return false;
@@ -429,6 +430,7 @@ function render() {
 // Angeschrieben = Status „angeschrieben“ oder eine Nachricht ist freigegeben/gesendet; neu = noch nicht angeschrieben
 const contacted = d => (msgs[d.id] || []).some(m => m.richtung === 'raus' && ['freigegeben', 'gesendet', 'fehler'].includes(m.status));
 const isNew = d => d.status === 'neu' && !contacted(d);
+const isOut = d => !!STATUS[d.status]?.done;   // vergeben, abgesagt, passt nicht
 const isWritten = d => d.status === 'angeschrieben' || (d.status === 'neu' && contacted(d));
 const KPIS = [
   ['🆕 Neue Kandidaten', isNew],
@@ -436,6 +438,7 @@ const KPIS = [
   ['Antwort da', d => d.status === 'antwort'],
   ['Besuch geplant', d => d.status === 'besuch_geplant'],
   ['⭐ Favoriten', d => d.favorit],
+  ['🗂️ Aussortiert', isOut],
 ];
 const KPI_FNS = KPIS.map(k => k[1]);
 const hasDraft = d => (msgs[d.id] || []).some(m => m.status === 'entwurf');
@@ -445,7 +448,7 @@ function renderKpis() {
   document.getElementById('kpis').innerHTML =
     `<div class="kpi ${stuck ? 'stuck' : ''}" onclick="openOutbox()" title="Freigegebene Nachrichten, die noch nicht gesendet sind">
       <div class="n">${ob.length}</div><div class="l">📤 Outbox${stuck ? ` · ${stuck} hängt` : ''}</div></div>` +
-    KPIS.map(([l, f], i) => { const n = base.filter(f).length;
+    KPIS.map(([l, f], i) => { const n = base.filter(d => f(d) && (f === isOut || v('f_status') !== '' || !isOut(d))).length;
       // „Antwort da“ rot, sobald Antworten vorliegen
       return `<div class="kpi ${kpiIdx === i ? 'on' : ''} ${l === 'Antwort da' && n ? 'stuck' : ''}" onclick="toggleKpi(${i})"><div class="n">${n}</div><div class="l">${l}</div></div>`; }).join('');
 }
