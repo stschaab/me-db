@@ -135,6 +135,7 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
     <a href="me-db-outfit.html">Modeberater</a>
     <a href="me-db-abos.html">Subscriptions</a>
     <a href="me-db-hund.html">🐕 Neuer Hund</a>
+    <a href="me-db-alarme.html">🚨 Alarme</a>
     <a href="me-db-supplements.html">Supplements</a>
     <a href="me-db-nutrient-vergleich.html">Nährstoff-Vergleich</a>
 
@@ -158,6 +159,13 @@ nav a, .logout-btn, .navdrop-label { margin-left: 0 !important; width: 100%; pad
 
 <div class="container">
   <div class="tiles">
+
+    <a class="tile" href="me-db-alarme.html" id="alarmTile">
+      <div class="icon">🚨</div>
+      <div class="title">Alarme</div>
+      <div class="desc">AlarmBoard: Störungen &amp; Hinweise aus allen Apps</div>
+      <div id="alarmStat">…</div>
+    </a>
 
     <a class="tile" href="me-db-lab-dashboard.html">
       <div class="icon">🧪</div>
@@ -346,7 +354,7 @@ let sessionToken = ANON_KEY;
 db.auth.getSession().then(({ data }) => {
   if (!data.session) { window.location.href = 'me-db-login.html'; return; }
   sessionToken = data.session.access_token;
-  loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); loadBodyscanStat(); loadOutfitStat(); loadTagebuchStat(); loadEisStat(); loadHangmanStat(); loadHundStat();
+  loadSportStat(); loadLabStat(); loadTaskStat(); loadShopStat(); loadHrvStat(); loadAbosStat(); loadSuppStat(); loadVorsorgeStat(); loadPvStat(); loadSprinklerStat(); loadBodyscanStat(); loadOutfitStat(); loadTagebuchStat(); loadEisStat(); loadHangmanStat(); loadHundStat(); loadAlarmStat();
 });
 
 async function logout() {
@@ -557,6 +565,23 @@ async function loadAbosStat() {
       <div class="abos-sub">${active.length} active${checkCount ? ' · ' + checkCount + ' to review' : ''}</div>`;
   } catch (e) {
     document.getElementById('abosStat').innerHTML = '';
+  }
+}
+
+async function loadAlarmStat() {
+  try {
+    await db.rpc('alarm_check');
+    const { data, error } = await db.from('alarms').select('severity').is('resolved_at', null).is('acked_at', null);
+    if (error) throw error;
+    const c = s => (data || []).filter(a => a.severity === s).length;
+    const crit = c('crit'), warn = c('warn'), info = c('info');
+    if (crit) document.getElementById('alarmTile').style.boxShadow = '0 0 0 2px #c62828';
+    document.getElementById('alarmStat').innerHTML = (data || []).length
+      ? `<div class="stat"><span class="n" style="color:${crit ? '#c62828' : warn ? '#e65100' : '#1565c0'}">${data.length}</span><span class="u">offene Alarme</span></div>
+         <div class="trend-label">${[crit ? '🔴 ' + crit + ' kritisch' : '', warn ? '🟠 ' + warn : '', info ? '🔵 ' + info : ''].filter(Boolean).join(' · ')}</div>`
+      : '<div class="stat"><span class="n" style="color:#2e7d32">✓</span><span class="u">alles ok</span></div>';
+  } catch (e) {
+    document.getElementById('alarmStat').innerHTML = '';
   }
 }
 

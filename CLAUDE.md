@@ -9,6 +9,9 @@
 ## Projekt
 - Statische HTML-Seiten (`me-db-*.html`) auf GitHub Pages, Supabase-Projekt `thgawuqcogugzurrijkp`.
 - Neue Seiten: Menüeintrag im Hamburger-Menü aller `me-db-*.html` ergänzen.
+- AlarmBoard (`me-db-alarme.html`, Tabelle `alarms`, Quelle `supabase/alarms.sql`): eingebaute Regeln in `alarm_check()`
+  (pg_cron `alarm-check` alle 15 min). Neue Apps/Worker melden Störungen per RPC `raise_alarm(p_key, p_source, p_severity,
+  p_title, p_detail, p_link)` / `resolve_alarm(p_key)`; bei neuen Apps passende Regel in `alarm_check()` ergänzen.
 
 ## Next2You (`next2you/`)
 - Pseudonyme Konten über Edge Function `n2y-signup` (`app_metadata.n2y = true`), Tabellen mit Präfix `n2y_`.
